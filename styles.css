@@ -3078,6 +3078,8 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   flex-shrink: 0;
 }
 
+.checkbox-label.hidden { display: none !important; }
+
 .tag-count-badge {
   font-size: 11px;
   color: var(--muted);

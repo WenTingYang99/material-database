@@ -895,7 +895,7 @@ function renderTagTableBody(tags, type) {
 
   // --- AI: tree table with indent ---
   thead.innerHTML = `<tr>
-    <th>#</th><th>标签名称</th><th>标签编码</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>操作</th>
+    <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th><th>操作</th>
   </tr>`;
 
   const aiSourceLabel = { 1: "AI 自动识别", 2: "业务预定义" };
@@ -904,11 +904,13 @@ function renderTagTableBody(tags, type) {
   const rows = tags.map((tag, idx) => {
     const name   = tag.tagName || tag.name || "-";
     const code   = tag.tagCode || "-";
+    const desc   = tag.description || "-";
     const parent = tag.parentName || "-";
     const src    = aiSourceLabel[tag.aiSource] || "—";
     const srcCls = aiSourceClass[tag.aiSource] || "";
     const recog  = tag.aiRecognitionEnabled ? `<span class="badge-on">启用</span>` : `<span class="badge-off">未启用</span>`;
     const ctime  = tag.createdAt ? tag.createdAt.split(" ")[0] : "-";
+    const cby    = tag.createdBy || "-";
     const depth  = tag._depth || 0;
     const indent = depth > 0 ? `<span class="tree-indent">${"├ ".repeat(depth)}</span>` : "";
 
@@ -922,10 +924,12 @@ function renderTagTableBody(tags, type) {
         </div>
       </td>
       <td class="cell-mono">${escapeHtml(code)}</td>
+      <td class="cell-ellipsis">${escapeHtml(desc)}</td>
       <td>${escapeHtml(parent)}</td>
       <td><span class="ai-source-tag ${srcCls}">${escapeHtml(src)}</span></td>
       <td>${recog}</td>
       <td>${escapeHtml(ctime)}</td>
+      <td>${escapeHtml(cby)}</td>
       <td>
         <div class="tag-table-actions">
           <button class="op-button" data-edit-tag="${escapeAttr(name)}" type="button" title="编辑"><span data-icon="edit"></span></button>
@@ -936,7 +940,7 @@ function renderTagTableBody(tags, type) {
 
   tbody.innerHTML = rows.length
     ? rows.join("")
-    : `<tr><td colspan="8" class="empty-cell">暂无AI标签</td></tr>`;
+    : `<tr><td colspan="10" class="empty-cell">暂无AI标签</td></tr>`;
 
   tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
     btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));
@@ -1116,8 +1120,10 @@ function toggleAddAiFields() {
   const type = document.querySelector("#addTagType")?.value;
   const aiRow = document.querySelector("#addTagAiRow");
   const parentRow = document.querySelector("#addTagParentRow");
+  const aiRecogRow = document.querySelector("#addTagAiRecognitionRow");
   if (aiRow) aiRow.style.display = type === "2" ? "" : "none";
   if (parentRow) parentRow.style.display = type === "2" ? "" : "none";
+  if (aiRecogRow) aiRecogRow.classList.toggle("hidden", type !== "2");
 }
 
 function handleAddTagSubmit(event) {
@@ -1144,7 +1150,7 @@ function handleAddTagSubmit(event) {
     parentId: parentId,
     level: parentId ? 1 : 0,
     aiSource: tagType === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
-    aiRecognitionEnabled: tagType === 2 ? !!data.aiRecognition : true,
+    aiRecognitionEnabled: tagType === 2 ? !!data.aiRecognition : false,
     isVisible: 1,
     status: 1,
     sortOrder: 0,
@@ -1199,8 +1205,10 @@ function toggleEditAiFields() {
   const type = document.querySelector("#editTagType")?.value;
   const aiRow = document.querySelector("#editTagAiRow");
   const parentRow = document.querySelector("#editTagParentRow");
+  const aiRecogRow = document.querySelector("#editTagAiRecognitionRow");
   if (aiRow) aiRow.style.display = type === "2" ? "" : "none";
   if (parentRow) parentRow.style.display = type === "2" ? "" : "none";
+  if (aiRecogRow) aiRecogRow.classList.toggle("hidden", type !== "2");
 }
 
 function handleEditTagSubmit(event) {
@@ -1223,7 +1231,7 @@ function handleEditTagSubmit(event) {
     parentId: parseInt(data.tagType || "1", 10) === 2 ? (data.parentId || 0) : 0,
     level: (parseInt(data.tagType || "1", 10) === 2 && data.parentId) ? 1 : 0,
     aiSource: parseInt(data.tagType || "1", 10) === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
-    aiRecognitionEnabled: parseInt(data.tagType || "1", 10) === 2 ? !!data.aiRecognition : true,
+    aiRecognitionEnabled: parseInt(data.tagType || "1", 10) === 2 ? !!data.aiRecognition : false,
     description: (data.tagDesc || "").trim(),
     updatedAt: nowText(),
   };

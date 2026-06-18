@@ -96,8 +96,21 @@
 - 日期时间组合：`app-utils.js:244` `joinDateTime()`，`app-utils.js:249` `formDateTimeValue()`。
 - 时间戳比较：`app-utils.js:259` `dateTimeTextToTimestamp()`。
 - 分享过期时间更新：`app-workflows.js:68` `openUpdateShareExpireModal()`，`app-workflows.js:104` `handleUpdateShareExpireSubmit()`。
-- 素材有效期弹窗：`app-workflows.js:276` `openValidityModal()`。
-- 素材篮有效期：`app-workflows.js:37` `openBasketValidityModal()`。
+- 素材有效期弹窗：`app-workflows.js:284` `openValidityModal()`（已改为日期时间选择器，移除相对时间选项）。
+- 素材篮有效期：`app-workflows.js:37` `openBasketValidityModal()`（日期为空时自动设为100年后）。
+
+## 素材有效期
+
+- 核心原则：所有日期字段（上传日期、生效日期、失效日期）使用精确日期时间格式（`YYYY-MM-DD HH:mm`），状态由精确日期对比当前时间动态计算。
+- 精确日期生成：`app-core.js:45` `getExpireDate()`（生成未来指定天数的日期），`app-core.js:218` `calculateExpireTime()`（相对时间转精确日期，"永久有效"转100年后日期）。
+- 种子数据：`app-core.js:54` `seedAssets`（已使用精确日期，移除"永久有效"等相对时间）。
+- 数据迁移：`app-core.js:325` `migrateAssetMetadata()`（自动将相对时间转换为精确日期，确保 `validUntil` 和 `validUntilDate` 同步）。
+- 状态计算：`app-render.js:383` `getValidityStatus()`（根据精确日期计算：已过期/即将过期/生效中），`app-render.js:393` `getValidityStatusClass()`（返回状态样式类）。
+- 列表视图：`app-render.js:327` `renderMetadataList()`（新增"状态"列，失效日期改为可编辑的日期时间选择器）。
+- 编辑素材信息：`app-actions.js:1113` `openEditAssetModal()`（失效日期改为可编辑），`app-actions.js:1136` `handleEditAssetSubmit()`（保存失效日期）。
+- 有效期管理页面：`app-render.js:499` `renderManagePageV2()` 内 validity 分支（筛选改为基于精确日期的动态计算）。
+- 上传设置：`app-actions.js:19` `openUploadSettingsModal()`（失效日期为空时自动设为100年后）。
+- 创建素材：`app-actions.js:289` `createAssetFromFile()`（默认失效日期为100年后）。
 
 ## 上传与导入
 
@@ -141,8 +154,9 @@
 - AI 标签卡片：`app-render.js:1007` `renderAITagList()`。
 - 系统标签卡片：`app-render.js:1035` `renderSystemTagList()`。
 - 标签事件：`app-render.js:1054` `bindTagEvents()`，`app-render.js:1059` `handleTagClick()`。
-- 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1114` `openAddTagModal()`。
-- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1191` `openEditTagModal()`。
+- 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1097` `openAddTagModal()`；AI 字段显隐在 `app-render.js:1119` `toggleAddAiFields()`；提交在 `app-render.js:1127` `handleAddTagSubmit()`。
+- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
+- AI 识别字段（aiRecognitionRow）：新增/编辑弹窗中共两处 checkbox，`index.html:379` 和 `index.html:408`；业务标签（tagType=1）不显示该字段，AI 标签（tagType=2）才显示，由各自的 `toggleXxxAiFields()` 控制。注意：`.checkbox-label` CSS（`styles.css:3067`）有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`，否则会被 CSS 覆盖。补充覆盖规则见 `styles.css:3081` `.checkbox-label.hidden`。
 - 合并标签：`index.html:416-431`，逻辑在 `app-render.js:1298` `openMergeTagModal()`。
 
 ## 分享与收集

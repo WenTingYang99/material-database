@@ -67,7 +67,7 @@ const seedAssets = seedNames.map((name, index) => {
     desc: index === 0 ? "活动素材" : "",
     brand: index % 3 === 0 ? "东风标致" : "东风雪铁龙",
     model: VEHICLE_MODELS[index % VEHICLE_MODELS.length],
-    customTags: [["品牌活动","试驾活动"], ["车展物料","618促销"], ["产品宣传","自媒体推广"], ["经销商素材"], ["品牌活动","KOL合作"], ["车展物料"], ["618促销","自媒体推广"], ["产品宣传"], ["KOL合作","试驾活动"], ["经销商素材","售后服务"], ["品牌活动","国庆活动"], ["车展物料","618促销"]][index] || [],
+    customTags: [["试驾活动"], ["车展物料","618促销"], ["产品宣传","自媒体推广"], ["经销商素材"], ["KOL合作"], ["车展物料"], ["618促销","自媒体推广"], ["产品宣传"], ["KOL合作","试驾活动"], ["经销商素材","售后服务"], ["国庆活动"], ["车展物料","618促销"]][index] || [],
     aiTags: [["汽车","户外场景","城市街道","品牌Logo"], ["产品特写","外观展示","汽车"], ["汽车","高清锐利","外观展示"], ["户外场景","自然风光","汽车"], ["汽车","内饰展示","胶片颗粒感"], ["人物","活动","汽车"], ["汽车","赛道","高清锐利"], ["户外场景","城市街道","横版"], ["产品特写","灯光细节","竖版"], ["汽车","外观展示","柔光朦胧"], ["人物","品牌Logo","活动"], ["汽车","内饰展示","产品特写"]][index] || [],
     color: index < 5 ? "蓝色" : "红色",
     groupId: index < 2 ? "test" : index < 5 ? "redbook" : "all",
@@ -94,7 +94,7 @@ const seedAssets = seedNames.map((name, index) => {
 
 const seedTags = [
   // ===== 业务标签 (tagType=1, 单层扁平) =====
-  { id: "tag-biz-001", tagName: "品牌活动", tagCode: "promo_brand", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "品牌推广与大型活动相关素材", createdBy: "Kerry", createdAt: "2026-03-15 09:30:00", updatedAt: "2026-05-20 14:00:00" },
+
   { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "杨文婷", createdAt: "2026-02-20 10:15:00", updatedAt: "2026-05-18 16:30:00" },
   { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "Kerry", createdAt: "2026-04-01 08:00:00", updatedAt: "2026-05-22 11:00:00" },
   { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "杨文婷", createdAt: "2026-01-10 14:00:00", updatedAt: "2026-04-15 09:00:00" },
