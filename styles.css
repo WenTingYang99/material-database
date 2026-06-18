@@ -2973,7 +2973,16 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
 }
 
 /* ---- Tag Table Styles ---- */
+.tag-table {
+  width: max-content;
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.tag-table th,
 .tag-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
   vertical-align: middle;
 }
 
@@ -2991,6 +3000,14 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+}
+
+.tag-name-cell strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tag-type-badge {
@@ -3062,6 +3079,11 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tag-table td.cell-ellipsis {
+  display: table-cell;
+  max-width: none;
 }
 
 .checkbox-label {

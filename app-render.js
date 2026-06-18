@@ -798,6 +798,7 @@ function renderTagsPage() {
     <div class="tag-content" id="tagContent">
       <div class="table-scroll">
         <table class="records-table tag-table" id="tagTable">
+          <colgroup id="tagTableCols"></colgroup>
           <thead id="tagTableHead"></thead>
           <tbody id="tagTableBody"></tbody>
         </table>
@@ -843,10 +844,19 @@ function renderTagsPage() {
 function renderTagTableBody(tags, type) {
   const tbody = document.querySelector("#tagTableBody");
   const thead = document.querySelector("#tagTableHead");
-  if (!tbody || !thead) return;
+  const colgroup = document.querySelector("#tagTableCols");
+  if (!tbody || !thead || !colgroup) return;
 
   // --- business: flat table ---
   if (type === "business") {
+    colgroup.innerHTML = `
+      <col style="width:64px">
+      <col style="width:220px">
+      <col style="width:150px">
+      <col style="width:230px">
+      <col style="width:132px">
+      <col style="width:110px">
+      <col style="width:104px">`;
     thead.innerHTML = `<tr>
       <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>创建时间</th><th>创建人</th><th>操作</th>
     </tr>`;
@@ -894,6 +904,17 @@ function renderTagTableBody(tags, type) {
   }
 
   // --- AI: tree table with indent ---
+  colgroup.innerHTML = `
+    <col style="width:64px">
+    <col style="width:220px">
+    <col style="width:150px">
+    <col style="width:220px">
+    <col style="width:140px">
+    <col style="width:130px">
+    <col style="width:100px">
+    <col style="width:132px">
+    <col style="width:110px">
+    <col style="width:86px">`;
   thead.innerHTML = `<tr>
     <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th><th>操作</th>
   </tr>`;
