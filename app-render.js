@@ -257,6 +257,10 @@ function renderActions() {
     document.querySelector('.page-actions-inner[data-page-type="all"]')?.classList.remove("hidden");
   } else if (state.page === "pending") {
     document.querySelector('.page-actions-inner[data-page-type="pending"]')?.classList.remove("hidden");
+  } else if (state.page === "tags") {
+    document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden");
+  } else if (state.page === "collect") {
+    document.querySelector('.page-actions-inner[data-page-type="collect"]')?.classList.remove("hidden");
   } else if (state.page === "recycle") {
     document.querySelector('.page-actions-inner[data-page-type="recycle"]')?.classList.remove("hidden");
   }
@@ -551,18 +555,14 @@ function renderManagePageV2() {
   }
 
   if (state.page === "collect") {
-    els.contentPanel.innerHTML = renderManageShell("collect", "收集素材管理", `共 ${db.collectTasks.length} 条收集任务`, `
-      <div class="manage-row-between">
-        <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
-        <button id="newCollectTask" type="button">新建收集任务</button>
-      </div>
+  els.contentPanel.innerHTML = renderManageShell("collect", "收集素材管理", `共 ${db.collectTasks.length} 条收集任务`, `
+      <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
       <div class="table-scroll"><table class="records-table manage-table">
         <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:110px"></colgroup>
         <thead><tr><th>主题</th><th>存放素材组</th><th>状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
         <tbody>${db.collectTasks.map((task, index) => `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td><button class="link-button" data-open-collect="${index}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button></td></tr>`).join("")}</tbody>
       </table></div>
     `);
-    els.contentPanel.querySelector("#newCollectTask")?.addEventListener("click", () => openCollectTaskModal());
     els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(Number(button.dataset.openCollect))));
     return;
   }
@@ -778,15 +778,9 @@ function getTagSummary() {
 function renderTagsPage() {
   const { businessTags, aiTags } = getTagSummary();
   els.contentPanel.innerHTML = renderManageShell("tags", "标签管理", `业务标签 ${businessTags.length} 个 · AI标签 ${aiTags.length} 个`, `
-    <div class="manage-row-between">
-      <div class="tabs">
-        <button class="active" id="tagTabBusiness" type="button">业务标签</button>
-        <button id="tagTabAI" type="button">AI标签</button>
-      </div>
-      <div class="tag-actions">
-        <button id="addTagButton" type="button"><span data-icon="plus"></span> 新增标签</button>
-        <button id="mergeTagButton" type="button">标签合并</button>
-      </div>
+    <div class="tabs">
+      <button class="active" id="tagTabBusiness" type="button">业务标签</button>
+      <button id="tagTabAI" type="button">AI标签</button>
     </div>
     <div class="asset-toolbar inline-toolbar">
       <label>搜索标签<input id="tagSearchInput" placeholder="输入标签名称搜索" /></label>
@@ -807,6 +801,8 @@ function renderTagsPage() {
   `);
 
   renderTagTableBody(businessTags, "business");
+  document.querySelector("#addTagButton")?.classList.remove("hidden");
+  document.querySelector("#mergeTagButton")?.classList.remove("hidden");
 
   document.querySelector("#tagTabBusiness")?.addEventListener("click", () => {
     setActiveTab("tagTabBusiness", ["tagTabAI"]);
@@ -829,8 +825,6 @@ function renderTagsPage() {
     inactiveIds.forEach((id) => document.getElementById(id)?.classList.remove("active"));
   }
 
-  els.contentPanel.querySelector("#addTagButton")?.addEventListener("click", openAddTagModal);
-  els.contentPanel.querySelector("#mergeTagButton")?.addEventListener("click", openMergeTagModal);
   els.contentPanel.querySelector("#tagSearchInput")?.addEventListener("input", window.AppInfra.utils.debounce((event) => {
     filterTags(event.target.value.toLowerCase());
   }, 300));

@@ -776,6 +776,9 @@ function bindEvents() {
   document.querySelector("#restoreSelectedRecycle")?.addEventListener("click", restoreSelectedRecycleAssets);
   document.querySelector("#emptyRecycle")?.addEventListener("click", emptyRecycleBin);
   document.querySelector("#sortRecycleByDeletedAt")?.addEventListener("click", toggleRecycleDeletedTimeSort);
+  document.querySelector("#addTagButton")?.addEventListener("click", openAddTagModal);
+  document.querySelector("#mergeTagButton")?.addEventListener("click", openMergeTagModal);
+  document.querySelector("#newCollectTask")?.addEventListener("click", openCollectTaskModal);
   els.globalSearch.addEventListener("input", window.AppInfra.utils.debounce((event) => {
     state.query = event.target.value.trim();
     render();

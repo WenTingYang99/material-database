@@ -51,7 +51,7 @@
 - 顶部导航、侧边栏、工具栏骨架：`index.html:11-132`。
 - 顶部栏响应式：`styles.css:70` `.topbar`，`styles.css:167` `.top-icons`，重点看 `max-width: 1200px / 860px / 640px / 480px` 断点。
 - 页面标题和面包屑：`index.html:60-65`，动态更新在 `app-render.js:13-30`，面包屑文案在 `app-utils.js:174` `getPageBreadcrumb()`。
-- 页面按钮区：`index.html:65-90`，显示逻辑在 `app-render.js:252` `renderActions()`。
+- 页面按钮区：`index.html:65-98`，显示逻辑在 `app-render.js:252` `renderActions()`；全部素材、待入库、标签管理、收集素材、回收站的顶部操作按钮均在这里统一展示。
 - 素材工具栏筛选/布局/排序：`index.html:94-116`，筛选 chip 在 `app-core.js:605`，排序事件在 `app-core.js:749` 附近。
 - 素材内容区：`index.html:128` `#contentPanel`，主要由 `app-render.js` 动态填充。
 - 更多功能页：`app-render.js:499` `renderManagePageV2()`。
@@ -147,7 +147,7 @@
 
 ## 标签管理
 
-- 标签页入口：`app-render.js:799` `renderTagsPage()`。
+- 标签页入口：`app-render.js:799` `renderTagsPage()`；“新增标签/标签合并”按钮在顶部 `page-actions`，事件绑定在 `app-core.js:758` 附近。
 - 标签汇总：`app-render.js:679` `getTagSummary()`。
 - 标签表格：`app-render.js:864` `renderTagTableBody()`。
 - 业务标签卡片：`app-render.js:967` `renderBusinessTagList()`。
@@ -165,7 +165,7 @@
 - 分享单素材弹窗：`index.html:475-501`，逻辑在 `app-workflows.js:167` `openShareAssetModal()`。
 - 素材篮分享：`index.html:317-353`，逻辑在 `app-workflows.js:51` `openBasketShareModal()`。
 - 分享过期时间更新：`index.html:699-724`，逻辑在 `app-workflows.js:68`。
-- 创建收集任务：`index.html:618-636`，逻辑在 `app-actions.js:1311` 和 `app-actions.js:1322`。
+- 创建收集任务：顶部按钮在 `index.html:93` `#newCollectTask`，事件绑定在 `app-core.js:760` 附近；弹窗逻辑在 `app-actions.js:1311` 和 `app-actions.js:1322`。
 - 创建收集任务的“允许文件类型”选项：静态兜底在 `index.html:628-632`，打开弹窗时由 `app-actions.js:1221` 使用 `COLLECT_TASK_FILE_TYPES` 动态刷新为文件大类。
 - 收集任务配置模板：`index.html:810-828`，逻辑在 `app-workflows.js:209`。
 - 模拟收集上传：`index.html:830-843`，逻辑在 `app-workflows.js:250`；模板中的 `{{UPLOAD_ACCEPT}}` 由 `openCollectorUploadModal()` 注入，提交时同样通过 `isAllowedUploadFile()` 过滤不支持格式。
