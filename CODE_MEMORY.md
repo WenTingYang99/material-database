@@ -156,7 +156,7 @@
 - 系统标签卡片：`app-render.js:1035` `renderSystemTagList()`。
 - 标签事件：`app-render.js:1054` `bindTagEvents()`，`app-render.js:1059` `handleTagClick()`。
 - 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1097` `openAddTagModal()`；AI 字段显隐在 `app-render.js:1119` `toggleAddAiFields()`；提交在 `app-render.js:1127` `handleAddTagSubmit()`。
-- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
+- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；如果标签来自素材使用汇总但尚未进入 `db.tags`，`createTagRecordFromUsage()` 会先补齐标签库记录再打开弹窗；AI 来源只展示不允许编辑，人工新增 AI 标签固定为“业务预定义”，上传/重新识别补入的 AI 标签固定为“AI 自动识别”；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
 - AI 识别字段（aiRecognitionRow）：新增/编辑弹窗中共两处 checkbox，`index.html:379` 和 `index.html:408`；业务标签（tagType=1）不显示该字段，AI 标签（tagType=2）才显示，由各自的 `toggleXxxAiFields()` 控制。注意：`.checkbox-label` CSS（`styles.css:3067`）有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`，否则会被 CSS 覆盖。补充覆盖规则见 `styles.css:3081` `.checkbox-label.hidden`。
 - 合并标签：`index.html:416-431`，逻辑在 `app-render.js:1298` `openMergeTagModal()`。
 

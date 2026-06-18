@@ -86,6 +86,7 @@ async function createAssetFromFile(file, options = {}) {
   const format = getFormat(file);
   const info = await getMediaInfo(file, dataUrl);
   const tags = recognizeTags(file, info);
+  ensureRecognizedAiTagsInLibrary(tags);
   const uploadDate = todayText();
   const createdTime = nowText();
   const validUntilDate = options.validUntilDate || calculateExpireTime("永久有效");
@@ -195,6 +196,7 @@ function rerunSelectedRecognition() {
   db.assets.forEach((asset) => {
     if (state.selectedIds.has(asset.id)) {
       asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, color: asset.color });
+      ensureRecognizedAiTagsInLibrary(asset.aiTags);
       asset.updatedAt = nowText();
       asset.logs.unshift(`AI重新识别标签：${asset.aiTags.join("、")}`);
     }

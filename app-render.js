@@ -1179,7 +1179,6 @@ function openAddTagModal() {
   document.querySelector("#addTagName").value = "";
   document.querySelector("#addTagDesc").value = "";
   document.querySelector("#addTagType").value = "1"; // default business
-  document.querySelector("#addTagAiSource").value = "";
   document.querySelector("#addTagAiRecognition").checked = true;
   
   // AI parent options
@@ -1198,10 +1197,8 @@ function openAddTagModal() {
 
 function toggleAddAiFields() {
   const type = document.querySelector("#addTagType")?.value;
-  const aiRow = document.querySelector("#addTagAiRow");
   const parentRow = document.querySelector("#addTagParentRow");
   const aiRecogRow = document.querySelector("#addTagAiRecognitionRow");
-  if (aiRow) aiRow.style.display = type === "2" ? "" : "none";
   if (parentRow) parentRow.style.display = type === "2" ? "" : "none";
   if (aiRecogRow) aiRecogRow.classList.toggle("hidden", type !== "2");
 }
@@ -1228,7 +1225,7 @@ function handleAddTagSubmit(event) {
     tagType,
     parentId: parentId,
     level: parentId ? 1 : 0,
-    aiSource: tagType === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
+    aiSource: tagType === 2 ? 2 : 0,
     aiRecognitionEnabled: tagType === 2 ? !!data.aiRecognition : false,
     isVisible: 1,
     status: 1,
@@ -1252,10 +1249,47 @@ function closeAddTagModal() {
 
 let editTagOldName = "";
 
+function createTagRecordFromUsage(tagName, tagType) {
+  if (!db.tags) db.tags = [];
+  const existing = db.tags.find((tag) => (tag.tagName || tag.name || "") === tagName);
+  if (existing) return existing;
+  const normalizedType = Number(tagType) === 2 ? 2 : 1;
+  const now = nowText();
+  const tag = {
+    id: `tag-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    tagName,
+    tagCode: generateTagCode(tagName, normalizedType),
+    tagType: normalizedType,
+    parentId: 0,
+    level: 0,
+    aiSource: normalizedType === 2 ? 1 : 0,
+    aiRecognitionEnabled: normalizedType === 2,
+    isVisible: 1,
+    status: 1,
+    sortOrder: 0,
+    description: "",
+    createdBy: currentUser.name,
+    createdAt: now,
+    updatedAt: now,
+  };
+  db.tags.push(tag);
+  saveDb();
+  return tag;
+}
+
+function ensureRecognizedAiTagsInLibrary(tags = []) {
+  const beforeCount = (db.tags || []).length;
+  [...new Set(tags)].forEach((tagName) => {
+    const name = String(tagName || "").trim();
+    if (name) createTagRecordFromUsage(name, 2);
+  });
+  return (db.tags || []).length > beforeCount;
+}
+
 function openEditTagModal(oldName) {
   editTagOldName = oldName;
-  const tag = (db.tags || []).find(t => (t.tagName || t.name || "") === oldName);
-  if (!tag) return;
+  const isAiTab = document.querySelector("#tagTabAI")?.classList.contains("active");
+  const tag = (db.tags || []).find(t => (t.tagName || t.name || "") === oldName) || createTagRecordFromUsage(oldName, isAiTab ? 2 : 1);
 
   const tagName = tag.tagName || tag.name || "";
   const tagType = tag.tagType ?? (tag.system ? 2 : 1);
@@ -1264,7 +1298,6 @@ function openEditTagModal(oldName) {
   document.querySelector("#editTagNewName").value = tagName;
   document.querySelector("#editTagDesc").value = tag.description || "";
   document.querySelector("#editTagType").value = String(tagType);
-  document.querySelector("#editTagAiSource").value = String(tag.aiSource || 0);
   document.querySelector("#editTagAiRecognition").checked = tag.aiRecognitionEnabled !== 0;
 
   // AI parent options
@@ -1281,10 +1314,8 @@ function openEditTagModal(oldName) {
 
 function toggleEditAiFields() {
   const type = document.querySelector("#editTagType")?.value;
-  const aiRow = document.querySelector("#editTagAiRow");
   const parentRow = document.querySelector("#editTagParentRow");
   const aiRecogRow = document.querySelector("#editTagAiRecognitionRow");
-  if (aiRow) aiRow.style.display = type === "2" ? "" : "none";
   if (parentRow) parentRow.style.display = type === "2" ? "" : "none";
   if (aiRecogRow) aiRecogRow.classList.toggle("hidden", type !== "2");
 }
@@ -1296,6 +1327,10 @@ function handleEditTagSubmit(event) {
   const newName = (data.tagName || "").trim();
   const oldName = editTagOldName;
   if (!newName) { showToast("请输入标签名称"); return; }
+  if (newName !== oldName && (db.tags || []).some(t => (t.tagName || t.name || "").trim() === newName)) {
+    showToast("该标签已存在");
+    return;
+  }
 
   const tagIdx = (db.tags || []).findIndex(t => (t.tagName || t.name || "") === oldName);
   if (tagIdx === -1) { closeEditTagModal(); return; }
@@ -1309,7 +1344,7 @@ function handleEditTagSubmit(event) {
     tagType,
     parentId: tagType === 2 ? (data.parentId || 0) : 0,
     level: (tagType === 2 && data.parentId) ? 1 : 0,
-    aiSource: tagType === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
+    aiSource: tagType === 2 ? (tag.aiSource || 2) : 0,
     aiRecognitionEnabled: tagType === 2 ? !!data.aiRecognition : false,
     description: (data.tagDesc || "").trim(),
     updatedAt: nowText(),
@@ -1322,6 +1357,11 @@ function handleEditTagSubmit(event) {
         asset.customTags = asset.customTags.map((t) => t === oldName ? newName : t);
         asset.updatedAt = nowText();
         asset.logs.unshift(`${currentUser.name} 将标签「${oldName}」修改为「${newName}」`);
+      }
+      if (asset.aiTags && asset.aiTags.includes(oldName)) {
+        asset.aiTags = asset.aiTags.map((t) => t === oldName ? newName : t);
+        asset.updatedAt = nowText();
+        asset.logs.unshift(`${currentUser.name} 将AI标签「${oldName}」修改为「${newName}」`);
       }
     });
   }
