@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>素材库</title>
+    <link rel="stylesheet" href="styles.css?v=20260617-dynamicdata" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <button class="app-grid" type="button" aria-label="应用菜单">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </button>
+        <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="打开菜单">
+          <span data-icon="list"></span>
+        </button>
+        <div class="brand">
+          <div class="brand-mark">DP</div>
+          <div class="brand-text">
+            <strong>东风标致雪铁龙有限公司</strong>
+            <small>DONGFENG PEUGEOT CITROEN AUTOMOBILE COMPANY LTD</small>
+          </div>
+          <b>素材库</b>
+        </div>
+        <label class="global-search">
+          <span data-icon="search"></span>
+          <input id="globalSearch" placeholder="试试在搜索词中增加文件格式，如：手册pdf" />
+          <button id="imageSearchButton" type="button" aria-label="以图搜图" title="以图搜图"><span data-icon="camera"></span></button>
+        </label>
+        <div class="top-icons">
+          <button id="notificationButton" type="button" aria-label="通知" title="通知"><span data-icon="bell"></span></button>
+          <button id="languageButton" type="button" aria-label="语言" title="语言">中</button>
+          <button class="avatar" id="userButton" type="button" aria-label="用户">K</button>
+        </div>
+      </header>
+
+      <aside class="sidebar" id="sidebar">
+        <button class="sidebar-close" id="sidebarClose" type="button" aria-label="关闭侧边栏"><span data-icon="x"></span></button>
+        <nav class="main-nav" id="mainNav">
+          <button class="nav-item" data-page="all" type="button"><span>▦</span><span>全部素材</span><span></span></button>
+          <button class="nav-item" data-page="pending" type="button"><span>▣</span><span>待入库</span><span></span></button>
+          <button class="nav-item" data-page="favorite" type="button"><span>⌘</span><span>我收藏的组</span><span></span></button>
+          <button class="nav-item" data-page="created" type="button"><span>♙</span><span>我创建的组</span><span></span></button>
+          <button class="nav-item" data-page="more" type="button"><span>...</span><span>更多功能</span><span>›</span></button>
+        </nav>
+        <div class="group-head">
+          <strong><span data-icon="folder"></span> 全部素材组</strong>
+          <div class="group-head-actions">
+            <button id="sortGroupsButton" type="button" title="排序"><span data-icon="sort"></span></button>
+            <button id="createGroupButton" type="button" title="新建素材组"><span data-icon="plus"></span></button>
+          </div>
+        </div>
+        <div class="tree" id="groupTree"></div>
+        <button class="collapse-handle" type="button" aria-label="拖动调整侧边栏宽度，点击收起侧边栏">‹</button>
+      </aside>
+      <div class="sidebar-overlay hidden" id="sidebarOverlay"></div>
+
+      <main class="workspace">
+        <section class="page-head">
+          <div>
+            <p class="crumb" id="breadcrumb">全部 › 全部素材</p>
+            <h1 id="pageTitle">全部素材</h1>
+          </div>
+          <div class="page-actions" id="pageActions">
+            <!-- 全部素材页面操作 -->
+            <div class="page-actions-inner" data-page-type="all">
+              <div class="sort-menu upload-menu">
+                <button class="primary" id="uploadButton" type="button"><span data-icon="download"></span> 上传</button>
+                <div class="dropdown sort-dropdown" id="uploadDropdown">
+                  <button data-upload="file" type="button">上传文件</button>
+                  <button data-upload="folder" type="button">上传文件夹</button>
+                  <button data-upload="cloud" type="button">百度网盘导入</button>
+                </div>
+              </div>
+              <button id="shareCurrent" type="button"><span data-icon="share"></span> 分享</button>
+              <button id="collectCurrent" type="button"><span data-icon="folder"></span> 收素材</button>
+              <button id="deleteSelectedTop" type="button"><span data-icon="trash"></span> 删除</button>
+              <button id="newGroupAction" type="button"><span data-icon="plus"></span> 新建素材组</button>
+            </div>
+            <!-- 待入库页面操作 -->
+            <div class="page-actions-inner hidden" data-page-type="pending">
+              <button id="approveSelected" type="button"><span data-icon="check"></span> 入库选中</button>
+              <button id="deleteSelectedPending" type="button"><span data-icon="trash"></span> 删除</button>
+            </div>
+            <!-- 回收站页面操作 -->
+            <div class="page-actions-inner hidden" data-page-type="recycle">
+              <button id="restoreSelectedRecycle" type="button"><span data-icon="check"></span> 批量恢复</button>
+              <button id="emptyRecycle" type="button">清空回收站</button>
+              <button id="sortRecycleByDeletedAt" type="button"><span data-icon="sort"></span> 删除时间</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="asset-toolbar" id="assetToolbar">
+          <div class="filter-row">
+            <div class="filters" id="filters"></div>
+          </div>
+          <div class="view-row">
+            <input id="sizeSlider" type="range" min="150" max="260" value="210" />
+            <label class="check-line"><input id="showGroups" type="checkbox" /> 显示全部素材组和素材</label>
+            <button id="filterConfig" class="toolbar-button" type="button"><span data-icon="settings"></span> 筛选配置</button>
+            <div class="view-switch" id="viewSwitch">
+              <button class="active" data-view="compact" type="button" title="平铺"><span data-icon="grid-small"></span></button>
+              <button data-view="list" type="button" title="列表"><span data-icon="list"></span></button>
+            </div>
+            <div class="sort-menu">
+              <button id="sortButton" type="button"><span data-icon="sort"></span> <span id="sortLabel">素材热度</span></button>
+              <div class="dropdown sort-dropdown" id="sortDropdown">
+                <button data-sort="创建时间" type="button">创建时间</button>
+                <button data-sort="素材名称" type="button">素材名称</button>
+                <button data-sort="文件大小" type="button">文件大小</button>
+                <button data-sort="素材热度" type="button">素材热度</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="similar-search hidden" id="similarSearch">
+          <img id="similarSearchImage" src="" alt="待搜索素材" />
+          <div>
+            <label><input name="similarMode" type="radio" value="content" checked /> 查找内容相似的图片</label>
+            <label><input name="similarMode" type="radio" value="color" /> 查找色彩相似的图片</label>
+            <button id="clearSimilar" type="button"><span data-icon="trash"></span> 清空搜索</button>
+            <button id="closeSimilar" type="button">关闭以图搜图</button>
+          </div>
+        </section>
+
+        <section class="content-panel" id="contentPanel"></section>
+      </main>
+    </div>
+
+    <div class="menu-pop hidden" id="assetMenu"></div>
+    <div class="preview-pop hidden" id="previewPop"><img alt="素材预览" /></div>
+
+    <div class="modal hidden" id="filterModal">
+      <div class="modal-card">
+        <header>
+          <h2>常用筛选项-自定义配置</h2>
+          <button class="plain-icon" data-close-modal type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <div class="config-body">
+          <div>
+            <div class="tag-bank" id="tagBank"></div>
+          </div>
+          <aside>
+            <h3>常用筛选项</h3>
+            <div class="selected-tags" id="selectedTags"></div>
+          </aside>
+        </div>
+        <footer>
+          <button data-close-modal type="button">取消</button>
+          <button class="primary" data-close-modal type="button">确定</button>
+        </footer>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="permissionRequestModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="permissionRequestTitle">申请编辑权限</h2>
+          <button class="plain-icon" id="permissionRequestClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="permissionRequestForm">
+          <div class="request-summary">
+            <span>申请素材</span>
+            <strong id="permissionRequestAssetName"></strong>
+          </div>
+          <label>申请权限
+            <select id="permissionRequestPermission" name="permission">
+              <option>可编辑/删除</option>
+              <option>仅编辑信息</option>
+              <option>可下载原文件</option>
+            </select>
+          </label>
+          <label>使用期限
+            <select id="permissionRequestDuration" name="duration">
+              <option>7天</option>
+              <option>30天</option>
+              <option>90天</option>
+              <option>长期</option>
+            </select>
+          </label>
+          <label>申请理由
+            <textarea id="permissionRequestReason" name="reason" placeholder="请填写用途，例如：用于活动海报二次编辑" required></textarea>
+          </label>
+          <div class="form-actions">
+            <button id="permissionRequestCancel" type="button">取消</button>
+            <button class="primary" type="submit">提交申请</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="permissionModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="permissionTitle">修改权限类型</h2>
+          <button class="plain-icon" id="permissionClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="permissionForm">
+          <label>权限范围
+            <select id="permissionSelect" name="permission">
+              <option>企业内部 - 可下载</option>
+              <option>企业内部 - 可编辑/删除</option>
+              <option>企业外部 - 仅预览</option>
+            </select>
+          </label>
+          <div class="form-actions">
+            <button id="permissionCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="viewer hidden" id="viewer">
+      <div class="viewer-stage">
+        <header>
+          <strong id="viewerName"></strong>
+          <div class="viewer-stats"><span data-icon="share"></span> <span id="viewerShareCount">-</span>次 <span data-icon="download"></span> <span id="viewerDownloadCount">-</span>次 <span data-icon="eye"></span> <span id="viewerViewCount">-</span>次</div>
+          <button id="closeViewer" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <button class="add-to-group" type="button"><span data-icon="folder"></span> 添加到组</button>
+        <div class="image-canvas" id="imageCanvas">
+          <button class="viewer-nav viewer-nav-prev" data-viewer-nav="prev" type="button" aria-label="上一张"><span data-icon="chevron-left"></span></button>
+          <img id="viewerImage" alt="素材大图" />
+          <button class="viewer-nav viewer-nav-next" data-viewer-nav="next" type="button" aria-label="下一张"><span data-icon="chevron-right"></span></button>
+          <div class="zoom-bar">
+            <button data-zoom="out" type="button" title="缩小"><span data-icon="zoom-out"></span></button>
+            <span id="zoomLevel">100%</span>
+            <button data-zoom="in" type="button" title="放大"><span data-icon="zoom-in"></span></button>
+            <button data-zoom="fit" type="button" title="适应窗口"><span data-icon="square"></span></button>
+            <button data-zoom="reset" type="button" title="重置"><span data-icon="refresh"></span></button>
+          </div>
+        </div>
+      </div>
+      <aside class="detail-panel">
+        <nav class="detail-tabs" id="detailTabs">
+          <button class="active" data-tab="overview" type="button">概览</button>
+          <button data-tab="detail" type="button">详情</button>
+          <button data-tab="comment" type="button">评论</button>
+          <button data-tab="log" type="button">日志</button>
+        </nav>
+        <div class="detail-scroll" id="detailContent"></div>
+        <footer>
+          <button class="primary" data-detail-action="download" type="button">下载素材</button>
+          <button data-detail-action="share" type="button">分享</button>
+          <button data-detail-action="edit" type="button">编辑信息</button>
+          <button data-detail-action="permission" type="button">修改权限</button>
+          <button data-detail-action="group" type="button">添加到组</button>
+        </footer>
+      </aside>
+    </div>
+
+    <div class="basket-overlay hidden" id="basketOverlay"></div>
+    <aside class="basket-drawer hidden" id="basketDrawer" aria-label="素材篮">
+      <header>
+        <div>
+          <h2>素材篮</h2>
+          <p id="basketCountText">已选择 0 项素材</p>
+        </div>
+        <button class="plain-icon" id="basketClose" type="button" aria-label="关闭素材篮"><span data-icon="x"></span></button>
+      </header>
+      <div class="basket-list" id="basketList"></div>
+      <footer>
+        <button id="basketClear" type="button" disabled><span data-icon="trash"></span> 清空素材篮</button>
+        <button id="basketDelete" type="button" disabled><span data-icon="trash"></span> 删除素材</button>
+        <button id="basketValidity" type="button" disabled>修改有效期</button>
+        <button id="basketShare" type="button" disabled><span data-icon="share"></span> 分享</button>
+        <button class="primary" id="basketDownload" type="button" disabled><span data-icon="download"></span> 批量下载</button>
+      </footer>
+    </aside>
+
+    <div class="menu-pop hidden" id="moreMenu">
+      <div id="moreMenuContent">
+        <button data-go="activity" type="button">用户动态</button>
+        <button data-go="tags" type="button">标签管理</button>
+        <button data-go="validity" type="button">有效期管理</button>
+        <button data-go="collect" type="button">收集素材</button>
+        <button data-go="share" type="button">分享记录</button>
+        <button data-go="recycle" type="button">回收站</button>
+      </div>
+      <div id="appMenuContent" class="hidden">
+        <button data-app-action="home" type="button">素材库首页</button>
+        <button data-app-action="upload" type="button">上传素材</button>
+        <button data-app-action="group" type="button">新建素材组</button>
+        <button data-app-action="recycle" type="button">回收站</button>
+      </div>
+      <div id="topIconMenuContent" class="hidden"></div>
+    </div>
+
+    <div class="modal hidden" id="basketValidityModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="basketValidityTitle">批量修改有效期</h2>
+          <button class="plain-icon" id="basketValidityClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="basketValidityForm">
+          <div class="request-summary">
+            <span>素材篮</span>
+            <strong id="basketValidityCount">0 项素材</strong>
+          </div>
+          <label>素材失效时间
+            <div class="date-time-row">
+              <input id="basketValidityDate" name="validUntilDate" type="date" readonly inputmode="none" />
+              <input id="basketValidityTime" name="validUntilTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <div class="form-actions">
+            <button id="basketValidityCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存有效期</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="basketShareModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="basketShareTitle">分享素材篮</h2>
+          <button class="plain-icon" id="basketShareClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="basketShareForm">
+          <div class="request-summary">
+            <span>分享素材</span>
+            <strong id="basketShareCount">0 项素材</strong>
+          </div>
+          <label>分享名称
+            <input id="basketShareName" name="shareName" placeholder="输入分享名称，默认为素材篮分享" />
+          </label>
+          <label>链接权限
+            <select id="basketShareAccess" name="access">
+              <option>企业内部成员可访问</option>
+              <option>互联网用户无需登录可访问</option>
+              <option>仅指定成员可访问</option>
+            </select>
+          </label>
+          <label>有效期
+            <select id="basketShareExpiresAt" name="expiresAt">
+              <option>7天</option>
+              <option>30天</option>
+              <option>90天</option>
+              <option>永久有效</option>
+            </select>
+          </label>
+          <label>分享链接
+            <input id="basketShareLink" readonly placeholder="创建分享后生成链接" />
+          </label>
+          <div class="form-actions">
+            <button id="basketShareCancel" type="button">取消</button>
+            <button id="basketShareCopy" type="button" disabled>复制链接</button>
+            <button class="primary" type="submit">创建分享</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 标签相关模态框 -->
+    <div class="modal hidden" id="addTagModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="addTagTitle">新增标签</h2>
+          <button class="plain-icon" id="addTagClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="addTagForm">
+          <label>标签类型<select id="addTagType" name="tagType" onchange="if(typeof toggleAddAiFields==='function')toggleAddAiFields()">
+            <option value="1">业务标签</option>
+            <option value="2">AI标签</option>
+          </select></label>
+          <label>标签名称<input id="addTagName" name="tagName" placeholder="例如：618活动、画面质感" required /></label>
+          <label>标签编码<input id="addTagCode" name="tagCode" placeholder="例如：promo_618，留空自动生成" /></label>
+          <label>标签描述<textarea id="addTagDesc" name="tagDesc" placeholder="可选：描述标签的用途或含义"></textarea></label>
+          <label id="addTagParentRow" style="display:none">父级AI标签<select id="addTagParentId" name="parentId"><option value="">无（顶级标签）</option></select></label>
+          <label id="addTagAiRow" style="display:none">AI来源<select id="addTagAiSource" name="aiSource">
+            <option value="2">业务预定义（期望AI识别）</option>
+            <option value="1">AI自动识别发现</option>
+          </select></label>
+          <label id="addTagAiRecognitionRow" style="display:none" class="checkbox-label"><input type="checkbox" id="addTagAiRecognition" name="aiRecognition" checked /> 启用AI识别</label>
+          <div class="form-actions">
+            <button id="addTagCancel" type="button">取消</button>
+            <button class="primary" type="submit">添加标签</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="editTagModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="editTagTitle">编辑标签</h2>
+          <button class="plain-icon" id="editTagClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="editTagForm">
+          <label>当前标签名称<strong id="editTagOldName"></strong></label>
+          <label>标签类型<select id="editTagType" name="tagType" onchange="if(typeof toggleEditAiFields==='function')toggleEditAiFields()">
+            <option value="1">业务标签</option>
+            <option value="2">AI标签</option>
+          </select></label>
+          <label>新标签名称<input id="editTagNewName" name="tagName" required /></label>
+          <label>标签编码<input id="editTagCode" name="tagCode" placeholder="例如：texture_film" /></label>
+          <label>标签描述<textarea id="editTagDesc" name="tagDesc" placeholder="可选：描述标签的用途或含义"></textarea></label>
+          <label id="editTagParentRow" style="display:none">父级AI标签<select id="editTagParentId" name="parentId"><option value="">无（顶级标签）</option></select></label>
+          <label id="editTagAiRow" style="display:none">AI来源<select id="editTagAiSource" name="aiSource">
+            <option value="2">业务预定义（期望AI识别）</option>
+            <option value="1">AI自动识别发现</option>
+          </select></label>
+          <label id="editTagAiRecognitionRow" style="display:none" class="checkbox-label"><input type="checkbox" id="editTagAiRecognition" name="aiRecognition" checked /> 启用AI识别</label>
+          <div class="form-actions">
+            <button id="editTagCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存修改</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="mergeTagModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="mergeTagTitle">标签合并</h2>
+          <button class="plain-icon" id="mergeTagClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="mergeTagForm">
+          <div class="info-card">
+            <span>标签合并说明</span>
+            <p>将多个标签合并为一个标签，原标签将被删除，所有使用原标签的素材将使用新标签。</p>
+          </div>
+          <label>选择要合并的标签（可多选）<select id="mergeSourceTags" multiple size="6"></select></label>
+          <label>合并到目标标签<select id="mergeTargetTag"></select></label>
+          <div class="form-actions">
+            <button id="mergeTagCancel" type="button">取消</button>
+            <button class="primary" type="submit">执行合并</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 素材相关模态框 -->
+    <div class="modal hidden" id="editAssetModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="editAssetTitle">编辑素材信息</h2>
+          <button class="plain-icon" id="editAssetClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="editAssetForm">
+          <label>素材名称<input id="editAssetName" name="name" required /></label>
+          <label>描述<textarea id="editAssetDesc" name="desc"></textarea></label>
+          <label>自定义标签（用逗号分隔）<input id="editAssetCustomTags" name="customTags" /></label>
+          <label>品牌<input id="editAssetBrand" name="brand" /></label>
+          <label>车型<select id="editAssetModel" name="model"></select></label>
+          <label>素材生效时间
+            <div class="date-time-row">
+              <input id="editAssetValidStartDate" name="validStartDate" type="date" readonly inputmode="none" />
+              <input id="editAssetValidStartTime" name="validStartTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <label>素材失效时间
+            <div class="date-time-row">
+              <input id="editAssetValidUntilDate" name="validUntilDate" type="date" readonly inputmode="none" />
+              <input id="editAssetValidUntilTime" name="validUntilTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <label>权限范围<select id="editAssetPermission" name="permission">
+            <option>企业内部 - 可下载</option>
+            <option>企业内部 - 可编辑/删除</option>
+            <option>企业外部 - 仅预览</option>
+          </select></label>
+          <div class="form-actions">
+            <button id="editAssetCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="shareAssetModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="shareAssetTitle">分享素材</h2>
+          <button class="plain-icon" id="shareAssetClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="shareAssetForm">
+          <div class="request-summary">
+            <span>分享素材</span>
+            <strong id="shareAssetName"></strong>
+          </div>
+          <label>链接权限<select id="shareAssetAccess" name="access">
+            <option>企业内部成员可访问</option>
+            <option>互联网用户无需登录可访问</option>
+            <option>指定成员可访问</option>
+          </select></label>
+          <label>有效期<select id="shareAssetExpiresAt" name="expiresAt">
+            <option>7天</option>
+            <option>30天</option>
+            <option>90天</option>
+            <option>永久有效</option>
+          </select></label>
+          <label>分享链接<input id="shareAssetLink" readonly placeholder="创建分享后生成链接" /></label>
+          <div class="form-actions">
+            <button id="shareAssetCancel" type="button">取消</button>
+            <button id="shareAssetCopy" type="button" disabled>复制链接</button>
+            <button class="primary" type="submit">创建分享</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 素材组相关模态框 -->
+    <div class="modal hidden" id="addGroupModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="addGroupTitle">新建素材组</h2>
+          <button class="plain-icon" id="addGroupClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="addGroupForm">
+          <label>素材组名称<input id="addGroupName" name="name" placeholder="例如：618 车展物料" required /></label>
+          <label>父级素材组<select id="addGroupParentId" name="parentId"><option value="">无</option></select></label>
+          <div class="form-actions">
+            <button id="addGroupCancel" type="button">取消</button>
+            <button class="primary" type="submit">创建</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="editGroupModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="editGroupTitle">编辑素材组信息</h2>
+          <button class="plain-icon" id="editGroupClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="editGroupForm">
+          <label>素材组名称<input id="editGroupName" name="name" required /></label>
+          <label>素材组说明<textarea id="editGroupDesc" name="desc" rows="4" placeholder="补充素材组用途、活动说明或权限备注"></textarea></label>
+          <div class="form-actions">
+            <button id="editGroupCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="moveGroupModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="moveGroupTitle">移动素材组</h2>
+          <button class="plain-icon" id="moveGroupClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="moveGroupForm">
+          <label>目标父级素材组<select id="moveGroupParentId" name="parentId"><option value="">无</option></select></label>
+          <div class="form-actions">
+            <button id="moveGroupCancel" type="button">取消</button>
+            <button class="primary" type="submit">确认移动</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="addToGroupModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="addToGroupTitle">添加到素材组</h2>
+          <button class="plain-icon" id="addToGroupClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="addToGroupForm">
+          <label>选择素材组<select id="addToGroupGroupId" name="groupId"></select></label>
+          <div class="form-actions">
+            <button id="addToGroupCancel" type="button">取消</button>
+            <button class="primary" type="submit">添加</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 其他模态框 -->
+    <div class="modal hidden" id="uploadSettingsModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="uploadSettingsTitle">上传设置</h2>
+          <button class="plain-icon" id="uploadSettingsClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="uploadSettingsForm">
+          <label>自动创建缩略图<input id="uploadSettingsThumbnail" name="thumbnail" type="checkbox" checked /></label>
+          <label>自动提取标签<input id="uploadSettingsTags" name="tags" type="checkbox" checked /></label>
+          <label>默认失效日期
+            <div class="date-time-row">
+              <input id="uploadSettingsValidityDate" name="validityDate" type="date" readonly inputmode="none" />
+              <input id="uploadSettingsValidityTime" name="validityTime" type="time" readonly inputmode="none" value="23:59" />
+            </div>
+          </label>
+          <div class="form-actions">
+            <button id="uploadSettingsCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存设置</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="cloudImportModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="cloudImportTitle">百度网盘导入</h2>
+          <button class="plain-icon" id="cloudImportClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="cloudImportForm">
+          <div class="info-card">
+            <span>百度网盘导入</span>
+            <p>从百度网盘选择文件导入到素材库</p>
+          </div>
+          <label>网盘路径<input id="cloudImportPath" name="path" placeholder="/我的资源/素材" /></label>
+          <div class="form-actions">
+            <button id="cloudImportCancel" type="button">取消</button>
+            <button class="primary" type="submit">开始导入</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="collectTaskModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="collectTaskTitle">创建收集任务</h2>
+          <button class="plain-icon" id="collectTaskClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="collectTaskForm">
+          <label>任务名称<input id="collectTaskName" name="name" placeholder="例如：收集618活动素材" required /></label>
+          <label>收集说明<textarea id="collectTaskDesc" name="desc" rows="3" placeholder="说明收集要求、格式规范等"></textarea></label>
+          <label>截止日期<input id="collectTaskDeadline" name="deadline" type="date" required readonly inputmode="none" /></label>
+          <label>允许上传的文件类型<select id="collectTaskTypes" name="types" multiple size="8">
+            <option>图片</option>
+            <option>视频</option>
+            <option>文档</option>
+            <option>设计源文件</option>
+            <option>纯文本</option>
+            <option>表格</option>
+            <option>字体文件</option>
+            <option>音频</option>
+            <option>压缩包</option>
+            <option>三维模型文件</option>
+          </select></label>
+          <div class="form-actions">
+            <button id="collectTaskCancel" type="button">取消</button>
+            <button class="primary" type="submit">创建任务</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="memberPermissionModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="memberPermissionTitle">调整协作权限</h2>
+          <button class="plain-icon" id="memberPermissionClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="memberPermissionForm">
+          <div class="request-summary">
+            <span>用户</span>
+            <strong id="memberPermissionUserName"></strong>
+          </div>
+          <label>权限范围<select id="memberPermissionSelect" name="permission">
+            <option>可编辑/删除</option>
+            <option>仅编辑信息</option>
+            <option>可下载原文件</option>
+            <option>仅预览</option>
+          </select></label>
+          <div class="form-actions">
+            <button id="memberPermissionCancel" type="button">取消</button>
+            <button class="primary" type="submit">保存权限</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="shareGroupModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="shareGroupTitle">分享素材组</h2>
+          <button class="plain-icon" id="shareGroupClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="shareGroupForm">
+          <div class="request-summary">
+            <span>分享对象</span>
+            <strong id="shareGroupName"></strong>
+          </div>
+          <label>链接权限<select id="shareGroupAccess" name="access">
+            <option>企业内部成员可访问</option>
+            <option>互联网用户无需登录可访问</option>
+            <option>指定成员可访问</option>
+          </select></label>
+          <label>有效期<select id="shareGroupExpiresAt" name="expiresAt">
+            <option>7天</option>
+            <option>30天</option>
+            <option>90天</option>
+            <option>永久有效</option>
+          </select></label>
+          <label>分享链接<input id="shareGroupLink" readonly placeholder="创建分享后生成链接" /></label>
+          <div class="form-actions">
+            <button id="shareGroupCancel" type="button">取消</button>
+            <button id="shareGroupCopy" type="button" disabled>复制链接</button>
+            <button class="primary" type="submit">创建分享</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="updateShareExpireModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2>更新分享过期时间</h2>
+          <button class="plain-icon" id="updateShareExpireClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="updateShareExpireForm">
+          <div class="request-summary">
+            <span>分享对象</span>
+            <strong id="updateShareExpireName"></strong>
+          </div>
+          <label>当前过期时间</label>
+          <div id="updateShareExpireCurrent" style="margin-bottom: 16px; color: #6b7280; font-size: 14px;"></div>
+          <label>新的过期时间
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <input id="updateShareExpireDate" name="expireDate" type="date" required readonly inputmode="none" />
+              <input id="updateShareExpireTime" name="expireTime" type="time" required readonly inputmode="none" />
+            </div>
+          </label>
+          <label style="margin-top: 8px;">
+            <input id="updateShareExpireForever" name="expireForever" type="checkbox" />
+            <span style="margin-left: 8px;">永久有效</span>
+          </label>
+          <div class="form-actions">
+            <button id="updateShareExpireCancel" type="button">取消</button>
+            <button class="primary" type="submit">确认更新</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="inviteTaskModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="inviteTaskTitle">收集任务邀请</h2>
+          <button class="plain-icon" id="inviteTaskClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="inviteTaskForm">
+          <div class="request-summary">
+            <span>邀请参与</span>
+            <strong id="inviteTaskName"></strong>
+          </div>
+          <label>邀请成员<input id="inviteTaskMembers" name="members" placeholder="输入成员姓名或邮箱，用逗号分隔" /></label>
+          <label>邀请消息<textarea id="inviteTaskMessage" name="message" rows="3" placeholder="可选：添加邀请说明"></textarea></label>
+          <div class="form-actions">
+            <button id="inviteTaskCancel" type="button">取消</button>
+            <button class="primary" type="submit">发送邀请</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <template id="tplConfirmModal">
+      <div id="dpModalRoot" class="dp-confirm hidden">
+        <div class="dp-confirm__card" role="dialog" aria-modal="true" aria-labelledby="dpConfirmTitle">
+          <h2 id="dpConfirmTitle" class="dp-confirm__title">确认操作</h2>
+          <p class="dp-confirm__message"></p>
+          <div class="dp-confirm__actions">
+            <button class="dp-confirm__cancel" type="button">取消</button>
+            <button class="dp-confirm__ok" type="button">确定</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <template id="tplGlobalLoading">
+      <div id="dpLoadingRoot" class="dp-loading hidden">
+        <div class="dp-loading__spinner"></div>
+        <span>加载中</span>
+      </div>
+    </template>
+
+    <template id="tplFormModal">
+      <div id="formModal" class="modal hidden">
+        <div class="modal-card form-card">
+          <header>
+            <h2 id="formTitle"></h2>
+            <button class="plain-icon" id="formClose" type="button"><span data-icon="x"></span></button>
+          </header>
+          <form id="formBody"></form>
+        </div>
+      </div>
+    </template>
+
+    <template id="tplUploadSettingsForm">
+      <div class="request-summary"><span>{{SOURCE_LABEL}}</span><strong>{{FILE_COUNT}} 个文件</strong></div>
+      <label>目标素材组<select name="groupId">{{GROUP_OPTIONS}}</select></label>
+      <label>业务标签<input name="businessTags" placeholder="例如：618活动、夏日特辑，多个标签用逗号分隔" /></label>
+      <label>素材失效时间
+        <div class="date-time-row">
+          <input name="validUntilDate" type="date" readonly inputmode="none" />
+          <input name="validUntilTime" type="time" readonly inputmode="none" />
+        </div>
+      </label>
+      <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">确认上传</button></div>
+    </template>
+
+    <template id="tplCloudImportForm">
+      <div class="info-card"><span>说明</span>请输入百度网盘分享链接，系统将自动获取文件并导入素材库。此功能需要后端服务支持。</div>
+      <label>分享链接<input name="cloudLink" placeholder="https://pan.baidu.com/s/..." required /></label>
+      <label>提取码（如有）<input name="cloudCode" placeholder="4位提取码" maxlength="4" /></label>
+      <label>目标素材组<select name="targetGroup">{{GROUP_OPTIONS}}</select></label>
+      <label>素材失效时间
+        <div class="date-time-row">
+          <input name="validUntilDate" type="date" readonly inputmode="none" />
+          <input name="validUntilTime" type="time" readonly inputmode="none" />
+        </div>
+      </label>
+      <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">开始导入</button></div>
+    </template>
+
+    <template id="tplCollectTaskConfigForm">
+      <div class="collect-config">
+        <div class="qr-card real-qr"><img src="{{QR_URL}}" alt="上传二维码" /></div>
+        <div class="collect-meta">
+          <b>{{THEME}}</b>
+          <p>别人可通过二维码或链接打开上传页，提交素材后会进入「待入库」。</p>
+          <label>访问密码<input readonly value="{{CODE}}" /></label>
+          <label>上传链接<input readonly value="{{LINK}}" /></label>
+        </div>
+      </div>
+      <label>任务状态<select name="status"><option>生效中</option><option>已失效</option></select></label>
+      <label>失效时间
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+        </div>
+      </label>
+      <div class="form-actions"><button type="button" data-cancel>关闭</button><button id="copyCollectLink" type="button">复制链接</button><button id="openCollectLink" type="button">打开上传页</button><button id="simulateCollectUpload" type="button">本页测试上传</button><button class="primary" type="submit">保存</button></div>
+    </template>
+
+    <template id="tplCollectorUploadForm">
+      <div class="request-summary"><span>提交到</span><strong>{{GROUP_NAME}}</strong></div>
+      <label>提交人<input name="author" placeholder="姓名或部门" required /></label>
+      <label>备注<textarea name="note" placeholder="补充用途、活动或素材说明"></textarea></label>
+      <label>业务标签<input name="businessTags" placeholder="例如：618活动、经销商，多个标签用逗号分隔" /></label>
+      <label>选择文件<input name="files" type="file" multiple accept="{{UPLOAD_ACCEPT}}" /></label>
+      <label>素材失效时间（留空为永久有效）
+        <div class="date-time-row">
+          <input name="validUntilDate" type="date" readonly inputmode="none" />
+          <input name="validUntilTime" type="time" readonly inputmode="none" />
+        </div>
+      </label>
+      <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">上传到待入库</button></div>
+    </template>
+
+    <template id="tplAssetValidityForm">
+      <div class="request-summary"><span>素材</span><strong>{{ASSET_NAME}}</strong></div>
+      <label>素材失效时间
+        <div class="date-time-row">
+          <input name="validUntilDate" type="date" readonly inputmode="none" />
+          <input name="validUntilTime" type="time" readonly inputmode="none" />
+        </div>
+      </label>
+      <label>提醒<select name="remind"><option>提前 7 天提醒</option><option>提前 15 天提醒</option><option>不提醒</option></select></label>
+      <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
+    </template>
+
+    <template id="tplOwnerForm">
+      <label>所有者<input name="owner" value="{{OWNER}}" /></label>
+      <label>部门<input name="department" value="{{DEPARTMENT}}" /></label>
+      <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
+    </template>
+
+    <script src="app-infra.js?v=20260617-dynamicdata"></script>
+    <script src="app-core.js?v=20260617-dynamicdata"></script>
+    <script src="app-render.js?v=20260617-dynamicdata"></script>
+    <script src="app-actions.js?v=20260617-dynamicdata"></script>
+    <script src="app-workflows.js?v=20260617-dynamicdata"></script>
+    <script src="app-utils.js?v=20260617-dynamicdata"></script>
+    <script src="app.js?v=20260617-dynamicdata"></script>
+  </body>
+</html>
