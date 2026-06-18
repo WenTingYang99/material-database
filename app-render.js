@@ -655,7 +655,73 @@ function getRecycleDeletedTime(item) {
   return dateTimeTextToTimestamp(text);
 }
 
+function hashTagText(text) {
+  let hash = 0;
+  String(text || "").split("").forEach((char) => {
+    hash = ((hash << 5) - hash + char.charCodeAt(0)) >>> 0;
+  });
+  return hash.toString(36);
+}
+
+function isValidTagCode(code) {
+  return /^[a-z][a-z0-9_]*$/.test(String(code || ""));
+}
+
+function buildTagCodeBase(tagName, tagType) {
+  const prefix = Number(tagType) === 2 ? "ai" : "biz";
+  const asciiName = String(tagName || "")
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return `${prefix}_${asciiName || `tag_${hashTagText(tagName)}`}`;
+}
+
+function generateTagCode(tagName, tagType, currentId = "") {
+  const base = buildTagCodeBase(tagName, tagType);
+  const currentKey = String(currentId || "");
+  let code = base;
+  let index = 2;
+  while ((db.tags || []).some((tag) => String(tag.id || "") !== currentKey && String(tag.tagCode || "") === code)) {
+    code = `${base}_${index}`;
+    index += 1;
+  }
+  return code;
+}
+
+function getSafeTagCode(tag) {
+  const tagName = tag.tagName || tag.name || tag.tag || "";
+  const tagType = tag.tagType ?? (tag.system ? 2 : 1);
+  return isValidTagCode(tag.tagCode) ? tag.tagCode : generateTagCode(tagName, tagType, tag.id);
+}
+
+function normalizeStoredTagCodes() {
+  if (!Array.isArray(db.tags)) return;
+  const usedCodes = new Set();
+  let changed = false;
+  db.tags.forEach((tag) => {
+    if (!tag || typeof tag !== "object") return;
+    const tagName = tag.tagName || tag.name || tag.tag || "";
+    const tagType = tag.tagType ?? (tag.system ? 2 : 1);
+    const currentCode = String(tag.tagCode || "");
+    const base = isValidTagCode(currentCode) ? currentCode : buildTagCodeBase(tagName, tagType);
+    let nextCode = base;
+    let index = 2;
+    while (usedCodes.has(nextCode)) {
+      nextCode = `${base}_${index}`;
+      index += 1;
+    }
+    usedCodes.add(nextCode);
+    if (tag.tagCode !== nextCode) {
+      tag.tagCode = nextCode;
+      changed = true;
+    }
+  });
+  if (changed) saveDb();
+}
+
 function getTagSummary() {
+  normalizeStoredTagCodes();
   const businessTags = new Map(); // name → count
   const aiTags = new Map();       // name → count
   const tagMap = new Map();       // name → full tag info (for tag library itself)
@@ -668,7 +734,7 @@ function getTagSummary() {
     return {
       id:        tag.id || tagName,
       tagName:   tagName,
-      tagCode:   tag.tagCode || "",
+      tagCode:   getSafeTagCode({ ...tag, tagName }),
       tagType:   tag.tagType ?? (tag.system ? 2 : 1),  // legacy: system→AI(2), else→business(1)
       parentId:  (tag.parentId || tag.parent_id || 0),
       level:     tag.level ?? (tag.parentId || tag.parent_id ? 1 : 0),
@@ -1111,7 +1177,6 @@ function sortTags(sortBy) {
 
 function openAddTagModal() {
   document.querySelector("#addTagName").value = "";
-  document.querySelector("#addTagCode").value = "";
   document.querySelector("#addTagDesc").value = "";
   document.querySelector("#addTagType").value = "1"; // default business
   document.querySelector("#addTagAiSource").value = "";
@@ -1146,7 +1211,6 @@ function handleAddTagSubmit(event) {
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   const tagName = (data.tagName || "").trim();
-  const tagCode = (data.tagCode || "").trim();
   const tagType = parseInt(data.tagType || "1", 10);
   const parentId = tagType === 2 ? (data.parentId || 0) : 0;
   const description = (data.tagDesc || "").trim();
@@ -1160,7 +1224,7 @@ function handleAddTagSubmit(event) {
   const newTag = {
     id: `tag-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     tagName,
-    tagCode: tagCode || (tagName.toLowerCase().replace(/\s+/g, "_")),
+    tagCode: generateTagCode(tagName, tagType),
     tagType,
     parentId: parentId,
     level: parentId ? 1 : 0,
@@ -1198,7 +1262,6 @@ function openEditTagModal(oldName) {
 
   document.querySelector("#editTagOldName").textContent = escapeHtml(tagName);
   document.querySelector("#editTagNewName").value = tagName;
-  document.querySelector("#editTagCode").value = tag.tagCode || "";
   document.querySelector("#editTagDesc").value = tag.description || "";
   document.querySelector("#editTagType").value = String(tagType);
   document.querySelector("#editTagAiSource").value = String(tag.aiSource || 0);
@@ -1238,15 +1301,16 @@ function handleEditTagSubmit(event) {
   if (tagIdx === -1) { closeEditTagModal(); return; }
 
   const tag = db.tags[tagIdx];
+  const tagType = parseInt(data.tagType || "1", 10);
   db.tags[tagIdx] = {
     ...tag,
     tagName: newName,
-    tagCode: (data.tagCode || "").trim() || (newName.toLowerCase().replace(/\s+/g, "_")),
-    tagType: parseInt(data.tagType || "1", 10),
-    parentId: parseInt(data.tagType || "1", 10) === 2 ? (data.parentId || 0) : 0,
-    level: (parseInt(data.tagType || "1", 10) === 2 && data.parentId) ? 1 : 0,
-    aiSource: parseInt(data.tagType || "1", 10) === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
-    aiRecognitionEnabled: parseInt(data.tagType || "1", 10) === 2 ? !!data.aiRecognition : false,
+    tagCode: generateTagCode(newName, tagType, tag.id),
+    tagType,
+    parentId: tagType === 2 ? (data.parentId || 0) : 0,
+    level: (tagType === 2 && data.parentId) ? 1 : 0,
+    aiSource: tagType === 2 ? (parseInt(data.aiSource || "0", 10) || 2) : 0,
+    aiRecognitionEnabled: tagType === 2 ? !!data.aiRecognition : false,
     description: (data.tagDesc || "").trim(),
     updatedAt: nowText(),
   };

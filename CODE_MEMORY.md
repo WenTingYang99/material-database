@@ -149,6 +149,7 @@
 
 - 标签页入口：`app-render.js:799` `renderTagsPage()`；“新增标签/标签合并”按钮在顶部 `page-actions`，事件绑定在 `app-core.js:758` 附近。
 - 标签汇总：`app-render.js:679` `getTagSummary()`。
+- 标签编码：由 `app-render.js:666` 附近的 `generateTagCode()` 自动生成；新增/编辑弹窗不允许用户输入编码，打开标签管理时 `normalizeStoredTagCodes()` 会修正空编码、中文编码或重复编码。
 - 标签表格：`app-render.js:864` `renderTagTableBody()`。
 - 业务标签卡片：`app-render.js:967` `renderBusinessTagList()`。
 - AI 标签卡片：`app-render.js:1007` `renderAITagList()`。
