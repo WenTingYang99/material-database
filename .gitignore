@@ -10,3 +10,17 @@ Thumbs.db
 
 # WorkBuddy
 .workbuddy/
+
+# Next.js
+node_modules/
+.next/
+out/
+.npm-cache/
+.next-dev*.log
+*.tsbuildinfo
+
+# Local env
+.env*.local
+
+# Runtime uploads
+public/uploads/

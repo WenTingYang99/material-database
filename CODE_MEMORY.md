@@ -224,3 +224,5 @@
 ## 2026-06-22 补充
 
 - 左侧主导航已删除“我收藏的组”功能模块入口；`favorite` 页面筛选、标题、面包屑已移除。素材组菜单中的收藏/取消收藏、订阅/取消订阅也已删除；这些字段没有有效业务使用。旧链接或旧状态如进入 `page=favorite`，会通过 `app-core.js` 的 `normalizePageState()` 按非法页面回退到 `all`。
+- Next.js 迁移骨架已新增在 `src/`，`data/db.json` 必须按 PRD/Excel 的表结构维护：`t_employee`、`t_asset`、`t_asset_group`、`t_asset_tag`、`t_asset_tag_rel`、`t_asset_operation_log`。素材主表不存 `logs/customTags/aiTags` 数组；标签和日志分别从关联表、日志表聚合。Repository 聚合逻辑在 `src/lib/db/json/JsonAssetRepository.ts`。
+- 原生静态 SPA 已整体移动到 `legacy-static/`：入口 `legacy-static/index.html`，脚本 `legacy-static/app-*.js`，样式 `legacy-static/styles.css`，旧素材图 `legacy-static/assets/`。Next 迁移版以根目录配置、`src/`、`data/`、`public/` 为主；新项目代码不得引用、导入或依赖 `legacy-static/` 中的任何文件。
