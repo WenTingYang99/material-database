@@ -1,10 +1,6 @@
 ﻿function getFilteredAssets() {
   let pool = db.assets.filter((asset) => state.page === "recycle" ? asset.status === "deleted" : asset.status !== "deleted");
   if (state.page === "pending") pool = pool.filter((asset) => asset.status === "pending");
-  if (state.page === "favorite") {
-    const favoriteGroupIds = new Set(db.groups.filter((group) => group.favorite).flatMap((group) => getGroupDescendantIds(group.id)));
-    pool = pool.filter((asset) => favoriteGroupIds.has(asset.groupId));
-  }
   if (state.page === "created") pool = pool.filter((asset) => asset.owner === currentUser.name);
   if (state.groupId !== "all" && state.page === "all") {
     const groupIds = state.showGroupDescendants ? getGroupDescendantIds(state.groupId) : [state.groupId];
@@ -175,7 +171,6 @@ function getPageBreadcrumb(page) {
   if (page === "all") return getGroupBreadcrumb(state.groupId);
   const breadcrumbMap = {
     pending: "全部 › 待入库",
-    favorite: "全部 › 我收藏的组",
     created: "全部 › 我创建的组",
     activity: "全部 › 更多功能 › 用户动态",
     tags: "全部 › 更多功能 › 标签管理",

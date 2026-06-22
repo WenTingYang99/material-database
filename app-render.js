@@ -8,7 +8,7 @@
     const morePage = ["activity", "share", "collect", "recycle", "validity"].includes(state.page);
     button.classList.toggle("active", button.dataset.page === state.page || (morePage && button.dataset.page === "more"));
   });
-  els.assetToolbar.classList.toggle("hidden", !["all", "pending", "favorite", "created"].includes(state.page));
+  els.assetToolbar.classList.toggle("hidden", !["all", "pending", "created"].includes(state.page));
   els.similarSearch.classList.toggle("hidden", !state.similar || state.page !== "all");
   if (state.similar && state.page === "all") {
     const similarAsset = findAsset(state.selectedAssetId);
@@ -19,7 +19,6 @@
   const titleMap = {
     all: getGroupName(state.groupId) || "全部素材",
     pending: "待入库",
-    favorite: "我收藏的组",
     created: "我创建的组",
     activity: "用户动态",
     tags: "标签管理",

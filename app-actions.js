@@ -606,8 +606,6 @@ function showGroupMenu(anchor, groupId) {
     <button data-group-action="child" type="button">新建子素材组</button>
     <button data-group-action="sort" type="button">子素材组排序设置</button>
     <button class="split" data-group-action="edit" type="button">编辑信息</button>
-    <button data-group-action="subscribe" type="button">${group.subscribed ? "取消订阅" : "订阅"}</button>
-    <button data-group-action="favorite" type="button">${group.favorite ? "取消收藏" : "收藏"}</button>
     <button class="split" data-group-action="collect" type="button">收素材</button>
     <button data-group-action="download" type="button">下载</button>
     <button data-group-action="share" type="button">分享</button>
@@ -639,8 +637,6 @@ function handleGroupAction(action, groupId) {
   if (action === "child") openGroupModal(groupId);
   if (action === "sort") sortChildGroups(groupId);
   if (action === "edit") openGroupEditModal(groupId);
-  if (action === "subscribe") toggleGroupFlag(groupId, "subscribed", "订阅");
-  if (action === "favorite") toggleGroupFlag(groupId, "favorite", "收藏");
   if (action === "collect") openCollectTaskModal(group.name);
   if (action === "download") downloadGroup(groupId);
   if (action === "share") createGroupShare(groupId);
@@ -678,14 +674,6 @@ function sortChildGroups(groupId) {
   saveDb();
   render();
   showToast("子素材组已按名称排序");
-}
-
-function toggleGroupFlag(groupId, key, label) {
-  const group = db.groups.find((item) => item.id === groupId);
-  group[key] = !group[key];
-  saveDb();
-  render();
-  showToast(group[key] ? `已${label}素材组` : `已取消${label}`);
 }
 
 function downloadGroup(groupId) {

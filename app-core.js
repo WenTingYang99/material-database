@@ -237,9 +237,18 @@ function bootstrap() {
   const pageParam = new URLSearchParams(window.location.search).get("page");
   if (pageParam) state.page = pageParam;
   applyHashState();
+  normalizePageState();
   bindEvents();
   render();
   if (state.selectedAssetId && location.hash.startsWith("#asset=")) setTimeout(() => openViewer(state.selectedAssetId), 0);
+}
+
+function normalizePageState() {
+  const validPages = ["all", "pending", "created", "more", "activity", "tags", "validity", "collect", "share", "recycle"];
+  if (!validPages.includes(state.page)) {
+    state.page = "all";
+    state.groupId = "all";
+  }
 }
 
 function applyHashState() {
