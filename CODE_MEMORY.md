@@ -52,8 +52,18 @@
 - 素材卡片：`src/components/assets/AssetCard.tsx`
 - 素材工具栏：`src/components/filters/AssetToolbar.tsx`
 - 素材 Server Actions：`src/app/actions/asset.actions.ts`
-- 当前已接入操作：批量软删除、批量恢复、批量彻底删除、批量更新失效时间、新建素材组。
-- 当前未接入操作：上传、导入、详情查看器、素材编辑、素材组编辑/移动 UI、素材篮、完整筛选菜单、列表视图。
+- 当前已接入操作：上传文件入库、批量软删除、批量恢复、批量更新失效时间、新建素材组。
+- 当前已接入补充操作：顶部搜索、列表视图、素材篮、相似素材筛选、快速分享、素材组编辑/软删除、标签编辑/合并、公开分享素材展示、公开收集提交和文件上传明细。
+- 当前未接入操作：上传设置弹窗、精确媒体尺寸/时长读取、真实 AI 识别、查看器拖拽平移、完整详情标签页、下载行为、真实权限校验。
+- 素材详情查看器初版：`AssetWorkspace` 内维护 `viewerAssetId` 和 `viewerZoom`，`AssetCard` 缩略图区通过 `onOpen` 打开查看器；支持图片/视频预览、上一张/下一张、缩放和基础详情侧栏。
+- 素材基础编辑：`AssetWorkspace` 内维护 `editingAssetId`，查看器侧栏“编辑信息”打开表单，提交到 `updateAssetAction()`；`JsonAssetRepository.update()` 当前写入名称、描述、品牌、车型、权限、素材组、生效时间、失效时间和业务标签。
+- 业务标签编辑：编辑表单的 `customTags` 支持逗号、中文逗号、顿号或换行分隔；`JsonAssetRepository.syncCustomTags()` 会自动补齐不存在的业务标签，并重建该素材的 `custom` 标签关联，不影响 AI 标签关联。
+- 筛选与搜索：`AppContext` 维护 `query/filters/similarAssetId`，`DashboardShell` 顶部搜索写入 `query`，`AssetToolbar` 从当前素材生成筛选值并分发 `toggleFilter/clearFilter`，`AssetWorkspace.matchFilter()` 执行素材来源、文件格式、车型、品牌、权限范围、业务标签、AI 标签和素材失效日过滤；相似素材通过 `calculateSimilarity()` 基于标签、品牌、车型和格式计算。
+- 列表视图：`AssetWorkspace` 根据 `state.view` 在卡片网格和列表行之间切换。
+- 素材篮：`AppContext` 维护 `basketIds`；工作区支持把选中素材或查看器当前素材加入素材篮，素材篮可移除/清空，分享按钮优先分享选中素材，没有选中时分享素材篮。
+- 素材组基础管理：`AssetWorkspace` 当前组可通过按钮调用 `updateMaterialGroup()` 或 `deleteMaterialGroup()`；删除仍走软删除，组内素材进入回收站。
+- 删除策略：所有删除均为软删除，只能更新状态或 `deleted_flag`，不得从 JSON/数据库表中物理移除记录。
+- 百度网盘导入：旧版有入口，Next 当前隐藏入口；功能作为后续保留项，需要时再恢复入口并补齐实现。
 
 ## Repository 索引
 
@@ -104,8 +114,8 @@
 - 标签管理页：`src/app/(dashboard)/tags/page.tsx`
 - 标签 Action：`src/app/actions/tag.actions.ts`
 - 标签 Repository：`src/lib/db/json/JsonTagRepository.ts`
-- 当前已接入：新增标签、自动生成标签编码、读取标签表。
-- 当前仍缺：编辑标签、启用/停用、合并标签、AI 标签字段、标签使用统计、标签点击筛选。
+- 当前已接入：新增标签、自动生成标签编码、读取标签表、编辑标签、启用/停用、合并标签。
+- 当前仍缺：完整 AI 标签字段、标签使用统计、标签点击筛选。
 
 ## 旧静态版定位
 
@@ -122,16 +132,16 @@
 
 ## 旧静态版功能对照
 
-- 上传与导入：旧版在 `app-actions.js`，Next 尚未迁移。
-- 筛选与排序：旧版在 `app-utils.js`、`app-actions.js`、`app-core.js`，Next 仅有工具栏骨架和基础排序。
-- 素材查看器：旧版在 `app-actions.js` 和 `app-render.js`，Next 尚未迁移。
-- 素材编辑：旧版在 `app-actions.js`，Next 尚未迁移完整弹窗。
-- 素材组 CRUD/移动：旧版在 `app-actions.js`，Next 仅有创建入口和 Repository 写操作。
-- 标签新增/编辑/合并：旧版在 `app-render.js`，Next 仅有新增入口。
-- 素材篮：旧版在 `app-actions.js`、`app-workflows.js`，Next 尚未迁移。
-- 分享：旧版在 `app-workflows.js`，Next 仅有基础记录创建和公开页。
-- 收集：旧版在 `app-actions.js`、`app-workflows.js`，Next 仅有任务创建和公开页。
-- 回收站：旧版在 `app-render.js`、`app-workflows.js`，Next 已接入批量恢复/彻底删除，但清空回收站、排序等仍需补齐。
+- 上传与导入：旧版在 `app-actions.js`；Next 已接入现有上传按钮到隐藏文件选择框，文件保存到 `public/uploads/` 并通过 `uploadAssetsAction()` 写入素材表。上传设置、媒体信息、AI 标签识别和车型识别仍待补齐；百度网盘导入入口当前按需求隐藏。
+- 筛选与排序：旧版在 `app-utils.js`、`app-actions.js`、`app-core.js`；Next 已迁移多选筛选、基础排序、搜索、相似结果和列表视图，筛选配置和显示全部素材组开关仍待增强。
+- 素材查看器：旧版在 `app-actions.js` 和 `app-render.js`；Next 已迁移初版查看器，平移、详情标签页、浏览日志和底部操作仍待增强。
+- 素材编辑：旧版在 `app-actions.js`；Next 已迁移基础编辑和业务标签编辑，AI 标签、颜色、所有者、权限枚举和表单校验仍待补齐。
+- 素材组 CRUD/移动：旧版在 `app-actions.js`，Next 已有创建、编辑和软删除；树形拖拽/折叠仍未做。
+- 标签新增/编辑/合并：旧版在 `app-render.js`，Next 已有新增、编辑、启停和合并。
+- 素材篮：旧版在 `app-actions.js`、`app-workflows.js`，Next 已有加入、移除、清空和分享。
+- 分享：旧版在 `app-workflows.js`，Next 已有基础记录创建、快速分享和公开页素材展示；密码校验、访问计数、下载计数仍需后端级完善。
+- 收集：旧版在 `app-actions.js`、`app-workflows.js`，Next 已有任务创建、公开提交、提交记录和上传文件明细；入库/拒收流转仍待真实后台工作流。
+- 回收站：旧版在 `app-render.js`、`app-workflows.js`，Next 已接入批量恢复；清空回收站、物理删除等能力不再迁移为可用功能，删除统一按软删除处理。
 - 权限与所有者：旧版在 `app-workflows.js`，Next 尚未迁移完整交互。
 
 ## 当前仍需注意的问题
@@ -140,12 +150,17 @@
 - 当前 Next 源码中仍能看到部分中文文案乱码，后续迁移 UI 时应按页面逐步修复。
 - `npm run typecheck` 当前通过，但它无法发现所有交互缺失；迁移功能时需要对照旧静态页手动验收。
 - MySQL Repository 仍未实现，正式后端存储前需要补齐。
+- 每次文件变化后同步更新 `README.md` 和 `CODE_MEMORY.md`；涉及数据结构或数据语义时也必须更新 `DATABASE_SCHEMA.md`，并询问是否需要把变化加入本地 git。
+
+## 下一步迁移优先级
+
+1. 若继续推进，应优先做真实后端能力：MySQL Repository、媒体解析、AI 识别、权限校验、下载/访问统计、网盘导入。
+2. JSON 演示版剩余主要是体验增强：查看器拖拽平移、详情标签页、筛选配置、树折叠/拖拽。
 
 ## 点检建议
 
-- 改素材列表：先测分组切换、选择状态、批量删除、回收站恢复/彻底删除、有效期批量更新。
+- 改素材列表：先测分组切换、选择状态、批量软删除、回收站恢复、有效期批量更新。
 - 改筛选排序：先测顶部筛选、多选、排序、素材数量、空状态。
 - 改标签：先测标签管理页表格、新增、编辑、合并、AI 标签字段、标签跳转筛选。
 - 改分享/收集：先测创建链接、公开页、过期时间、密码/权限、提交和上传。
-- 改回收站：先测软删、恢复、彻底删除、清空、删除时间排序。
-
+- 改回收站：先测软删、恢复、删除时间排序；不测试物理删除，因为删除统一为软删除。

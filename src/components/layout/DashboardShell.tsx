@@ -76,7 +76,7 @@ export function DashboardShell({ children, groups, user }: { children: React.Rea
         <header className="flex h-[90px] items-center gap-6 bg-[#2c3f50] px-7 text-white">
           <div className="relative max-w-2xl flex-1">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">⌕</span>
-            <input className="h-12 w-full rounded-ui border-0 bg-white px-11 text-slate-900" placeholder="试试在搜索词中增加文件格式，如：手册pdf" />
+            <input className="h-12 w-full rounded-ui border-0 bg-white px-11 text-slate-900" onChange={(event) => dispatch({ type: "setQuery", query: event.target.value })} placeholder="试试在搜索词中增加文件格式，如：手册pdf" value={state.query} />
           </div>
           <span className="rounded-full border border-white/30 px-3 py-2">深</span>
           <span>⌂</span>

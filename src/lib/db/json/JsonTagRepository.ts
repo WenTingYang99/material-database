@@ -1,4 +1,4 @@
-import type { CreateTagInput, ITagRepository } from "@/lib/db/repositories/interfaces";
+import type { CreateTagInput, ITagRepository, UpdateTagInput } from "@/lib/db/repositories/interfaces";
 import { JsonDatabase } from "@/lib/db/json/JsonDatabase";
 import type { Tag } from "@/lib/types/tag";
 
@@ -56,6 +56,46 @@ export class JsonTagRepository implements ITagRepository {
     const created = (await this.findAll()).find((tag) => tag.id === String(nextId));
     if (!created) throw new Error("Tag create failed");
     return created;
+  }
+
+  async update(id: string, data: UpdateTagInput): Promise<Tag> {
+    const db = await this.database.read();
+    const index = db.t_asset_tag.findIndex((tag) => tag.tag_id === Number(id));
+    if (index < 0) throw new Error("Tag not found");
+    db.t_asset_tag[index] = {
+      ...db.t_asset_tag[index],
+      tag_name: data.tagName?.trim() || db.t_asset_tag[index].tag_name,
+      description: data.description === undefined ? db.t_asset_tag[index].description : data.description.trim() || null,
+      status: data.status ?? db.t_asset_tag[index].status,
+      ai_recognition_enabled: data.aiRecognitionEnabled ?? db.t_asset_tag[index].ai_recognition_enabled,
+      update_time: new Date().toISOString(),
+    };
+    await this.database.write(db);
+    const updated = (await this.findAll()).find((tag) => tag.id === id);
+    if (!updated) throw new Error("Tag update failed");
+    return updated;
+  }
+
+  async merge(sourceId: string, targetId: string): Promise<void> {
+    if (!sourceId || !targetId || sourceId === targetId) return;
+    const db = await this.database.read();
+    const source = db.t_asset_tag.find((tag) => tag.tag_id === Number(sourceId));
+    const target = db.t_asset_tag.find((tag) => tag.tag_id === Number(targetId));
+    if (!source || !target) return;
+    const now = new Date().toISOString();
+    db.t_asset_tag_rel = db.t_asset_tag_rel.map((rel) => rel.tag_id === source.tag_id ? { ...rel, tag_id: target.tag_id } : rel);
+    const seen = new Set<string>();
+    db.t_asset_tag_rel = db.t_asset_tag_rel.filter((rel) => {
+      const key = `${rel.asset_id}:${rel.tag_id}:${rel.tag_type}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    source.deleted_flag = 1;
+    source.status = 0;
+    source.update_time = now;
+    target.update_time = now;
+    await this.database.write(db);
   }
 
   private generateCode(name: string, existingCodes: string[]): string {

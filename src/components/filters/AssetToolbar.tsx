@@ -1,14 +1,33 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useAppState } from "@/context/AppContext";
+import type { Asset } from "@/lib/types/asset";
 
-export function AssetToolbar({ total }: { total: number }) {
+const filterLabels = ["素材来源", "文件格式", "车型", "品牌", "权限范围", "业务标签", "AI标签", "素材失效日"];
+
+export function AssetToolbar({ assets, total }: { assets: Asset[]; total: number }) {
   const { state, dispatch } = useAppState();
+  const [openFilter, setOpenFilter] = useState<string | null>(null);
+  const valuesByLabel = useMemo(() => getFilterValues(assets), [assets]);
   return (
     <div className="border-y border-slate-200 bg-white px-7 py-5">
       <div className="mb-5 flex flex-wrap items-center gap-8 text-lg">
-        {["素材来源", "文件格式", "车型", "品牌", "权限范围", "业务标签", "AI标签", "素材失效日"].map((item) => (
-          <button key={item} className="flex items-center gap-2" type="button">{item}<span className="text-slate-500">⌄</span></button>
+        {filterLabels.map((item) => (
+          <span key={item} className="relative">
+            <button className="flex items-center gap-2" onClick={() => setOpenFilter(openFilter === item ? null : item)} type="button">
+              {item}{state.filters[item]?.length ? `(${state.filters[item].length})` : ""}<span className="text-slate-500">⌄</span>
+            </button>
+            {openFilter === item ? (
+              <div className="absolute left-0 top-full z-40 mt-2 min-w-44 rounded-ui border border-slate-200 bg-white p-2 text-base shadow-lg">
+                <button className={`block w-full rounded px-3 py-2 text-left ${state.filters[item]?.length ? "" : "bg-teal-50 text-brand"}`} onClick={() => dispatch({ type: "clearFilter", label: item })} type="button">全部</button>
+                {(valuesByLabel[item] || []).map((value) => {
+                  const active = state.filters[item]?.includes(value);
+                  return <button key={value} className={`block w-full rounded px-3 py-2 text-left ${active ? "bg-teal-50 text-brand" : ""}`} onClick={() => dispatch({ type: "toggleFilter", label: item, value })} type="button">{active ? "✓ " : ""}{value}</button>;
+                })}
+              </div>
+            ) : null}
+          </span>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-4">
@@ -30,4 +49,21 @@ export function AssetToolbar({ total }: { total: number }) {
       </div>
     </div>
   );
+}
+
+function getFilterValues(assets: Asset[]): Record<string, string[]> {
+  return {
+    "素材来源": ["本地上传", "素材库"],
+    "文件格式": unique(assets.map((asset) => asset.format)),
+    "车型": unique(assets.map((asset) => asset.model || "")),
+    "品牌": unique(assets.map((asset) => asset.brand || "")),
+    "权限范围": unique(assets.map((asset) => asset.permission || "")),
+    "业务标签": unique(assets.flatMap((asset) => asset.customTags || [])),
+    "AI标签": unique(assets.flatMap((asset) => asset.aiTags || [])),
+    "素材失效日": ["永久有效", "30天内", "90天内"],
+  };
+}
+
+function unique(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].slice(0, 24);
 }

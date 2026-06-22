@@ -114,6 +114,8 @@ export class JsonAssetRepository implements IAssetRepository {
       create_time: now,
       update_time: now,
     });
+    this.syncTags(db, nextId, data.customTags || [], "custom", now);
+    this.syncTags(db, nextId, data.aiTags || [], "ai", now);
     db.t_asset_operation_log.unshift({
       log_id: Math.max(0, ...db.t_asset_operation_log.map((log) => log.log_id)) + 1,
       asset_id: nextId,
@@ -138,12 +140,16 @@ export class JsonAssetRepository implements IAssetRepository {
       ...db.t_asset[index],
       name: data.name ?? db.t_asset[index].name,
       description: data.desc ?? db.t_asset[index].description,
+      brand: data.brand ?? db.t_asset[index].brand,
+      model: data.model ?? db.t_asset[index].model,
       permission: data.permission ?? db.t_asset[index].permission,
+      group_id: data.groupId === undefined ? db.t_asset[index].group_id : data.groupId ? Number(data.groupId) : null,
       valid_from: data.validStart ?? db.t_asset[index].valid_from,
       valid_until: data.validUntil ?? db.t_asset[index].valid_until,
       deleted_flag: data.status === "deleted" ? 1 : data.status === "active" ? 0 : db.t_asset[index].deleted_flag,
       update_time: now,
     };
+    if (data.customTags) this.syncTags(db, Number(id), data.customTags, "custom", now);
     db.t_asset_operation_log.unshift({
       log_id: Math.max(0, ...db.t_asset_operation_log.map((log) => log.log_id)) + 1,
       asset_id: Number(id),
@@ -167,13 +173,6 @@ export class JsonAssetRepository implements IAssetRepository {
     await this.update(id, { status: "active", deletedAt: undefined });
   }
 
-  async hardDelete(id: string): Promise<void> {
-    const db = await this.database.read();
-    db.t_asset = db.t_asset.filter((asset) => asset.asset_id !== Number(id));
-    db.t_asset_tag_rel = db.t_asset_tag_rel.filter((rel) => rel.asset_id !== Number(id));
-    await this.database.write(db);
-  }
-
   async batchUpdateValidity(ids: string[], validUntil: string): Promise<void> {
     const db = await this.database.read();
     db.t_asset = db.t_asset.map((asset) => (ids.includes(String(asset.asset_id)) ? { ...asset, valid_until: validUntil } : asset));
@@ -194,5 +193,60 @@ export class JsonAssetRepository implements IAssetRepository {
     if (mediaType === "图片") return `image/${format.toLowerCase()}`;
     if (mediaType === "视频") return `video/${format.toLowerCase()}`;
     return "application/octet-stream";
+  }
+
+  private syncTags(db: Awaited<ReturnType<JsonDatabase["read"]>>, assetId: number, tagNames: string[], tagType: "custom" | "ai", now: string) {
+    const normalizedNames = [...new Set(tagNames.map((name) => name.trim()).filter(Boolean))];
+    db.t_asset_tag_rel = db.t_asset_tag_rel.filter((rel) => !(rel.asset_id === assetId && rel.tag_type === tagType));
+    for (const name of normalizedNames) {
+      let tag = db.t_asset_tag.find((item) => item.tag_name === name && item.tag_type === tagType && item.deleted_flag === 0);
+      if (!tag) {
+        const nextId = Math.max(0, ...db.t_asset_tag.map((item) => item.tag_id)) + 1;
+        tag = {
+          tag_id: nextId,
+          tag_name: name,
+          tag_code: this.generateTagCode(name, db.t_asset_tag.map((item) => item.tag_code)),
+          parent_id: 0,
+          level: 0,
+          tag_type: tagType,
+          ai_source: tagType === "ai" ? 1 : 0,
+          ai_recognition_enabled: 1,
+          is_visible: 1,
+          status: 1,
+          sort_order: Math.max(0, ...db.t_asset_tag.map((item) => item.sort_order)) + 1,
+          description: null,
+          created_by: tagType === "ai" ? null : 1,
+          deleted_flag: 0,
+          create_time: now,
+          update_time: now,
+        };
+        db.t_asset_tag.push(tag);
+      }
+      db.t_asset_tag_rel.push({
+        rel_id: Math.max(0, ...db.t_asset_tag_rel.map((rel) => rel.rel_id)) + 1,
+        asset_id: assetId,
+        tag_id: tag.tag_id,
+        tag_type: tagType,
+        create_time: now,
+      });
+    }
+  }
+
+  private generateTagCode(name: string, existingCodes: string[]) {
+    const ascii = name
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .toLowerCase();
+    const base = ascii && /^[a-z]/.test(ascii) ? ascii : "tag_" + Date.now().toString(36);
+    const existing = new Set(existingCodes);
+    let code = base;
+    let index = 1;
+    while (existing.has(code)) {
+      code = base + "_" + index;
+      index += 1;
+    }
+    return code;
   }
 }

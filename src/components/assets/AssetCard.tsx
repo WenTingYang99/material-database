@@ -4,16 +4,17 @@ import type { Asset } from "@/lib/types/asset";
 import { useAppState } from "@/context/AppContext";
 import { formatBytes } from "@/lib/utils/format";
 
-export function AssetCard({ asset }: { asset: Asset }) {
+export function AssetCard({ asset, onOpen }: { asset: Asset; onOpen?: (asset: Asset) => void }) {
   const { state, dispatch } = useAppState();
   const selected = state.selectedIds.includes(asset.id);
   return (
     <article className={`rounded-ui border bg-white p-3 shadow-sm ${selected ? "border-brand ring-1 ring-brand" : "border-slate-200"}`}>
-      <div className="relative aspect-[4/3] overflow-hidden rounded-ui bg-[linear-gradient(45deg,#f8fafc_25%,transparent_25%),linear-gradient(-45deg,#f8fafc_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f8fafc_75%),linear-gradient(-45deg,transparent_75%,#f8fafc_75%)] bg-[length:20px_20px]">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-ui bg-[linear-gradient(45deg,#f8fafc_25%,transparent_25%),linear-gradient(-45deg,#f8fafc_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#f8fafc_75%),linear-gradient(-45deg,transparent_75%,#f8fafc_75%)] bg-[length:20px_20px]" onClick={() => onOpen?.(asset)} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter") onOpen?.(asset); }}>
         <input
           checked={selected}
           className="absolute left-3 top-3 z-10 h-5 w-5"
           onChange={() => dispatch({ type: "toggleSelected", id: asset.id })}
+          onClick={(event) => event.stopPropagation()}
           type="checkbox"
         />
         <img alt={asset.name} className="h-full w-full object-cover" src={`/${asset.src}`} />

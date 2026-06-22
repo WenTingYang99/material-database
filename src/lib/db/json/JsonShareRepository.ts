@@ -22,6 +22,11 @@ export class JsonShareRepository implements IShareRepository {
     return db.t_share_record.find((share) => share.share_code === code) || null;
   }
 
+  async findTargets(shareId: number) {
+    const db = await this.database.read();
+    return db.t_share_target_rel.filter((rel) => rel.share_id === shareId);
+  }
+
   async create(data: CreateShareInput): Promise<DbShareRecord> {
     const db = await this.database.read();
     const shareId = Math.max(0, ...db.t_share_record.map((share) => share.share_id)) + 1;

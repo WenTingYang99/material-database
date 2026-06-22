@@ -10,7 +10,6 @@ export interface IAssetRepository {
   update(id: string, data: Partial<Asset>): Promise<Asset>;
   delete(id: string): Promise<void>;
   restore(id: string): Promise<void>;
-  hardDelete(id: string): Promise<void>;
   batchUpdateValidity(ids: string[], validUntil: string): Promise<void>;
 }
 
@@ -25,6 +24,8 @@ export interface IGroupRepository {
 export interface ITagRepository {
   findAll(): Promise<Tag[]>;
   create(data: CreateTagInput): Promise<Tag>;
+  update(id: string, data: UpdateTagInput): Promise<Tag>;
+  merge(sourceId: string, targetId: string): Promise<void>;
 }
 
 export interface IUserRepository {
@@ -34,6 +35,7 @@ export interface IUserRepository {
 export interface IShareRepository {
   findAll(): Promise<DbShareRecord[]>;
   findByCode(code: string): Promise<DbShareRecord | null>;
+  findTargets(shareId: number): Promise<DbShareTargetRel[]>;
   create(data: CreateShareInput): Promise<DbShareRecord>;
 }
 
@@ -41,6 +43,9 @@ export interface ICollectRepository {
   findTasks(): Promise<DbCollectTask[]>;
   findTaskByCode(code: string): Promise<DbCollectTask | null>;
   createTask(data: CreateCollectTaskInput): Promise<DbCollectTask>;
+  createSubmission(data: CreateCollectSubmissionInput): Promise<DbCollectSubmission>;
+  addUploadFile(data: CreateCollectUploadFileInput): Promise<DbCollectUploadFile>;
+  findSubmissions(taskId: number): Promise<DbCollectSubmission[]>;
 }
 
 export interface MaterialDb {
@@ -259,4 +264,26 @@ export interface CreateTagInput {
   tagName: string;
   description?: string;
   createdBy?: number;
+}
+
+export interface UpdateTagInput {
+  tagName?: string;
+  description?: string;
+  status?: 0 | 1;
+  aiRecognitionEnabled?: 0 | 1;
+}
+
+export interface CreateCollectSubmissionInput {
+  task_id: number;
+  uploader_name?: string;
+  contact?: string;
+  remark?: string;
+}
+
+export interface CreateCollectUploadFileInput {
+  submission_id: number;
+  file_name: string;
+  file_path: string;
+  format: string;
+  file_size: number;
 }

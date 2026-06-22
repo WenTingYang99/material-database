@@ -1,6 +1,8 @@
 "use server";
 
+import { mkdir, writeFile } from "fs/promises";
 import { revalidatePath } from "next/cache";
+import path from "path";
 import { createRepositories } from "@/lib/db/repositories/factory";
 
 export async function createCollectTaskAction(formData: FormData) {
@@ -15,5 +17,34 @@ export async function createCollectTaskAction(formData: FormData) {
     expires_at: String(formData.get("expires_at") || ""),
     creator_id: 1,
   });
+  revalidatePath("/collect-tasks");
+}
+
+export async function submitCollectTaskAction(formData: FormData) {
+  const taskId = Number(formData.get("task_id"));
+  if (!taskId) return;
+  const { collect } = createRepositories();
+  const submission = await collect.createSubmission({
+    task_id: taskId,
+    uploader_name: String(formData.get("uploader_name") || ""),
+    contact: String(formData.get("contact") || ""),
+    remark: String(formData.get("remark") || ""),
+  });
+  const files = formData.getAll("files").filter((file): file is File => file instanceof File && file.size > 0);
+  if (files.length) {
+    const uploadDir = path.join(process.cwd(), "public", "uploads", "collect");
+    await mkdir(uploadDir, { recursive: true });
+    for (const file of files) {
+      const storedName = `${Date.now()}-${Math.random().toString(16).slice(2)}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+      await writeFile(path.join(uploadDir, storedName), Buffer.from(await file.arrayBuffer()));
+      await collect.addUploadFile({
+        submission_id: submission.submission_id,
+        file_name: file.name,
+        file_path: `uploads/collect/${storedName}`,
+        format: file.name.split(".").pop()?.toUpperCase() || "FILE",
+        file_size: file.size,
+      });
+    }
+  }
   revalidatePath("/collect-tasks");
 }
