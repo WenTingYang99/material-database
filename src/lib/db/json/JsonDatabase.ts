@@ -20,7 +20,10 @@ export class JsonDatabase {
         t_asset_tag_rel: [],
         t_asset_operation_log: [],
         t_share_record: [],
+        t_share_target_rel: [],
         t_collect_task: [],
+        t_collect_submission: [],
+        t_collect_upload_file: [],
       };
       await this.write(emptyDb);
       return emptyDb;

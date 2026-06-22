@@ -17,14 +17,30 @@ export interface IAssetRepository {
 export interface IGroupRepository {
   findAll(): Promise<MaterialGroup[]>;
   findById(id: string): Promise<MaterialGroup | null>;
+  create(data: CreateGroupInput): Promise<MaterialGroup>;
+  update(id: string, data: Partial<CreateGroupInput>): Promise<MaterialGroup>;
+  delete(id: string): Promise<void>;
 }
 
 export interface ITagRepository {
   findAll(): Promise<Tag[]>;
+  create(data: CreateTagInput): Promise<Tag>;
 }
 
 export interface IUserRepository {
   findByUsername(username: string): Promise<User | null>;
+}
+
+export interface IShareRepository {
+  findAll(): Promise<DbShareRecord[]>;
+  findByCode(code: string): Promise<DbShareRecord | null>;
+  create(data: CreateShareInput): Promise<DbShareRecord>;
+}
+
+export interface ICollectRepository {
+  findTasks(): Promise<DbCollectTask[]>;
+  findTaskByCode(code: string): Promise<DbCollectTask | null>;
+  createTask(data: CreateCollectTaskInput): Promise<DbCollectTask>;
 }
 
 export interface MaterialDb {
@@ -34,8 +50,11 @@ export interface MaterialDb {
   t_asset_tag: DbAssetTag[];
   t_asset_tag_rel: DbAssetTagRel[];
   t_asset_operation_log: DbAssetOperationLog[];
-  t_share_record: unknown[];
-  t_collect_task: unknown[];
+  t_share_record: DbShareRecord[];
+  t_share_target_rel: DbShareTargetRel[];
+  t_collect_task: DbCollectTask[];
+  t_collect_submission: DbCollectSubmission[];
+  t_collect_upload_file: DbCollectUploadFile[];
 }
 
 export interface DbEmployee {
@@ -141,4 +160,103 @@ export interface DbAssetOperationLog {
   message: string;
   metadata: Record<string, unknown>;
   create_time: string;
+}
+
+export interface DbShareRecord {
+  share_id: number;
+  share_name: string;
+  creator_id: number | null;
+  target_type: "asset" | "group" | "basket";
+  access_level: "internal" | "public" | "specified";
+  allow_download: 0 | 1;
+  include_attachment: 0 | 1;
+  password: string | null;
+  share_code: string;
+  share_link: string;
+  expires_at: string | null;
+  visit_count: number;
+  view_count: number;
+  download_count: number;
+  status: "active" | "expired" | "closed";
+  create_time: string;
+  update_time: string;
+}
+
+export interface DbShareTargetRel {
+  rel_id: number;
+  share_id: number;
+  target_type: "asset" | "group";
+  target_id: number;
+  create_time: string;
+}
+
+export interface DbCollectTask {
+  task_id: number;
+  theme: string;
+  description: string | null;
+  group_id: number | null;
+  status: "active" | "expired" | "closed";
+  access_code: string;
+  allowed_file_types: string[];
+  expires_at: string | null;
+  creator_id: number | null;
+  create_time: string;
+  update_time: string;
+}
+
+export interface DbCollectSubmission {
+  submission_id: number;
+  task_id: number;
+  uploader_name: string | null;
+  contact: string | null;
+  remark: string | null;
+  status: "submitted" | "stored" | "rejected";
+  create_time: string;
+}
+
+export interface DbCollectUploadFile {
+  file_id: number;
+  submission_id: number;
+  asset_id: number | null;
+  file_name: string;
+  file_path: string;
+  format: string;
+  file_size: number;
+  upload_status: "uploaded" | "stored" | "failed";
+  create_time: string;
+}
+
+export interface CreateShareInput {
+  share_name: string;
+  target_type: "asset" | "group" | "basket";
+  target_ids: number[];
+  access_level: "internal" | "public" | "specified";
+  allow_download: boolean;
+  include_attachment: boolean;
+  password?: string;
+  expires_at?: string;
+  creator_id?: number;
+}
+
+export interface CreateCollectTaskInput {
+  theme: string;
+  description?: string;
+  group_id?: number | null;
+  access_code?: string;
+  allowed_file_types: string[];
+  expires_at?: string;
+  creator_id?: number;
+}
+
+export interface CreateGroupInput {
+  name: string;
+  parentId?: string | null;
+  description?: string;
+  ownerId?: number;
+}
+
+export interface CreateTagInput {
+  tagName: string;
+  description?: string;
+  createdBy?: number;
 }

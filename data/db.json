@@ -1719,6 +1719,55 @@
       "create_time": "2026/05/26 17:38"
     }
   ],
-  "t_share_record": [],
-  "t_collect_task": []
+  "t_share_record": [
+    {
+      "share_id": 1,
+      "share_name": "示例素材分享",
+      "creator_id": 1,
+      "target_type": "asset",
+      "access_level": "internal",
+      "allow_download": 1,
+      "include_attachment": 0,
+      "password": null,
+      "share_code": "s_demo1",
+      "share_link": "/share/s_demo1",
+      "expires_at": "2026-12-31 23:59",
+      "visit_count": 0,
+      "view_count": 0,
+      "download_count": 0,
+      "status": "active",
+      "create_time": "2026-06-22 13:50:00",
+      "update_time": "2026-06-22 13:50:00"
+    }
+  ],
+  "t_collect_task": [
+    {
+      "task_id": 1,
+      "theme": "示例素材收集",
+      "description": "请按要求提交素材文件",
+      "group_id": 1,
+      "status": "active",
+      "access_code": "DEMO01",
+      "allowed_file_types": [
+        "图片",
+        "视频",
+        "文档"
+      ],
+      "expires_at": "2026-12-31 23:59",
+      "creator_id": 1,
+      "create_time": "2026-06-22 13:50:00",
+      "update_time": "2026-06-22 13:50:00"
+    }
+  ],
+  "t_share_target_rel": [
+    {
+      "rel_id": 1,
+      "share_id": 1,
+      "target_type": "asset",
+      "target_id": 1,
+      "create_time": "2026-06-22 13:50:00"
+    }
+  ],
+  "t_collect_submission": [],
+  "t_collect_upload_file": []
 }

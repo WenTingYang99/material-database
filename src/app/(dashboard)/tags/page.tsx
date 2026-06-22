@@ -2,6 +2,7 @@ import { createRepositories } from "@/lib/db/repositories/factory";
 import { DataTable } from "@/components/layout/DataTable";
 import { PageHeader } from "@/components/layout/PageHeader";
 import type { Tag } from "@/lib/types/tag";
+import { createTagAction } from "@/app/actions/tag.actions";
 
 export default async function TagsPage() {
   const { tags } = createRepositories();
@@ -15,7 +16,13 @@ export default async function TagsPage() {
         eyebrow={`全部 › 更多功能 › 标签管理 · 业务标签 ${businessCount} 个 · AI标签 ${aiCount} 个`}
         actions={<><button className="rounded-ui border border-slate-300 px-4 py-2">＋ 新增标签</button><button className="rounded-ui border border-slate-300 px-4 py-2">标签合并</button></>}
       />
-      <section className="p-7">
+      <section className="space-y-5 p-7">
+        <form action={createTagAction} className="grid gap-3 rounded-ui border border-slate-200 bg-white p-5 md:grid-cols-[240px_1fr_auto]">
+          <input className="h-11 rounded-ui border border-slate-300 px-3" name="tagName" placeholder="请输入标签名称" required />
+          <input className="h-11 rounded-ui border border-slate-300 px-3" name="description" placeholder="请输入标签说明" />
+          <button className="h-11 rounded-ui bg-brand px-5 font-semibold text-white" type="submit">＋ 创建标签</button>
+          <p className="text-sm text-slate-500 md:col-span-3">标签编码由系统自动生成；当前新增标签默认为业务标签。</p>
+        </form>
         <DataTable<Tag>
           rows={rows}
           columns={[
