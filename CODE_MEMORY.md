@@ -137,8 +137,8 @@
 - 素材查看器：旧版在 `app-actions.js` 和 `app-render.js`；Next 已迁移初版查看器，平移、详情标签页、浏览日志和底部操作仍待增强。
 - 素材编辑：旧版在 `app-actions.js`；Next 已迁移基础编辑和业务标签编辑，AI 标签、颜色、所有者、权限枚举和表单校验仍待补齐。
 - 素材组 CRUD/移动：旧版在 `app-actions.js`，Next 已有创建、编辑和软删除；树形拖拽/折叠仍未做。
-- 标签新增/编辑/合并：旧版在 `app-render.js`，Next 已有新增、编辑、启停和合并。
-- 素材篮：旧版在 `app-actions.js`、`app-workflows.js`，Next 已有加入、移除、清空和分享。
+- 标签新增/编辑/合并：旧版在 `app-render.js`；Next 当前实现位置为 `src/components/tags/TagsManager.tsx`，页面入口为 `src/app/(dashboard)/tags/page.tsx`；展示方式按旧版恢复为业务标签/AI 标签 tab、搜索/排序、表格图标操作和新增/编辑/合并弹框，不再把新增、合并、编辑表单平铺在页面内。
+- 素材篮：旧版在 `app-actions.js`、`app-workflows.js`，Next 当前在 `src/components/assets/AssetWorkspace.tsx` 中按旧版语义恢复：素材篮内容等同 `selectedIds`，通过右侧抽屉展示，支持移出、清空、软删除、修改有效期和分享；不再维护独立 `basketIds` 状态。
 - 分享：旧版在 `app-workflows.js`，Next 已有基础记录创建、快速分享和公开页素材展示；密码校验、访问计数、下载计数仍需后端级完善。
 - 收集：旧版在 `app-actions.js`、`app-workflows.js`，Next 已有任务创建、公开提交、提交记录和上传文件明细；入库/拒收流转仍待真实后台工作流。
 - 回收站：旧版在 `app-render.js`、`app-workflows.js`，Next 已接入批量恢复；清空回收站、物理删除等能力不再迁移为可用功能，删除统一按软删除处理。
@@ -147,7 +147,8 @@
 ## 当前仍需注意的问题
 
 - 文档已重新保存为 UTF-8；后续更新文档继续使用 UTF-8。
-- 当前 Next 源码中仍能看到部分中文文案乱码，后续迁移 UI 时应按页面逐步修复。
+- 标签管理页、素材工作区、筛选工具栏、通用 DataTable/PageHeader 中已修复本次触碰到的中文乱码；当前 Next 源码中如仍能看到其他页面中文文案乱码，后续迁移 UI 时继续按页面逐步修复。
+- 功能迁移必须先对照 `legacy-static/` 的展示方式，保持弹框、抽屉、表格列、按钮位置和操作入口；不要把旧版弹框改成内联表单，除非用户明确同意重做布局或样式。
 - `npm run typecheck` 当前通过，但它无法发现所有交互缺失；迁移功能时需要对照旧静态页手动验收。
 - MySQL Repository 仍未实现，正式后端存储前需要补齐。
 - 每次文件变化后同步更新 `README.md` 和 `CODE_MEMORY.md`；涉及数据结构或数据语义时也必须更新 `DATABASE_SCHEMA.md`，并询问是否需要把变化加入本地 git。

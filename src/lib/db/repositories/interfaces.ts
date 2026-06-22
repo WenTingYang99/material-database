@@ -263,12 +263,17 @@ export interface CreateGroupInput {
 export interface CreateTagInput {
   tagName: string;
   description?: string;
+  tagType?: 1 | 2;
+  parentId?: string | number;
+  aiRecognitionEnabled?: 0 | 1;
   createdBy?: number;
 }
 
 export interface UpdateTagInput {
   tagName?: string;
   description?: string;
+  tagType?: 1 | 2;
+  parentId?: string | number;
   status?: 0 | 1;
   aiRecognitionEnabled?: 0 | 1;
 }

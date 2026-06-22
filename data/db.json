@@ -1721,6 +1721,44 @@
   ],
   "t_share_record": [
     {
+      "share_id": 3,
+      "share_name": "素材分享 2026-06-22 20:40",
+      "creator_id": 1,
+      "target_type": "basket",
+      "access_level": "internal",
+      "allow_download": 1,
+      "include_attachment": 0,
+      "password": null,
+      "share_code": "s_d7jham",
+      "share_link": "/share/s_d7jham",
+      "expires_at": null,
+      "visit_count": 0,
+      "view_count": 0,
+      "download_count": 0,
+      "status": "active",
+      "create_time": "2026-06-22 12:40:27",
+      "update_time": "2026-06-22 12:40:27"
+    },
+    {
+      "share_id": 2,
+      "share_name": "素材分享 2026-06-22 20:40",
+      "creator_id": 1,
+      "target_type": "basket",
+      "access_level": "internal",
+      "allow_download": 1,
+      "include_attachment": 0,
+      "password": null,
+      "share_code": "s_wfltkj",
+      "share_link": "/share/s_wfltkj",
+      "expires_at": null,
+      "visit_count": 0,
+      "view_count": 0,
+      "download_count": 0,
+      "status": "active",
+      "create_time": "2026-06-22 12:40:23",
+      "update_time": "2026-06-22 12:40:23"
+    },
+    {
       "share_id": 1,
       "share_name": "示例素材分享",
       "creator_id": 1,
@@ -1766,6 +1804,48 @@
       "target_type": "asset",
       "target_id": 1,
       "create_time": "2026-06-22 13:50:00"
+    },
+    {
+      "rel_id": 2,
+      "share_id": 2,
+      "target_type": "asset",
+      "target_id": 6,
+      "create_time": "2026-06-22 12:40:23"
+    },
+    {
+      "rel_id": 3,
+      "share_id": 2,
+      "target_type": "asset",
+      "target_id": 8,
+      "create_time": "2026-06-22 12:40:23"
+    },
+    {
+      "rel_id": 4,
+      "share_id": 2,
+      "target_type": "asset",
+      "target_id": 9,
+      "create_time": "2026-06-22 12:40:23"
+    },
+    {
+      "rel_id": 5,
+      "share_id": 3,
+      "target_type": "asset",
+      "target_id": 6,
+      "create_time": "2026-06-22 12:40:27"
+    },
+    {
+      "rel_id": 6,
+      "share_id": 3,
+      "target_type": "asset",
+      "target_id": 8,
+      "create_time": "2026-06-22 12:40:27"
+    },
+    {
+      "rel_id": 7,
+      "share_id": 3,
+      "target_type": "asset",
+      "target_id": 9,
+      "create_time": "2026-06-22 12:40:27"
     }
   ],
   "t_collect_submission": [],

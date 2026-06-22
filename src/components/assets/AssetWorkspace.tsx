@@ -12,16 +12,33 @@ import { formatBytes } from "@/lib/utils/format";
 
 type WorkspaceMode = "normal" | "recycle";
 
-export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "全部素材", breadcrumbPrefix = "全部", mode = "normal" }: { initialAssets: Asset[]; initialTotal: number; groups: MaterialGroup[]; title?: string; breadcrumbPrefix?: string; status?: AssetStatus; mode?: WorkspaceMode }) {
+export function AssetWorkspace({
+  initialAssets,
+  initialTotal,
+  groups,
+  title = "全部素材",
+  breadcrumbPrefix = "全部",
+  mode = "normal",
+}: {
+  initialAssets: Asset[];
+  initialTotal: number;
+  groups: MaterialGroup[];
+  title?: string;
+  breadcrumbPrefix?: string;
+  status?: AssetStatus;
+  mode?: WorkspaceMode;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [newGroupName, setNewGroupName] = useState("");
   const [validUntil, setValidUntil] = useState("");
+  const [basketOpen, setBasketOpen] = useState(false);
   const [viewerAssetId, setViewerAssetId] = useState<string | null>(null);
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
   const [viewerZoom, setViewerZoom] = useState(100);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { state, dispatch } = useAppState();
+
   const assets = useMemo(() => {
     let items = [...initialAssets];
     if (state.groupId !== "all") items = items.filter((asset) => asset.groupId === state.groupId);
@@ -41,9 +58,10 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
     if (state.sort === "上传日期" || state.sort === "创建时间") items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return items;
   }, [initialAssets, state.filters, state.groupId, state.query, state.similarAssetId, state.sort]);
+
   const groupName = state.groupId === "all" ? title : groups.find((group) => group.id === state.groupId)?.name || title;
   const selectedCount = state.selectedIds.length;
-  const basketAssets = assets.filter((asset) => state.basketIds.includes(asset.id));
+  const basketAssets = assets.filter((asset) => state.selectedIds.includes(asset.id));
   const viewerAsset = viewerAssetId ? assets.find((asset) => asset.id === viewerAssetId) || null : null;
   const editingAsset = editingAssetId ? assets.find((asset) => asset.id === editingAssetId) || null : null;
   const viewerIndex = viewerAsset ? assets.findIndex((asset) => asset.id === viewerAsset.id) : -1;
@@ -71,11 +89,14 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
 
   const handleValiditySubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    updateSelectedValidity();
+  };
+
+  const updateSelectedValidity = () => {
     if (!validUntil || !selectedCount) return;
     startTransition(async () => {
       await updateAssetValidity(state.selectedIds, validUntil.replace("T", " "));
       setValidUntil("");
-      dispatch({ type: "clearSelected" });
       router.refresh();
     });
   };
@@ -121,10 +142,9 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
   };
 
   const handleShareSelected = () => {
-    const ids = state.selectedIds.length ? state.selectedIds : state.basketIds;
-    if (!ids.length) return;
+    if (!state.selectedIds.length) return;
     startTransition(async () => {
-      await shareAssetsAction(ids);
+      await shareAssetsAction(state.selectedIds);
       router.refresh();
     });
   };
@@ -155,20 +175,19 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
   return (
     <main>
       <section className="bg-white px-7 py-5">
-        <p className="mb-2 text-sm text-slate-500">{breadcrumbPrefix} › {groupName}</p>
+        <p className="mb-2 text-sm text-slate-500">{breadcrumbPrefix} - {groupName}</p>
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">{groupName}</h1>
           <div className="flex flex-wrap justify-end gap-2">
             {mode === "recycle" ? (
-              <>
-                <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!selectedCount || isPending} onClick={() => runSelectedAction(batchRestoreAssets)} type="button">↩ 恢复选中</button>
-              </>
+              <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!selectedCount || isPending} onClick={() => runSelectedAction(batchRestoreAssets)} type="button">恢复选中</button>
             ) : (
               <>
                 <input ref={fileInputRef} className="hidden" multiple onChange={handleUploadChange} type="file" />
-                <button className="rounded-ui bg-brand px-5 py-3 font-semibold text-white" disabled={isPending} onClick={() => fileInputRef.current?.click()} type="button">＋ 上传</button>
-                <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!(selectedCount || state.basketIds.length) || isPending} onClick={handleShareSelected} type="button">↗ 分享</button>
-                <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!selectedCount || isPending} onClick={() => runSelectedAction(batchSoftDeleteAssets)} type="button">删除选中</button>
+                <button className="rounded-ui bg-brand px-5 py-3 font-semibold text-white" disabled={isPending} onClick={() => fileInputRef.current?.click()} type="button">上传</button>
+                <button className={`rounded-ui border border-slate-300 px-5 py-3 ${selectedCount ? "text-brand" : ""}`} onClick={() => setBasketOpen(true)} type="button">素材篮（{selectedCount}）</button>
+                <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!selectedCount || isPending} onClick={handleShareSelected} type="button">分享</button>
+                <button className="rounded-ui border border-slate-300 px-5 py-3 disabled:opacity-50" disabled={!selectedCount || isPending} onClick={() => runSelectedAction(batchSoftDeleteAssets)} type="button">删除</button>
               </>
             )}
           </div>
@@ -177,20 +196,20 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <form className="flex items-center gap-2" onSubmit={handleCreateGroup}>
               <input className="h-10 rounded-ui border border-slate-300 px-3" onChange={(event) => setNewGroupName(event.target.value)} placeholder="新素材组名称" value={newGroupName} />
-              <button className="h-10 rounded-ui border border-slate-300 px-4 disabled:opacity-50" disabled={!newGroupName.trim() || isPending} type="submit">＋ 新建素材组</button>
+              <button className="h-10 rounded-ui border border-slate-300 px-4 disabled:opacity-50" disabled={!newGroupName.trim() || isPending} type="submit">新建素材组</button>
             </form>
             <form className="flex items-center gap-2" onSubmit={handleValiditySubmit}>
               <input className="h-10 rounded-ui border border-slate-300 px-3" onChange={(event) => setValidUntil(event.target.value)} type="datetime-local" value={validUntil} />
               <button className="h-10 rounded-ui border border-slate-300 px-4 disabled:opacity-50" disabled={!selectedCount || !validUntil || isPending} type="submit">更新失效时间</button>
             </form>
             {selectedCount ? <span className="text-sm text-slate-500">已选择 {selectedCount} 项</span> : null}
-            {selectedCount ? <button className="h-10 rounded-ui border border-slate-300 px-4" onClick={() => dispatch({ type: "addSelectedToBasket" })} type="button">加入素材篮</button> : null}
             {state.groupId !== "all" ? <button className="h-10 rounded-ui border border-slate-300 px-4" onClick={handleUpdateCurrentGroup} type="button">编辑当前素材组</button> : null}
             {state.groupId !== "all" ? <button className="h-10 rounded-ui border border-slate-300 px-4" onClick={handleDeleteCurrentGroup} type="button">删除当前素材组</button> : null}
             {state.similarAssetId ? <button className="h-10 rounded-ui border border-slate-300 px-4" onClick={() => dispatch({ type: "setSimilarAsset", id: null })} type="button">退出相似结果</button> : null}
           </div>
         ) : selectedCount ? <p className="mt-4 text-sm text-slate-500">已选择 {selectedCount} 项</p> : null}
       </section>
+
       <AssetToolbar assets={initialAssets} total={state.groupId === "all" && !Object.keys(state.filters).length ? initialTotal : assets.length} />
       <section className="p-7">
         {state.view === "list" ? (
@@ -211,18 +230,43 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
           </div>
         )}
         {!assets.length ? <div className="py-28 text-center text-slate-400">暂无素材</div> : null}
-        {basketAssets.length ? (
-          <div className="mt-6 rounded-ui border border-slate-200 bg-white p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <strong>素材篮（{basketAssets.length}）</strong>
-              <button className="rounded-ui border border-slate-300 px-3 py-2" onClick={() => dispatch({ type: "clearBasket" })} type="button">清空</button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {basketAssets.map((asset) => <button key={asset.id} className="rounded border border-slate-200 px-2 py-1 text-sm" onClick={() => dispatch({ type: "removeFromBasket", id: asset.id })} type="button">{asset.name} ×</button>)}
-            </div>
-          </div>
-        ) : null}
       </section>
+
+      {basketOpen ? (
+        <>
+          <div className="basket-overlay" onClick={() => setBasketOpen(false)} />
+          <aside className="basket-drawer" aria-label="素材篮">
+            <header>
+              <div>
+                <h2>素材篮</h2>
+                <p>已选择 {basketAssets.length} 项素材</p>
+              </div>
+              <button className="plain-icon" onClick={() => setBasketOpen(false)} type="button" aria-label="关闭素材篮">×</button>
+            </header>
+            <div className="basket-list">
+              {basketAssets.length ? basketAssets.map((asset) => (
+                <article className="basket-item" data-asset-id={asset.id} key={asset.id}>
+                  <div className="basket-thumb"><img alt={asset.name} src={`/${asset.src}`} /></div>
+                  <div>
+                    <strong title={asset.name}>{asset.name}</strong>
+                    <span>{asset.format || "-"} · {formatBytes(asset.sizeBytes)}</span>
+                    <small>有效期：{asset.validUntil || "永久有效"}</small>
+                  </div>
+                  <button onClick={() => dispatch({ type: "toggleSelected", id: asset.id })} title="移出素材篮" type="button">×</button>
+                </article>
+              )) : <div className="basket-empty">暂无已选素材</div>}
+            </div>
+            <footer>
+              <button disabled={!basketAssets.length} onClick={() => dispatch({ type: "clearSelected" })} type="button">清空素材篮</button>
+              <button disabled={!basketAssets.length || isPending} onClick={() => runSelectedAction(batchSoftDeleteAssets)} type="button">删除素材</button>
+              <button disabled={!basketAssets.length || !validUntil || isPending} onClick={updateSelectedValidity} type="button">修改有效期</button>
+              <button disabled={!basketAssets.length || isPending} onClick={handleShareSelected} type="button">分享</button>
+              <button className="primary" disabled type="button">批量下载</button>
+            </footer>
+          </aside>
+        </>
+      ) : null}
+
       {viewerAsset ? (
         <div className="fixed inset-0 z-50 flex bg-slate-950/80 text-white">
           <div className="flex min-w-0 flex-1 flex-col">
@@ -231,9 +275,9 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
               <div className="flex items-center gap-2">
                 <button className="rounded-ui border border-white/30 px-3 py-2 disabled:opacity-40" disabled={viewerIndex <= 0} onClick={() => changeViewerAsset(-1)} type="button">上一张</button>
                 <button className="rounded-ui border border-white/30 px-3 py-2 disabled:opacity-40" disabled={viewerIndex < 0 || viewerIndex >= assets.length - 1} onClick={() => changeViewerAsset(1)} type="button">下一张</button>
-                <button className="rounded-ui border border-white/30 px-3 py-2" onClick={() => setViewerZoom((value) => Math.max(50, value - 25))} type="button">－</button>
+                <button className="rounded-ui border border-white/30 px-3 py-2" onClick={() => setViewerZoom((value) => Math.max(50, value - 25))} type="button">-</button>
                 <span className="w-16 text-center text-sm">{viewerZoom}%</span>
-                <button className="rounded-ui border border-white/30 px-3 py-2" onClick={() => setViewerZoom((value) => Math.min(200, value + 25))} type="button">＋</button>
+                <button className="rounded-ui border border-white/30 px-3 py-2" onClick={() => setViewerZoom((value) => Math.min(200, value + 25))} type="button">+</button>
                 <button className="rounded-ui border border-white/30 px-3 py-2" onClick={closeViewer} type="button">关闭</button>
               </div>
             </header>
@@ -258,7 +302,7 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
             <div className="mt-5 space-y-3 text-sm">
               <p><span className="text-slate-500">格式：</span>{viewerAsset.format}</p>
               <p><span className="text-slate-500">大小：</span>{formatBytes(viewerAsset.sizeBytes)}</p>
-              <p><span className="text-slate-500">尺寸：</span>{viewerAsset.width || "-"} × {viewerAsset.height || "-"}</p>
+              <p><span className="text-slate-500">尺寸：</span>{viewerAsset.width || "-"} x {viewerAsset.height || "-"}</p>
               <p><span className="text-slate-500">品牌：</span>{viewerAsset.brand || "-"}</p>
               <p><span className="text-slate-500">车型：</span>{viewerAsset.model || "-"}</p>
               <p><span className="text-slate-500">权限：</span>{viewerAsset.permission || "-"}</p>
@@ -269,11 +313,12 @@ export function AssetWorkspace({ initialAssets, initialTotal, groups, title = "�
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
               <button className="rounded-ui border border-slate-300 px-3 py-2 text-sm" onClick={() => dispatch({ type: "setSimilarAsset", id: viewerAsset.id })} type="button">查找相似素材</button>
-              <button className="rounded-ui border border-slate-300 px-3 py-2 text-sm" onClick={() => dispatch({ type: "addToBasket", id: viewerAsset.id })} type="button">加入素材篮</button>
+              <button className="rounded-ui border border-slate-300 px-3 py-2 text-sm" onClick={() => { if (!state.selectedIds.includes(viewerAsset.id)) dispatch({ type: "toggleSelected", id: viewerAsset.id }); setBasketOpen(true); }} type="button">加入素材篮</button>
             </div>
           </aside>
         </div>
       ) : null}
+
       {editingAsset ? (
         <div className="fixed inset-0 z-[60] grid place-items-center bg-slate-950/60 p-6">
           <form className="w-full max-w-2xl rounded-ui bg-white p-6 text-slate-900 shadow-xl" onSubmit={handleEditSubmit}>

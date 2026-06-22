@@ -16,7 +16,7 @@ export function AssetToolbar({ assets, total }: { assets: Asset[]; total: number
         {filterLabels.map((item) => (
           <span key={item} className="relative">
             <button className="flex items-center gap-2" onClick={() => setOpenFilter(openFilter === item ? null : item)} type="button">
-              {item}{state.filters[item]?.length ? `(${state.filters[item].length})` : ""}<span className="text-slate-500">⌄</span>
+              {item}{state.filters[item]?.length ? `(${state.filters[item].length})` : ""}<span className="text-slate-500">▾</span>
             </button>
             {openFilter === item ? (
               <div className="absolute left-0 top-full z-40 mt-2 min-w-44 rounded-ui border border-slate-200 bg-white p-2 text-base shadow-lg">
@@ -33,10 +33,10 @@ export function AssetToolbar({ assets, total }: { assets: Asset[]; total: number
       <div className="flex flex-wrap items-center gap-4">
         <div className="h-2 w-32 rounded-full bg-slate-700"><div className="h-2 w-20 rounded-full bg-brand" /></div>
         <label className="flex items-center gap-2 text-slate-700"><input type="checkbox" />显示全部素材组和素材</label>
-        <button className="rounded-ui border border-slate-300 px-4 py-2" type="button">⚙ 筛选配置</button>
+        <button className="rounded-ui border border-slate-300 px-4 py-2" type="button">筛选配置</button>
         <div className="inline-flex rounded-ui border border-slate-300">
-          <button className={`px-4 py-2 ${state.view === "compact" ? "bg-teal-50 text-brand" : ""}`} onClick={() => dispatch({ type: "setView", view: "compact" })} type="button">▦</button>
-          <button className={`px-4 py-2 ${state.view === "list" ? "bg-teal-50 text-brand" : ""}`} onClick={() => dispatch({ type: "setView", view: "list" })} type="button">☷</button>
+          <button className={`px-4 py-2 ${state.view === "compact" ? "bg-teal-50 text-brand" : ""}`} onClick={() => dispatch({ type: "setView", view: "compact" })} type="button">卡片</button>
+          <button className={`px-4 py-2 ${state.view === "list" ? "bg-teal-50 text-brand" : ""}`} onClick={() => dispatch({ type: "setView", view: "list" })} type="button">列表</button>
         </div>
         <select className="rounded-ui border border-slate-300 px-4 py-2" value={state.sort} onChange={(event) => dispatch({ type: "setSort", sort: event.target.value })}>
           <option>素材热度</option>

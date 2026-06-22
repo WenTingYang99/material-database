@@ -9,7 +9,6 @@ export interface AppState {
   filters: Record<string, string[]>;
   view: "compact" | "list";
   selectedIds: string[];
-  basketIds: string[];
   similarAssetId: string | null;
 }
 
@@ -22,10 +21,6 @@ type AppAction =
   | { type: "setView"; view: "compact" | "list" }
   | { type: "toggleSelected"; id: string }
   | { type: "clearSelected" }
-  | { type: "addToBasket"; id: string }
-  | { type: "addSelectedToBasket" }
-  | { type: "removeFromBasket"; id: string }
-  | { type: "clearBasket" }
   | { type: "setSimilarAsset"; id: string | null };
 
 const initialState: AppState = {
@@ -35,7 +30,6 @@ const initialState: AppState = {
   filters: {},
   view: "compact",
   selectedIds: [],
-  basketIds: [],
   similarAssetId: null,
 };
 
@@ -73,14 +67,6 @@ function reducer(state: AppState, action: AppAction): AppState {
       };
     case "clearSelected":
       return { ...state, selectedIds: [] };
-    case "addToBasket":
-      return { ...state, basketIds: [...new Set([...state.basketIds, action.id])] };
-    case "addSelectedToBasket":
-      return { ...state, basketIds: [...new Set([...state.basketIds, ...state.selectedIds])] };
-    case "removeFromBasket":
-      return { ...state, basketIds: state.basketIds.filter((id) => id !== action.id) };
-    case "clearBasket":
-      return { ...state, basketIds: [] };
     case "setSimilarAsset":
       return { ...state, similarAssetId: action.id, selectedIds: [] };
     default:

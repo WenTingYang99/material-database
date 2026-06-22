@@ -34,15 +34,18 @@ export class JsonTagRepository implements ITagRepository {
     const now = new Date().toISOString();
     const nextId = Math.max(0, ...db.t_asset_tag.map((tag) => tag.tag_id)) + 1;
     const tagCode = this.generateCode(data.tagName, db.t_asset_tag.map((tag) => tag.tag_code));
+    const tagType = data.tagType === 2 ? "ai" : "custom";
+    const parentId = Number(data.parentId || 0);
+    const parent = parentId ? db.t_asset_tag.find((tag) => tag.tag_id === parentId) : null;
     db.t_asset_tag.push({
       tag_id: nextId,
       tag_name: data.tagName.trim(),
       tag_code: tagCode,
-      parent_id: 0,
-      level: 0,
-      tag_type: "custom",
-      ai_source: 0,
-      ai_recognition_enabled: 1,
+      parent_id: tagType === "ai" ? parentId : 0,
+      level: tagType === "ai" && parent ? parent.level + 1 : 0,
+      tag_type: tagType,
+      ai_source: tagType === "ai" ? 2 : 0,
+      ai_recognition_enabled: tagType === "ai" ? data.aiRecognitionEnabled ?? 0 : 1,
       is_visible: 1,
       status: 1,
       sort_order: Math.max(0, ...db.t_asset_tag.map((tag) => tag.sort_order)) + 1,
@@ -66,10 +69,14 @@ export class JsonTagRepository implements ITagRepository {
       ...db.t_asset_tag[index],
       tag_name: data.tagName?.trim() || db.t_asset_tag[index].tag_name,
       description: data.description === undefined ? db.t_asset_tag[index].description : data.description.trim() || null,
+      tag_type: data.tagType === 2 ? "ai" : data.tagType === 1 ? "custom" : db.t_asset_tag[index].tag_type,
+      parent_id: data.parentId === undefined ? db.t_asset_tag[index].parent_id : Number(data.parentId || 0),
       status: data.status ?? db.t_asset_tag[index].status,
       ai_recognition_enabled: data.aiRecognitionEnabled ?? db.t_asset_tag[index].ai_recognition_enabled,
       update_time: new Date().toISOString(),
     };
+    const parent = db.t_asset_tag[index].parent_id ? db.t_asset_tag.find((tag) => tag.tag_id === db.t_asset_tag[index].parent_id) : null;
+    db.t_asset_tag[index].level = db.t_asset_tag[index].tag_type === "ai" && parent ? parent.level + 1 : 0;
     await this.database.write(db);
     const updated = (await this.findAll()).find((tag) => tag.id === id);
     if (!updated) throw new Error("Tag update failed");
