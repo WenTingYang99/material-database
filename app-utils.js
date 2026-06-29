@@ -86,7 +86,10 @@ function sortAssets(items) {
 function matchFilter(asset, label, value) {
   const selections = Array.isArray(value) ? value : (value ? [value] : []);
   if (!selections.length) return true;
-  if (label === "上传时间") return selections.some((item) => matchUploadTimeFilter(asset, item));
+  if (label === "上传时间") {
+    const rangeStr = selections.filter(Boolean).join("~");
+    return rangeStr ? matchUploadTimeFilter(asset, rangeStr) : true;
+  }
   if (label === "素材失效日") return selections.some((item) => matchValidityFilter(asset, item));
   if (label === "素材状态") return selections.some((item) => matchStatusFilter(asset, item));
   if (label === "宽高比") return selections.some((item) => matchAspectRatioFilter(asset, item));
@@ -153,7 +156,21 @@ function matchStatusFilter(asset, value) {
 
 function matchUploadTimeFilter(asset, value) {
   const uploadDate = normalizeDateText(asset.uploadDate || asset.createdAt || asset.updatedAt);
-  return uploadDate === value;
+  if (!uploadDate) return false;
+  const [startDate, endDate] = value.split("~");
+  if (!startDate && !endDate) return false;
+  const uploadTimestamp = new Date(uploadDate).getTime();
+  if (startDate && endDate) {
+    const startTimestamp = new Date(startDate).getTime();
+    const endTimestamp = new Date(endDate).getTime();
+    return uploadTimestamp >= startTimestamp && uploadTimestamp <= endTimestamp;
+  } else if (startDate) {
+    const startTimestamp = new Date(startDate).getTime();
+    return uploadTimestamp >= startTimestamp;
+  } else {
+    const endTimestamp = new Date(endDate).getTime();
+    return uploadTimestamp <= endTimestamp;
+  }
 }
 
 function getFilterSelections(label) {

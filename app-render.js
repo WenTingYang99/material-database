@@ -955,12 +955,13 @@ function renderTagTableBody(tags, type) {
       <col style="width:64px">
       <col style="width:220px">
       <col style="width:150px">
+      <col style="width:140px">
       <col style="width:220px">
       <col style="width:132px">
       <col style="width:110px">
       <col style="width:104px">`;
     thead.innerHTML = `<tr>
-      <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>创建时间</th><th>创建人</th><th>操作</th>
+      <th>#</th><th>标签名称</th><th>标签编码</th><th>父标签名称</th><th>标签描述</th><th>创建时间</th><th>创建人</th><th>操作</th>
     </tr>`;
 
     const rows = tags.map((tag, idx) => {
@@ -972,6 +973,7 @@ function renderTagTableBody(tags, type) {
       const count  = tag.count || 0;
       const depth  = tag.level || 0;
       const indent = depth > 0 ? `<span class="tree-indent">${"├ ".repeat(depth)}</span>` : "";
+      const parentName = tag.parentId && tag.parentId !== 0 ? tag.parentId : "-";
       return `<tr>
         <td class="cell-mono">${escapeHtml(String(idx + 1))}</td>
         <td>
@@ -982,6 +984,7 @@ function renderTagTableBody(tags, type) {
           </div>
         </td>
         <td class="cell-mono">${escapeHtml(code)}</td>
+        <td>${escapeHtml(parentName)}</td>
         <td class="cell-ellipsis">${escapeHtml(desc)}</td>
         <td>${escapeHtml(ctime)}</td>
         <td>${escapeHtml(cby)}</td>
@@ -996,7 +999,7 @@ function renderTagTableBody(tags, type) {
 
     tbody.innerHTML = rows.length
       ? rows.join("")
-      : `<tr><td colspan="7" class="empty-cell">暂无业务标签</td></tr>`;
+      : `<tr><td colspan="8" class="empty-cell">暂无业务标签</td></tr>`;
 
     tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
       btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));

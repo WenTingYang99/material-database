@@ -330,7 +330,10 @@ function showFilterMenu(anchor, label) {
   
   let menuHtml = `<button class="${selected.size ? "" : "active-side"}" data-filter-value="" type="button">全部</button>`;
   
-  menuHtml += `<div class="filter-search"><input type="text" placeholder="搜索..." class="filter-search-input" /></div>`;
+  const showSearch = ["业务标签", "AI标签", "文件格式", "车系", "车型", "内饰色", "外饰色"].includes(label);
+  if (showSearch) {
+    menuHtml += `<div class="filter-search"><input type="text" placeholder="搜索..." class="filter-search-input" /></div>`;
+  }
   menuHtml += `<div class="filter-tree-container">${renderFilterTree(values, selected)}</div>`;
   
   els.assetMenu.innerHTML = menuHtml;
@@ -423,28 +426,48 @@ function renderFilterTree(nodes, selected) {
 
 function showUploadTimeFilterMenu(anchor, label) {
   const rect = anchor.getBoundingClientRect();
-  const selected = getFilterSelections(label)[0] || "";
+  const selections = getFilterSelections(label);
+  const startDate = selections[0] || "";
+  const endDate = selections[1] || "";
   els.assetMenu.innerHTML = `
-    <label class="date-dropdown-field">选择上传时间<input id="assetUploadTimeFilter" type="date" value="${escapeAttr(selected)}" readonly inputmode="none" /></label>
-    <button class="${selected ? "" : "active-side"}" data-clear-upload-time type="button">全部时间</button>`;
+    <div class="date-range-container">
+      <label class="date-range-field">
+        <span class="date-range-label">开始日期</span>
+        <input id="assetUploadTimeStart" type="date" value="${escapeAttr(startDate)}" readonly inputmode="none" />
+      </label>
+      <label class="date-range-field">
+        <span class="date-range-label">结束日期</span>
+        <input id="assetUploadTimeEnd" type="date" value="${escapeAttr(endDate)}" readonly inputmode="none" />
+      </label>
+    </div>
+    <button class="${selections.length ? "" : "active-side"}" data-clear-upload-time type="button">全部时间</button>`;
   positionFloatingMenu(els.assetMenu, rect);
-  // render() 会重建 DOM，之后需重新查找 anchor
-  const input = els.assetMenu.querySelector("#assetUploadTimeFilter");
   const cssEscapeT = (str) => str.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
   const reopen = (newAnchor) => showUploadTimeFilterMenu(newAnchor, label);
-  const applyValue = (value) => {
-    if (value) state.filters[label] = [value];
-    else delete state.filters[label];
+  const applyValue = (start, end) => {
+    if (start || end) {
+      state.filters[label] = [start || "", end || ""];
+    } else {
+      delete state.filters[label];
+    }
     render();
     const newAnchor = els.filters.querySelector(`[data-filter="${cssEscapeT(label)}"]`);
     if (newAnchor) reopen(newAnchor);
   };
-  window.initDatePicker(input, {
+  const startInput = els.assetMenu.querySelector("#assetUploadTimeStart");
+  const endInput = els.assetMenu.querySelector("#assetUploadTimeEnd");
+  window.initDatePicker(startInput, {
     minDate: "2020-01-01",
-    maxDate: "2036-12-31",
-    onChange: (dates, value) => applyValue(value),
+    maxDate: endDate || "2036-12-31",
+    onChange: (dates, value) => applyValue(value, endDate),
   });
-  input.addEventListener("change", (event) => applyValue(event.target.value));
+  window.initDatePicker(endInput, {
+    minDate: startDate || "2020-01-01",
+    maxDate: "2036-12-31",
+    onChange: (dates, value) => applyValue(startDate, value),
+  });
+  startInput.addEventListener("change", (event) => applyValue(event.target.value, endDate));
+  endInput.addEventListener("change", (event) => applyValue(startDate, event.target.value));
   els.assetMenu.querySelector("[data-clear-upload-time]")?.addEventListener("click", (event) => {
     event.stopPropagation();
     delete state.filters[label];
@@ -986,7 +1009,7 @@ function renderViewer() {
   els.detailTabs.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.tab === state.detailTab));
   const content = {
     overview: `<div class="detail-section"><div class="field editable-field" data-overview-edit="asset"><span>素材名称</span><b>${escapeHtml(asset.name)}</b><small>点击编辑</small></div></div><div class="detail-section"><div class="section-title"><h3>AI标签</h3><button id="retagFromOverview" type="button">AI重新打标</button></div><div class="tag-list">${(asset.aiTags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") || "<em>暂无AI标签</em>"}</div></div><div class="detail-section"><div class="section-title"><h3>素材信息</h3><button data-overview-edit="asset" type="button">编辑信息</button></div><div class="field-grid"><button class="field interactive" data-overview-edit="asset" type="button"><span>品牌</span>${escapeHtml(asset.brand || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车型</span>${escapeHtml(asset.model || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>颜色</span>${escapeHtml(asset.color || "-")}</button></div></div>`,
-    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${asset.updatedAt}</div><div class="field"><span>创建时间</span>${asset.createdAt}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>自定义标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart || "-")}</div><div class="field"><span>素材失效日</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div><div class="field"><span>颜色</span>${escapeHtml(asset.color || "无")}</div></div>`,
+    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${asset.updatedAt}</div><div class="field"><span>上传时间</span>${asset.createdAt}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>自定义标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart ? formatDateTimeDisplay(asset.validStart) : "-")}</div><div class="field"><span>素材失效日期</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div><div class="field"><span>颜色</span>${escapeHtml(asset.color || "无")}</div></div>`,
     comment: `<div class="comment-box"><textarea id="commentText" placeholder="写一条评论"></textarea><button id="addComment" class="primary" type="button">发布</button></div>${(asset.comments || []).map((item) => `<div class="info-card"><b>${escapeHtml(item.user || currentUser.name)}</b><small>${item.time || ""}</small><p>${escapeHtml(item.text || item)}</p></div>`).join("") || renderEmpty("暂无评论")}`,
     log: `<div class="timeline">${(asset.logs || []).map((text, index) => `<div class="log-item"><span>${index ? "2026-05-26 17:4" + index : nowText()}</span><p>"${escapeHtml(text)}"</p><small>操作人: ${escapeHtml(currentUser.name)}</small></div>`).join("")}</div>`,
   }[state.detailTab];

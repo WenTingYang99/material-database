@@ -236,6 +236,7 @@ const els = {
   tagBank: document.querySelector("#tagBank"),
   selectedTags: document.querySelector("#selectedTags"),
   filterConfig: document.querySelector("#filterConfig"),
+  clearFilters: document.querySelector("#clearFilters"),
   similarSearch: document.querySelector("#similarSearch"),
   imageSearchButton: document.querySelector("#imageSearchButton"),
   clearSimilar: document.querySelector("#clearSimilar"),
@@ -876,6 +877,10 @@ function bindEvents() {
   els.filterConfig?.addEventListener("click", () => {
     renderFilterConfig();
     els.filterModal.classList.remove("hidden");
+  });
+  els.clearFilters?.addEventListener("click", () => {
+    state.filters = {};
+    render();
   });
   document.querySelector('[title="字段配置"]')?.addEventListener("click", openFieldConfigModal);
   els.tagBank.addEventListener("click", (event) => {
