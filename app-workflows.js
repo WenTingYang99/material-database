@@ -1,4 +1,4 @@
-﻿function openBasketDrawer() {
+function openBasketDrawer() {
   renderBasketDrawer();
   document.querySelector("#basketOverlay")?.classList.remove("hidden");
   document.querySelector("#basketDrawer")?.classList.remove("hidden");

@@ -1,4 +1,4 @@
-﻿function getFilteredAssets() {
+function getFilteredAssets() {
   let pool = db.assets.filter((asset) => state.page === "recycle" ? asset.status === "deleted" : asset.status !== "deleted");
   if (state.page === "pending") pool = pool.filter((asset) => asset.status === "pending");
   if (state.page === "created") pool = pool.filter((asset) => asset.owner === currentUser.name);

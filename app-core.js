@@ -1,4 +1,4 @@
-﻿const STORAGE_KEY = "dp-material-library-state-v2";
+const STORAGE_KEY = "dp-material-library-state-v2";
 
 const defaultGroups = [
   { id: "all", name: "全部素材", count: 0, depth: 0, system: true, status: "active" },

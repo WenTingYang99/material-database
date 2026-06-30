@@ -1,4 +1,4 @@
-﻿function render() {
+function render() {
   updateGroupCounts();
   renderGroups();
   renderFilterChips();
