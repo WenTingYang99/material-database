@@ -1,6 +1,6 @@
-﻿# 代码记忆索引
+﻿﻿# 代码记忆索引
 
-更新时间：2026-06-29
+更新时间：2026-06-30
 
 用途：后续改动前，先查本文件定位对应代码位置；如果这里不能定位，再回读完整相关文件，并把新定位补充到本文件。
 
@@ -10,6 +10,8 @@
 2. 能定位到模块和函数时，只读取对应函数附近代码，再做局部修改。
 3. 不能定位时，再读取相关完整文件。
 4. 修改后如果新增功能入口、状态字段、模板、动态数据来源，必须补充本文件。
+5. 用户明确要求：每次更新代码前都先阅读本文件；如果代码结构或功能入口有变化，及时更新本文件。
+6. 用户明确要求：以后收到“调整/修改/优化”类消息时，先说明对需求的理解并询问是否正确；用户确认后再开始修改。
 
 ## 文件职责
 
@@ -31,7 +33,11 @@
 - 默认标签：`app-core.js:80` `seedTags`。
 - 车型枚举：`app-core.js:28` `VEHICLE_MODELS`。
 - 筛选项配置：`app-core.js:123` `filterLabels`，`app-core.js:124` `configurableFilters`。
-- 全局状态：`app-core.js:127` `state`。
+- 全局状态：`app-core.js:127` `state`；用户管理页使用 `userManageFilters / userManageOrgId / selectedManageUserId` 控制组织树筛选、查询条件和当前选中用户；权限管理页额外使用 `permissionView / permissionMenuId / permissionSubjectType / permissionSubjectId` 控制“按菜单授权 / 按组织个人授权”双视图和左侧树当前选中节点。用户管理和权限相关树不记录全局折叠状态，每次打开页面或弹框默认展开；点击 `+/-` 只做当前 DOM 的临时展开收起。
+- 登录会话 key：`app-core.js:179` `SESSION_USER_KEY = "dp-material-library-current-user"`。
+- 系统菜单权限清单：`app-core.js:180` `SYSTEM_MENUS`，菜单权限按 `visible/editable` 控制。
+- 登录日志筛选状态：`state.loginLogFilters`，包含 `username/name/startDate/endDate`。
+- 当前用户：`app-core.js:223` `currentUser`，由登录会话和 `db.users` 动态生成，不再是固定常量。
 - DOM 缓存：`app-core.js:164` `els`。
 - 读库：`app-core.js:360` `loadDb()`。
 - 存库：`app-core.js:382` `saveDb()`。
@@ -55,6 +61,11 @@
 - 素材工具栏筛选/布局/排序：`index.html:94-116`，筛选 chip 在 `app-core.js:605`，排序事件在 `app-core.js:749` 附近。
 - 素材内容区：`index.html:128` `#contentPanel`，主要由 `app-render.js` 动态填充。
 - 更多功能页：`app-render.js:499` `renderManagePageV2()`。
+- 更多功能下拉菜单：`index.html:284` `#moreMenuContent`。包含用户动态、用户登录日志、标签管理等独立页面入口；系统管理作为分组展示，包含 `users / roles / organizations / permissions` 四个 `data-go` 入口。
+- 更多功能子菜单页面：所有 `#moreMenuContent` 下的 `data-go` 子菜单都是独立页面状态，不再在内容区通过 tab/二级导航切换；这样后续菜单授权可按子菜单页面单独控制。
+- 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前四个子页为前端占位表格：用户管理、角色管理、组织管理、权限管理。
+- 登录页：`app-core.js:582` `ensureRuntimeElements()` 动态创建 `#loginPage`；提交在 `app-core.js:790` `handleLoginSubmit()`；退出在 `app-core.js:815` `logoutCurrentUser()`。
+- 用户登录日志页：页面状态 `loginLogs`；菜单入口在 `index.html` 的 `#moreMenuContent`；渲染在 `app-render.js` 的 `renderLoginLogPage()`；登录成功时 `handleLoginSubmit()` 写入 `db.loginLogs`。
 - 标签管理页：`app-render.js:799` `renderTagsPage()`。
 - 分享落地页：`app-core.js:485` `renderSharePortal()`。
 - 收集任务落地页：`app-core.js:427` `renderCollectorPortal()`。
@@ -148,6 +159,7 @@
 ## 标签管理
 
 - 标签页入口：`app-render.js:799` `renderTagsPage()`；“新增标签/标签合并”按钮在顶部 `page-actions`，事件绑定在 `app-core.js:758` 附近。
+- 标签菜单权限：`canViewMenu("tags")` 允许查看业务标签和 AI 标签；`canEditMenu("tags")` 才显示新增、编辑、合并、删除等操作按钮。控制点包括 `renderActions()`、`renderTagsPage()`、`renderTagTableBody()`，并在 `openAddTagModal/openEditTagModal/deleteTag/openMergeTagModal` 做二次校验。
 - 标签汇总：`app-render.js:679` `getTagSummary()`。
 - 标签编码：由 `app-render.js:666` 附近的 `generateTagCode()` 自动生成；新增/编辑弹窗不允许用户输入编码，打开标签管理时 `normalizeStoredTagCodes()` 会修正空编码、中文编码或重复编码。
 - 标签表格：`app-render.js:864` `renderTagTableBody()`。
@@ -159,6 +171,7 @@
 - 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；如果标签来自素材使用汇总但尚未进入 `db.tags`，`createTagRecordFromUsage()` 会先补齐标签库记录再打开弹窗；AI 来源只展示不允许编辑，人工新增 AI 标签固定为“业务预定义”，上传/重新识别补入的 AI 标签固定为“AI 自动识别”；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
 - AI 识别字段（aiRecognitionRow）：新增/编辑弹窗中共两处 checkbox，`index.html:379` 和 `index.html:408`；业务标签（tagType=1）不显示该字段，AI 标签（tagType=2）才显示，由各自的 `toggleXxxAiFields()` 控制。注意：`.checkbox-label` CSS（`styles.css:3067`）有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`，否则会被 CSS 覆盖。补充覆盖规则见 `styles.css:3081` `.checkbox-label.hidden`。
 - 合并标签：`index.html:416-431`，逻辑在 `app-render.js:1298` `openMergeTagModal()`。
+- 标签合并弹窗的源标签选择已从原生 `select multiple` 改为 checkbox 勾选列表；HTML 在 `index.html:425` 附近 `#mergeSourceTags`，打开弹窗由 `app-render.js` 的 `openMergeTagModal()` 动态生成勾选项，提交由 `handleMergeTagSubmit()` 读取已勾选项；`#mergeClearSelected` 通过 `clearMergeTagSelection()` 一键清除勾选。
 
 ## 分享与收集
 
@@ -188,6 +201,30 @@
 - 申请权限弹窗：`index.html:157-188`，逻辑在 `app-workflows.js:344` `openPermissionRequestModal()`。
 - 所有者弹窗模板：`index.html:857-860`，逻辑在 `app-workflows.js:302` `openOwnerModal()`。
 - 权限判断：`app-core.js:156` `isAdmin()`，`app-core.js:160` `canManageAsset()`。
+
+## 系统管理
+
+- 入口层级：左侧“更多功能”弹出菜单中的“系统管理”分组，子菜单为用户管理、角色管理、组织管理、权限管理。
+- 页面状态值：`users`、`roles`、`organizations`、`permissions`。
+- 数据结构：`db.users` 保存登录用户名、密码、姓名、所属组织、所属角色、状态、最近登录；用户角色标准字段为 `roleIds`（数组，多角色），`roleId` 仅作为旧数据兼容和首个角色冗余字段；`db.organizations` 保存组织；`db.roles` 保存角色和 `permissions`；`db.orgPermissions` 保存组织/部门菜单授权；`db.userPermissions` 保存个人菜单授权。
+- 登录日志结构：`db.loginLogs` 保存 `{ username, name, loginAt, ip, entry }`；登录入口值包括“网页登录 / 飞书登录 / 企微登录”。纯前端版本暂用 `127.0.0.1` 作为 IP 占位，后续接服务端可替换真实来源 IP。
+- 默认账号：`admin / admin123`（超级管理员）、`kerry / kerry123`（素材运营）、`tagview / tag123`（标签只读）。
+- 默认数据补齐：`app-core.js` 的 `ensureSystemData()` 会初始化组织、角色、用户，并为每个角色、组织、用户补齐 `SYSTEM_MENUS` 中所有菜单的 `visible/editable` 权限。
+- 页面白名单：`app-core.js:286` `normalizePageState()` 的 `validPages`。
+- 主导航激活：`app-render.js:8` 的 `morePage` 数组，系统管理子页会高亮“更多功能”。
+- 标题映射：`app-render.js:19` `titleMap`。
+- 面包屑：`app-utils.js:234` `getPageBreadcrumb()`。
+- 权限判断：`app-core.js` 的 `getMenuPermission(menuId)` 会合并多个角色权限、组织权限、个人权限；任一来源有 `visible` 即可见，任一来源有 `editable` 即可编辑且默认可见。`getUserRoleIds()` 兼容读取 `roleIds` 和旧 `roleId`，`canViewMenu(menuId)` 控制菜单可见，`canEditMenu(menuId)` 控制页面操作。
+- 菜单过滤：`app-core.js` 的 `applyMenuPermissions()` 隐藏无可见权限的“更多功能”子菜单；点击 `data-go` 时也会二次校验。
+- 渲染入口：`app-render.js:506` `renderManagePageV2()` 先判断系统管理页面并转到 `renderSystemManagePage()`。
+- 页面表格：`app-render.js` 的 `renderUserManagePage()` / `renderRoleManagePage()` / `renderOrganizationManagePage()` / `renderPermissionManagePage()` 分别渲染用户、角色、组织、权限。角色管理行内有“角色权限”按钮，调用角色授权弹窗。
+- 用户管理页：`renderUserManagePage()` 已改为左组织树、右人员信息布局；组织树由 `renderUserManageOrgTree()` 渲染，人员筛选由 `getUserManageFilteredUsers()` 处理，支持用户名、员工姓名、是否包含下级组织查询；选中用户后可修改、菜单授权或菜单权限查看，查看弹框为 `openUserPermissionViewModal()`。组织树有子节点时使用明确的 `+/-` 展开收起图标，不能用空方框样式；左侧组织树不显示人数数字，不保留外层框线。编辑用户时登录用户名只读不可改，所属角色为多选并保存到 `roleIds`。
+- 权限管理页：`renderPermissionManagePage()` 支持“按菜单授权”和“按组织个人授权”两个参考系；内部不再使用下拉框，`renderMenuPermissionTree()` 渲染功能菜单树，`renderSubjectPermissionTree()` 渲染组织/个人树；右侧默认空态，选中左侧节点后由 `renderMenuPermissionDetail()` 或 `renderSubjectPermissionDetail()` 展示权限摘要和“编辑权限”按钮。权限管理中的所有树状结构也必须使用明确的 `+/-` 展开收起图标，并真正支持收缩。
+- 权限编辑弹框：选中菜单后点“编辑权限”会调用 `openMenuPermissionModal()`，弹框内用组织/个人树编辑该菜单对组织/个人的可读可写；选中组织或个人后点“编辑权限”会调用 `openSubjectPermissionModal()`，弹框内用菜单分组树编辑该对象对所有菜单的可读可写；保存逻辑在 `savePermissionRows()`。角色管理中的“角色权限”弹框 `openPermissionManageModal()` 也使用菜单分组树，不再用平铺表格。弹框树同样支持 `+/-` 展开收起，弹框内收缩不丢失未保存勾选。用户“菜单权限查看”由 `renderUserPermissionViewTree()` 渲染只读树，显示可读、可写和权限来源（个人授权、组织权限、角色权限）。
+- 表单：`openUserManageModal()`、`openRoleManageModal()`、`openOrganizationManageModal()`、`openPermissionManageModal()` 使用通用 `openFormModal()` 做新增/编辑/角色授权；新增用户会初始化 `db.userPermissions`，新增组织会初始化 `db.orgPermissions`。
+- 用户登录日志：`renderLoginLogPage()` 支持按用户名、姓名、登录开始日期、登录结束日期过滤，展示用户名、姓名、登录时间、IP 地址、登录入口。
+- 样式：`styles.css:1118` `.menu-section` / `.menu-section-title` / `.menu-sub button` 控制下拉菜单分组。
+- 页面独立性：管理页壳 `app-render.js:617` `renderManageShell()` 不再渲染 `renderMoreMenuPanel()`；`app-core.js` 也不再监听 `data-panel-page`，避免在页面内用 tab 切换更多功能子菜单。
 
 ## 目前发现的 HTML 固定可变数据
 
@@ -284,4 +321,3 @@
   3. 修改业务标签初始数据，添加父级关系
   4. 修改标签添加/编辑弹窗中父级标签的标题为通用名称
 - 效果：业务标签现在支持多层级展示，与AI标签一致
-

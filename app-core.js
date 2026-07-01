@@ -176,7 +176,24 @@ const ASPECT_RATIOS = [
   { label: "21:9", value: 2.333 },
 ];
 
+const SESSION_USER_KEY = "dp-material-library-current-user";
+const SYSTEM_MENUS = [
+  { id: "activity", label: "用户动态", group: "更多功能" },
+  { id: "loginLogs", label: "用户登录日志", group: "更多功能" },
+  { id: "tags", label: "标签管理", group: "更多功能" },
+  { id: "validity", label: "有效期管理", group: "更多功能" },
+  { id: "collect", label: "收集素材", group: "更多功能" },
+  { id: "share", label: "分享记录", group: "更多功能" },
+  { id: "recycle", label: "回收站", group: "更多功能" },
+  { id: "users", label: "用户管理", group: "系统管理" },
+  { id: "roles", label: "角色管理", group: "系统管理" },
+  { id: "organizations", label: "组织管理", group: "系统管理" },
+  { id: "permissions", label: "权限管理", group: "系统管理" },
+];
+const MANAGED_PAGES = SYSTEM_MENUS.map((menu) => menu.id);
+
 let db = loadDb();
+ensureSystemData();
 const state = {
   page: "all",
   groupId: "all",
@@ -193,6 +210,14 @@ const state = {
   selectedIds: new Set(),
   collapsedGroupIds: new Set(),
   manageValidity: "全部",
+  loginLogFilters: { username: "", name: "", startDate: "", endDate: "" },
+  userManageFilters: { username: "", name: "", includeChildren: true },
+  userManageOrgId: "",
+  selectedManageUserId: "",
+  permissionView: "menu",
+  permissionMenuId: "",
+  permissionSubjectType: "organization",
+  permissionSubjectId: "",
   recycleSort: "deletedDesc",
   theme: localStorage.getItem("dp-material-library-theme") || "light",
   zoomLevel: 100,
@@ -204,14 +229,105 @@ const state = {
   detailPanelDock: "side",
 };
 
-const currentUser = { name: "Kerry", role: "admin", department: "采购" };
+let currentUser = getStoredCurrentUser() || getAnonymousUser();
 
 function isAdmin() {
-  return currentUser.role === "admin";
+  return getUserRoleIds(currentUser).includes("admin") || currentUser.role === "admin";
 }
 
 function canManageAsset(asset) {
   return isAdmin() || asset?.owner === currentUser.name;
+}
+
+function getAnonymousUser() {
+  return { id: "", username: "", name: "未登录", roleId: "", roleIds: [], role: "guest", organizationId: "", organization: "", department: "" };
+}
+
+function getStoredCurrentUser() {
+  try {
+    const userId = localStorage.getItem(SESSION_USER_KEY);
+    if (!userId) return null;
+    return getUserSessionInfo(userId);
+  } catch (error) {
+    return null;
+  }
+}
+
+function isLoggedIn() {
+  return !!currentUser?.id;
+}
+
+function getUserSessionInfo(userId) {
+  const user = (db.users || []).find((item) => item.id === userId && item.status === "启用");
+  if (!user) return null;
+  const roleIds = getUserRoleIds(user);
+  const roles = (db.roles || []).filter((item) => roleIds.includes(item.id));
+  const organization = (db.organizations || []).find((item) => item.id === user.organizationId);
+  return {
+    ...user,
+    roleIds,
+    roleId: roleIds[0] || "",
+    role: roles.map((role) => role.name).join("、") || roleIds.join("、") || "",
+    organization: organization?.name || user.organizationId || "",
+    department: organization?.name || "",
+    permissions: mergeRolePermissions(roles),
+  };
+}
+
+function getCurrentRole() {
+  return (db.roles || []).find((role) => role.id === currentUser.roleId) || null;
+}
+
+function getUserRoleIds(user = {}) {
+  const ids = Array.isArray(user.roleIds) ? user.roleIds : [];
+  const legacy = user.roleId ? [user.roleId] : [];
+  return [...new Set([...ids, ...legacy].filter(Boolean))];
+}
+
+function getCurrentRoles() {
+  const roleIds = getUserRoleIds(currentUser);
+  return (db.roles || []).filter((role) => roleIds.includes(role.id));
+}
+
+function mergeRolePermissions(roles = []) {
+  const merged = createMenuPermissions(false, false);
+  roles.forEach((role) => {
+    SYSTEM_MENUS.forEach((menu) => {
+      const permission = role.permissions?.[menu.id] || {};
+      if (permission.editable) merged[menu.id].editable = true;
+      if (permission.visible || permission.editable) merged[menu.id].visible = true;
+    });
+  });
+  return merged;
+}
+
+function getMenuPermission(menuId) {
+  if (isAdmin()) return { visible: true, editable: true };
+  const rolePermissions = getCurrentRoles().map((role) => role.permissions?.[menuId]);
+  const sources = [
+    ...rolePermissions,
+    db.orgPermissions?.[currentUser.organizationId]?.[menuId],
+    db.userPermissions?.[currentUser.id]?.[menuId],
+  ];
+  const editable = sources.some((permission) => !!permission?.editable);
+  const visible = editable || sources.some((permission) => !!permission?.visible);
+  return { visible, editable };
+}
+
+function canViewMenu(menuId) {
+  return getMenuPermission(menuId).visible;
+}
+
+function canEditMenu(menuId) {
+  return getMenuPermission(menuId).editable;
+}
+
+function ensurePageAllowed() {
+  if (MANAGED_PAGES.includes(state.page) && !canViewMenu(state.page)) {
+    state.page = "all";
+    state.groupId = "all";
+    showToast("当前账号无权访问该菜单");
+  }
 }
 
 const els = {
@@ -255,10 +371,114 @@ const els = {
   sidebarClose: document.querySelector("#sidebarClose"),
 };
 
+function createMenuPermissions(visible = true, editable = true) {
+  return SYSTEM_MENUS.reduce((map, menu) => {
+    map[menu.id] = { visible: !!visible || !!editable, editable: !!editable };
+    return map;
+  }, {});
+}
+
+function normalizeMenuPermissions(permissions = {}, defaultVisible = false, defaultEditable = false) {
+  return SYSTEM_MENUS.reduce((map, menu) => {
+    const permission = permissions?.[menu.id] || {};
+    const editable = !!permission.editable || !!defaultEditable;
+    map[menu.id] = {
+      visible: editable || !!permission.visible || !!defaultVisible,
+      editable,
+    };
+    return map;
+  }, {});
+}
+
+function getDefaultOrganizations() {
+  return [
+    { id: "org-brand", name: "品牌中心", parentId: "", manager: "康明", status: "启用" },
+    { id: "org-market", name: "市场部", parentId: "", manager: "陈然", status: "启用" },
+    { id: "org-support", name: "经销商支持", parentId: "", manager: "李想", status: "启用" },
+  ];
+}
+
+function getDefaultRoles() {
+  return [
+    { id: "admin", name: "超级管理员", status: "启用", description: "系统全量管理权限", permissions: createMenuPermissions(true, true) },
+    { id: "tag-viewer", name: "标签只读", status: "启用", description: "仅查看标签，不允许维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: false } } },
+    { id: "material-operator", name: "素材运营", status: "启用", description: "素材与标签日常维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: true }, collect: { visible: true, editable: true }, share: { visible: true, editable: true }, validity: { visible: true, editable: true } } },
+  ];
+}
+
+function getDefaultUsers() {
+  return [
+    { id: "user-admin", username: "admin", password: "admin123", name: "系统管理员", organizationId: "org-brand", roleId: "admin", roleIds: ["admin"], status: "启用", lastLogin: "" },
+    { id: "user-kerry", username: "kerry", password: "kerry123", name: "Kerry", organizationId: "org-market", roleId: "material-operator", roleIds: ["material-operator"], status: "启用", lastLogin: "" },
+    { id: "user-tag-view", username: "tagview", password: "tag123", name: "标签查看员", organizationId: "org-support", roleId: "tag-viewer", roleIds: ["tag-viewer"], status: "启用", lastLogin: "" },
+  ];
+}
+
+function ensureSystemData() {
+  let changed = false;
+  if (!Array.isArray(db.organizations) || !db.organizations.length) {
+    db.organizations = getDefaultOrganizations();
+    changed = true;
+  }
+  if (!Array.isArray(db.roles) || !db.roles.length) {
+    db.roles = getDefaultRoles();
+    changed = true;
+  }
+  if (!Array.isArray(db.users) || !db.users.length) {
+    db.users = getDefaultUsers();
+    changed = true;
+  }
+  if (!Array.isArray(db.loginLogs)) {
+    db.loginLogs = [];
+    changed = true;
+  }
+  if (!db.orgPermissions || typeof db.orgPermissions !== "object" || Array.isArray(db.orgPermissions)) {
+    db.orgPermissions = {};
+    changed = true;
+  }
+  if (!db.userPermissions || typeof db.userPermissions !== "object" || Array.isArray(db.userPermissions)) {
+    db.userPermissions = {};
+    changed = true;
+  }
+  (db.roles || []).forEach((role) => {
+    const normalized = normalizeMenuPermissions(role.permissions, role.id === "admin", role.id === "admin");
+    if (JSON.stringify(role.permissions || {}) !== JSON.stringify(normalized)) changed = true;
+    role.permissions = normalized;
+  });
+  (db.users || []).forEach((user) => {
+    if (!user.status) {
+      user.status = "启用";
+      changed = true;
+    }
+    const roleIds = getUserRoleIds(user);
+    if (JSON.stringify(user.roleIds || []) !== JSON.stringify(roleIds)) {
+      user.roleIds = roleIds;
+      changed = true;
+    }
+    if (user.roleId !== (roleIds[0] || "")) {
+      user.roleId = roleIds[0] || "";
+      changed = true;
+    }
+  });
+  (db.users || []).forEach((user) => {
+    const normalized = normalizeMenuPermissions(db.userPermissions[user.id] || {});
+    if (JSON.stringify(db.userPermissions[user.id] || {}) !== JSON.stringify(normalized)) changed = true;
+    db.userPermissions[user.id] = normalized;
+  });
+  (db.organizations || []).forEach((org) => {
+    const normalized = normalizeMenuPermissions(db.orgPermissions[org.id] || {});
+    if (JSON.stringify(db.orgPermissions[org.id] || {}) !== JSON.stringify(normalized)) changed = true;
+    db.orgPermissions[org.id] = normalized;
+  });
+  if (changed) saveDb();
+}
+
 
 function bootstrap() {
   localStorage.removeItem("dp-material-library-detail-dock");
   ensureRuntimeElements();
+  ensureSystemData();
+  currentUser = getStoredCurrentUser() || getAnonymousUser();
   migrateVehicleModels();
   migrateAssetMetadata();
   migrateShareExpiresAt();
@@ -279,15 +499,17 @@ function bootstrap() {
   normalizePageState();
   bindEvents();
   render();
+  if (!isLoggedIn()) showLoginPage();
   if (state.selectedAssetId && location.hash.startsWith("#asset=")) setTimeout(() => openViewer(state.selectedAssetId), 0);
 }
 
 function normalizePageState() {
-  const validPages = ["all", "pending", "created", "more", "activity", "tags", "validity", "collect", "share", "recycle"];
+  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "users", "roles", "organizations", "permissions", "collect", "share", "recycle"];
   if (!validPages.includes(state.page)) {
     state.page = "all";
     state.groupId = "all";
   }
+  ensurePageAllowed();
 }
 
 function applyHashState() {
@@ -606,6 +828,21 @@ function ensureRuntimeElements() {
   toast.id = "toast";
   toast.className = "toast hidden";
 
+  const login = document.createElement("section");
+  login.id = "loginPage";
+  login.className = "login-page hidden";
+  login.innerHTML = `
+    <form class="login-card" id="loginForm">
+      <div class="login-brand"><span>DPCA</span><strong>素材库</strong></div>
+      <h1>账号登录</h1>
+      <p>使用系统管理中的用户账号进入素材库。</p>
+      <label>登录用户名<input id="loginUsername" name="username" autocomplete="username" value="admin" required /></label>
+      <label>密码<input id="loginPassword" name="password" type="password" autocomplete="current-password" value="admin123" required /></label>
+      <label>登录入口<select id="loginEntry" name="loginEntry"><option>网页登录</option><option>飞书登录</option><option>企微登录</option></select></label>
+      <div class="login-hint">默认管理员：admin / admin123</div>
+      <button class="primary" type="submit">登录</button>
+    </form>`;
+
   if (!document.querySelector("#viewerResizer")) {
     const detailPanel = document.querySelector(".detail-panel");
     const resizer = document.createElement("div");
@@ -617,7 +854,67 @@ function ensureRuntimeElements() {
     detailPanel?.before(resizer);
   }
 
-  document.body.append(fileInput, folderInput, modal, toast);
+  document.body.append(fileInput, folderInput, modal, toast, login);
+}
+
+function showLoginPage() {
+  document.querySelector("#loginPage")?.classList.remove("hidden");
+  setTimeout(() => document.querySelector("#loginUsername")?.focus(), 0);
+}
+
+function hideLoginPage() {
+  document.querySelector("#loginPage")?.classList.add("hidden");
+}
+
+function handleLoginSubmit(event) {
+  event.preventDefault();
+  const data = Object.fromEntries(new FormData(event.target));
+  const username = String(data.username || "").trim();
+  const password = String(data.password || "");
+  const user = (db.users || []).find((item) => item.username === username && item.password === password);
+  if (!user) {
+    showToast("用户名或密码错误");
+    return;
+  }
+  if (user.status !== "启用") {
+    showToast("该账号已停用，请联系管理员");
+    return;
+  }
+  const loginAt = nowText();
+  const loginEntry = data.loginEntry || "网页登录";
+  user.lastLogin = loginAt;
+  db.loginLogs = db.loginLogs || [];
+  db.loginLogs.unshift({
+    id: `login-${Date.now()}`,
+    username: user.username,
+    name: user.name,
+    loginAt,
+    ip: getLoginIpAddress(),
+    entry: loginEntry,
+  });
+  db.loginLogs = db.loginLogs.slice(0, 500);
+  saveDb();
+  localStorage.setItem(SESSION_USER_KEY, user.id);
+  currentUser = getUserSessionInfo(user.id) || getAnonymousUser();
+  hideLoginPage();
+  renderShell();
+  normalizePageState();
+  render();
+  showToast(`欢迎回来，${currentUser.name}`);
+}
+
+function getLoginIpAddress() {
+  return "127.0.0.1";
+}
+
+function logoutCurrentUser() {
+  localStorage.removeItem(SESSION_USER_KEY);
+  currentUser = getAnonymousUser();
+  renderShell();
+  state.page = "all";
+  state.groupId = "all";
+  render();
+  showLoginPage();
 }
 
 function createTemplateNode(id) {
@@ -638,6 +935,11 @@ function renderShell() {
   document.querySelector(".brand-text strong").textContent = "神龙汽车有限公司";
   document.querySelector(".brand b").textContent = "素材库";
   document.querySelector("#globalSearch").placeholder = "试试在搜索词中增加文件格式，如：手册pdf";
+  const userButton = document.querySelector("#userButton");
+  if (userButton) {
+    userButton.textContent = (currentUser.name || "未").slice(0, 1).toUpperCase();
+    userButton.title = isLoggedIn() ? `${currentUser.name} / ${currentUser.role}` : "未登录";
+  }
   if (!document.querySelector("#themeToggle")) {
     const toggle = document.createElement("button");
     toggle.id = "themeToggle";
@@ -659,11 +961,23 @@ function renderShell() {
   }
   document.querySelector("#themeToggle").textContent = state.theme === "dark" ? "浅" : "深";
   updateBasketCount();
+  applyMenuPermissions();
 
   // mainNav 和 sortDropdown 已改为 HTML 静态定义，无需动态渲染
 
   renderFilterChips();
   renderFilterConfig();
+}
+
+function applyMenuPermissions() {
+  document.querySelectorAll("#moreMenuContent [data-go]").forEach((button) => {
+    const page = button.dataset.go;
+    button.classList.toggle("hidden", MANAGED_PAGES.includes(page) && !canViewMenu(page));
+  });
+  document.querySelectorAll("#moreMenuContent .menu-section").forEach((section) => {
+    const visibleChild = [...section.querySelectorAll("[data-go]")].some((button) => !button.classList.contains("hidden"));
+    section.classList.toggle("hidden", !visibleChild);
+  });
 }
 
 function renderFilterChips() {
@@ -683,6 +997,8 @@ function renderFilterConfig() {
 }
 
 function bindEvents() {
+  document.querySelector("#loginForm")?.addEventListener("submit", handleLoginSubmit);
+
   // Mobile sidebar toggle
   if (els.mobileMenuToggle) {
     els.mobileMenuToggle.addEventListener("click", () => {
@@ -1104,6 +1420,7 @@ function bindEvents() {
   document.querySelector("#mergeTagModal")?.addEventListener("click", (event) => {
     if (event.target.id === "mergeTagModal") closeMergeTagModal();
   });
+  document.querySelector("#mergeClearSelected")?.addEventListener("click", clearMergeTagSelection);
   document.querySelector("#mergeTagForm")?.addEventListener("submit", handleMergeTagSubmit);
 
   // 素材相关模态框事件
@@ -1214,6 +1531,11 @@ function bindEvents() {
   els.moreMenu?.addEventListener("click", (event) => {
     const goButton = event.target.closest("[data-go]");
     if (goButton) {
+      if (MANAGED_PAGES.includes(goButton.dataset.go) && !canViewMenu(goButton.dataset.go)) {
+        showToast("当前账号无权访问该菜单");
+        hideMenus();
+        return;
+      }
       state.page = goButton.dataset.go;
       hideMenus();
       render();

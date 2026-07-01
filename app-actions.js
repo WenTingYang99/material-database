@@ -685,7 +685,7 @@ function handleTopIconAction(action) {
     openUserPanel(action);
     return;
   }
-  if (action === "logout") showToast("已退出当前演示账号");
+  if (action === "logout") logoutCurrentUser();
 }
 
 function openSystemPanel(type) {

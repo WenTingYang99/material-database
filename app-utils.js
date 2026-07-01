@@ -237,11 +237,16 @@ function getPageBreadcrumb(page) {
     pending: "全部 › 待入库",
     created: "全部 › 我创建的组",
     activity: "全部 › 更多功能 › 用户动态",
+    loginLogs: "全部 › 更多功能 › 用户登录日志",
     tags: "全部 › 更多功能 › 标签管理",
     validity: "全部 › 更多功能 › 有效期管理",
     collect: "全部 › 更多功能 › 收集素材管理",
     share: "全部 › 更多功能 › 分享记录",
     recycle: "全部 › 更多功能 › 回收站",
+    users: "全部 › 更多功能 › 系统管理 › 用户管理",
+    roles: "全部 › 更多功能 › 系统管理 › 角色管理",
+    organizations: "全部 › 更多功能 › 系统管理 › 组织管理",
+    permissions: "全部 › 更多功能 › 系统管理 › 权限管理",
   };
   return breadcrumbMap[page] || "全部";
 }
@@ -362,10 +367,3 @@ function escapeHtml(value = "") {
 function escapeAttr(value = "") {
   return escapeHtml(value).replace(/`/g, "&#96;");
 }
-
-document.addEventListener("click", (event) => {
-  const panelButton = event.target.closest("[data-panel-page]");
-  if (!panelButton) return;
-  state.page = panelButton.dataset.panelPage;
-  render();
-});

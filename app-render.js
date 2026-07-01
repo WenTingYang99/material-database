@@ -5,7 +5,7 @@ function render() {
   const showGroupsInput = document.querySelector("#showGroups");
   if (showGroupsInput) showGroupsInput.checked = state.showGroupDescendants;
   document.querySelectorAll(".nav-item").forEach((button) => {
-    const morePage = ["activity", "share", "collect", "recycle", "validity"].includes(state.page);
+    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "users", "roles", "organizations", "permissions"].includes(state.page);
     button.classList.toggle("active", button.dataset.page === state.page || (morePage && button.dataset.page === "more"));
   });
   els.assetToolbar.classList.toggle("hidden", !["all", "pending", "created"].includes(state.page));
@@ -21,17 +21,22 @@ function render() {
     pending: "待入库",
     created: "我创建的组",
     activity: "用户动态",
+    loginLogs: "用户登录日志",
     tags: "标签管理",
     collect: "收集素材管理",
     share: "分享记录",
     recycle: "回收站",
     validity: "有效期管理",
+    users: "用户管理",
+    roles: "角色管理",
+    organizations: "组织管理",
+    permissions: "权限管理",
   };
   els.pageTitle.textContent = titleMap[state.page] || "全部素材";
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
 
-  if (["activity", "collect", "share", "recycle", "validity"].includes(state.page)) renderManagePageV2();
+  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "users", "roles", "organizations", "permissions"].includes(state.page)) renderManagePageV2();
   else if (state.page === "tags") renderTagsPage();
   else renderAssets();
   initProjectDatePickers();
@@ -257,7 +262,7 @@ function renderActions() {
   } else if (state.page === "pending") {
     document.querySelector('.page-actions-inner[data-page-type="pending"]')?.classList.remove("hidden");
   } else if (state.page === "tags") {
-    document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden");
+    if (canEditMenu("tags")) document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden");
   } else if (state.page === "collect") {
     document.querySelector('.page-actions-inner[data-page-type="collect"]')?.classList.remove("hidden");
   } else if (state.page === "recycle") {
@@ -500,9 +505,14 @@ function bindAssetEvents() {
 }
 
 function renderManagePageV2() {
+  if (["users", "roles", "organizations", "permissions"].includes(state.page)) {
+    renderSystemManagePage();
+    return;
+  }
+
   if (state.page === "activity") {
     const rows = collectActivityRows();
-    els.contentPanel.innerHTML = renderManageShell("activity", "用户动态", `共 ${rows.length} 条动态`, `
+    els.contentPanel.innerHTML = renderManageShell("用户动态", `共 ${rows.length} 条动态`, `
       <div class="asset-toolbar inline-toolbar">
         <label>用户<input placeholder="输入用户名搜索" /></label>
         <label>动作<input placeholder="上传 / 下载 / 分享 / 编辑" /></label>
@@ -517,8 +527,13 @@ function renderManagePageV2() {
     return;
   }
 
+  if (state.page === "loginLogs") {
+    renderLoginLogPage();
+    return;
+  }
+
   if (state.page === "share") {
-    els.contentPanel.innerHTML = renderManageShell("share", "分享记录", `共 ${db.shares.length} 条分享记录`, `
+    els.contentPanel.innerHTML = renderManageShell("分享记录", `共 ${db.shares.length} 条分享记录`, `
       <div class="asset-toolbar inline-toolbar">
         <label>素材组<input id="shareGroupQuery" placeholder="输入素材组名称搜索" /></label>
         <label>有效期<select><option>全部</option><option>永久有效</option><option>生效中</option><option>已过期</option></select></label>
@@ -544,7 +559,7 @@ function renderManagePageV2() {
 
   if (state.page === "recycle") {
     const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted"));
-    els.contentPanel.innerHTML = renderManageShell("recycle", "回收站", `共 ${deletedAssets.length} 项`, `
+    els.contentPanel.innerHTML = renderManageShell("回收站", `共 ${deletedAssets.length} 项`, `
       <div class="manage-list-wrap">
         ${deletedAssets.length ? renderList(deletedAssets) : renderEmpty("暂无素材")}
       </div>
@@ -554,7 +569,7 @@ function renderManagePageV2() {
   }
 
   if (state.page === "collect") {
-  els.contentPanel.innerHTML = renderManageShell("collect", "收集素材管理", `共 ${db.collectTasks.length} 条收集任务`, `
+  els.contentPanel.innerHTML = renderManageShell("收集素材管理", `共 ${db.collectTasks.length} 条收集任务`, `
       <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
       <div class="table-scroll"><table class="records-table manage-table">
         <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:110px"></colgroup>
@@ -581,7 +596,7 @@ function renderManagePageV2() {
       default: return true;
     }
   }).slice(0, 12);
-  els.contentPanel.innerHTML = renderManageShell("validity", "有效期管理", `共 ${assets.length} 条有效期记录`, `
+  els.contentPanel.innerHTML = renderManageShell("有效期管理", `共 ${assets.length} 条有效期记录`, `
     <div class="asset-toolbar inline-toolbar">
       <label>素材名称<input placeholder="输入素材名称搜索" /></label>
       <label>有效期<select id="validityFilter"><option>全部</option><option>生效中</option><option>即将过期</option><option>30天内</option><option>90天内</option><option>已过期</option></select></label>
@@ -609,20 +624,848 @@ function renderManagePageV2() {
   }));
 }
 
-function renderManageShell(active, title, subtitle, body) {
+function renderManageShell(title, subtitle, body) {
   return `
     <div class="manage-layout">
       <section class="manage-main">
         <div class="manage-head"><h1>${title} <small>${subtitle}</small></h1></div>
-        ${renderMoreMenuPanel(active)}
         ${body}
       </section>
     </div>`;
 }
 
-function renderMoreMenuPanel(active) {
-  const items = [["activity", "用户动态"], ["tags", "标签管理"], ["validity", "有效期管理"], ["collect", "收集素材"], ["share", "分享记录"], ["recycle", "回收站"]];
-  return `<div class="menu-pop side-pop">${items.map(([id, label]) => `<button class="${active === id ? "active-side" : ""}" data-panel-page="${id}" type="button">${label}</button>`).join("")}</div>`;
+function renderLoginLogPage() {
+  const filters = state.loginLogFilters || { username: "", name: "", startDate: "", endDate: "" };
+  const rows = getFilteredLoginLogs(filters);
+  els.contentPanel.innerHTML = renderManageShell("用户登录日志", `共 ${rows.length} 条登录记录`, `
+    <div class="asset-toolbar inline-toolbar login-log-toolbar">
+      <label>用户名<input id="loginLogUsername" value="${escapeAttr(filters.username)}" placeholder="输入登录用户名" /></label>
+      <label>姓名<input id="loginLogName" value="${escapeAttr(filters.name)}" placeholder="输入姓名" /></label>
+      <label>开始时间<input id="loginLogStartDate" class="inline-date" type="date" value="${escapeAttr(filters.startDate)}" readonly inputmode="none" /></label>
+      <label>结束时间<input id="loginLogEndDate" class="inline-date" type="date" value="${escapeAttr(filters.endDate)}" readonly inputmode="none" /></label>
+      <button class="primary" id="loginLogSearch" type="button">查询</button>
+      <button id="loginLogReset" type="button">清除</button>
+    </div>
+    <div class="table-scroll"><table class="records-table manage-table">
+      <thead><tr><th>用户名</th><th>姓名</th><th>登录时间</th><th>IP地址</th><th>登录入口</th></tr></thead>
+      <tbody>${rows.map((item) => `
+        <tr>
+          <td>${escapeHtml(item.username)}</td>
+          <td>${escapeHtml(item.name)}</td>
+          <td>${escapeHtml(item.loginAt)}</td>
+          <td>${escapeHtml(item.ip)}</td>
+          <td>${escapeHtml(item.entry)}</td>
+        </tr>`).join("") || `<tr><td colspan="5" class="empty-cell">暂无登录记录</td></tr>`}</tbody>
+    </table></div>
+  `);
+  initProjectDatePickers(els.contentPanel);
+  bindLoginLogEvents();
+}
+
+function getFilteredLoginLogs(filters) {
+  const username = String(filters.username || "").trim().toLowerCase();
+  const name = String(filters.name || "").trim().toLowerCase();
+  const start = filters.startDate ? dateTimeTextToTimestamp(`${filters.startDate} 00:00`) : 0;
+  const end = filters.endDate ? dateTimeTextToTimestamp(`${filters.endDate} 23:59`) : Number.MAX_SAFE_INTEGER;
+  return [...(db.loginLogs || [])].filter((item) => {
+    const time = dateTimeTextToTimestamp(item.loginAt);
+    if (username && !String(item.username || "").toLowerCase().includes(username)) return false;
+    if (name && !String(item.name || "").toLowerCase().includes(name)) return false;
+    return time >= start && time <= end;
+  });
+}
+
+function bindLoginLogEvents() {
+  const readFilters = () => ({
+    username: document.querySelector("#loginLogUsername")?.value.trim() || "",
+    name: document.querySelector("#loginLogName")?.value.trim() || "",
+    startDate: document.querySelector("#loginLogStartDate")?.value || "",
+    endDate: document.querySelector("#loginLogEndDate")?.value || "",
+  });
+  document.querySelector("#loginLogSearch")?.addEventListener("click", () => {
+    state.loginLogFilters = readFilters();
+    renderLoginLogPage();
+  });
+  document.querySelector("#loginLogReset")?.addEventListener("click", () => {
+    state.loginLogFilters = { username: "", name: "", startDate: "", endDate: "" };
+    renderLoginLogPage();
+  });
+  ["#loginLogUsername", "#loginLogName"].forEach((selector) => {
+    document.querySelector(selector)?.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        state.loginLogFilters = readFilters();
+        renderLoginLogPage();
+      }
+    });
+  });
+}
+
+function renderSystemManagePage() {
+  const renderers = {
+    users: renderUserManagePage,
+    roles: renderRoleManagePage,
+    organizations: renderOrganizationManagePage,
+    permissions: renderPermissionManagePage,
+  };
+  (renderers[state.page] || renderUserManagePage)();
+}
+
+function renderSystemToolbar(title, actionLabel, action) {
+  return `
+    <div class="system-toolbar">
+      <div>
+        <h2>${title}</h2>
+        <p>基于用户、组织、角色和菜单授权控制系统访问范围。</p>
+      </div>
+      ${canEditMenu(state.page) ? `<button class="primary" data-system-action="${action}" type="button">${actionLabel}</button>` : ""}
+    </div>`;
+}
+
+function getOrgName(id) {
+  return (db.organizations || []).find((org) => org.id === id)?.name || "-";
+}
+
+function bindTreeToggleEvents(scope) {
+  scope?.querySelectorAll("[data-toggle-tree]").forEach((toggle) => toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const collapsed = toggle.textContent.trim() !== "+";
+    toggle.textContent = collapsed ? "+" : "−";
+    applyTreeToggle(toggle, collapsed);
+  }));
+}
+
+function applyTreeToggle(toggle, collapsed) {
+  const parent = toggle.closest(".user-org-node-wrap, .permission-tree-group, .permission-edit-group");
+  if (!parent) return;
+  const directChildren = [...parent.children].slice(1);
+  if (toggle.closest(".permission-edit-node")) {
+    let next = toggle.closest(".permission-edit-node").nextElementSibling;
+    while (next) {
+      next.classList.toggle("hidden", collapsed);
+      next = next.nextElementSibling;
+    }
+    return;
+  }
+  directChildren.forEach((child) => child.classList.toggle("hidden", collapsed));
+}
+
+function getRoleName(id) {
+  return (db.roles || []).find((role) => role.id === id)?.name || "-";
+}
+
+function getRoleNames(ids) {
+  const roleIds = Array.isArray(ids) ? ids : [ids].filter(Boolean);
+  return roleIds.map((id) => getRoleName(id)).filter((name) => name && name !== "-").join("、") || "-";
+}
+
+function renderUserManagePage() {
+  const organizations = db.organizations || [];
+  if (!state.userManageOrgId && organizations.length) state.userManageOrgId = organizations[0].id;
+  const filteredUsers = getUserManageFilteredUsers();
+  if (state.selectedManageUserId && !filteredUsers.some((user) => user.id === state.selectedManageUserId)) {
+    state.selectedManageUserId = "";
+  }
+  const selectedUser = (db.users || []).find((user) => user.id === state.selectedManageUserId);
+  const rows = filteredUsers.map((user, index) => `
+    <tr class="${state.selectedManageUserId === user.id ? "selected" : ""}" data-user-row="${escapeAttr(user.id)}">
+      <td><input type="radio" name="manageUserSelect" ${state.selectedManageUserId === user.id ? "checked" : ""} /></td>
+      <td>${index + 1}</td>
+      <td><strong>${escapeHtml(user.username)}</strong></td>
+      <td>${escapeHtml(user.name)}</td>
+      <td>${escapeHtml(getOrgName(user.organizationId))}</td>
+      <td>${escapeHtml(getRoleNames(getUserRoleIds(user)))}</td>
+      <td><span class="status-dot ${user.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(user.status)}</td>
+      <td>${escapeHtml(user.lastLogin || "-")}</td>
+    </tr>`).join("");
+  els.contentPanel.innerHTML = renderManageShell("用户管理", `共 ${filteredUsers.length} 个用户`, `
+    <div class="user-manage-layout">
+      <aside class="user-org-panel">
+        <div class="user-org-search">
+          <input id="userOrgSearch" placeholder="搜索组织" />
+        </div>
+        <div class="user-org-tree">${renderUserManageOrgTree()}</div>
+      </aside>
+      <section class="user-list-panel">
+        <div class="user-query-bar">
+          <label>用户名<input id="userQueryUsername" value="${escapeAttr(state.userManageFilters.username)}" placeholder="请输入用户名" /></label>
+          <label>员工姓名<input id="userQueryName" value="${escapeAttr(state.userManageFilters.name)}" placeholder="请输入姓名" /></label>
+          <label class="user-check"><input id="userIncludeChildren" type="checkbox" ${state.userManageFilters.includeChildren ? "checked" : ""} /> 包含下级组织</label>
+          <button id="resetUserQuery" type="button">重置</button>
+          <button class="primary" id="applyUserQuery" type="button">查询</button>
+        </div>
+        <div class="user-action-bar">
+          ${canEditMenu("users") ? `<button class="primary" data-system-action="add-user" type="button">添加</button>` : ""}
+          ${canEditMenu("users") ? `<button id="editSelectedUser" type="button" ${selectedUser ? "" : "disabled"}>修改</button>` : ""}
+          ${canEditMenu("permissions") ? `<button id="authorizeSelectedUser" type="button" ${selectedUser ? "" : "disabled"}>菜单授权</button>` : ""}
+          <button id="viewSelectedUserPermission" type="button" ${selectedUser ? "" : "disabled"}>菜单权限查看</button>
+        </div>
+        <div class="table-scroll"><table class="records-table manage-table user-manage-table">
+          <thead><tr><th></th><th>序号</th><th>用户名</th><th>员工姓名</th><th>所属组织</th><th>所属角色</th><th>状态</th><th>最近登录</th></tr></thead>
+          <tbody>${rows || `<tr><td colspan="8" class="empty-cell">暂无用户</td></tr>`}</tbody>
+        </table></div>
+      </section>
+    </div>`);
+  bindSystemManageEvents();
+}
+
+function getOrgChildren(parentId) {
+  return (db.organizations || []).filter((org) => (org.parentId || "") === (parentId || ""));
+}
+
+function getOrgDescendantIds(orgId) {
+  const result = [];
+  const walk = (id) => {
+    getOrgChildren(id).forEach((child) => {
+      result.push(child.id);
+      walk(child.id);
+    });
+  };
+  walk(orgId);
+  return result;
+}
+
+function renderUserManageOrgTree() {
+  const orgs = db.organizations || [];
+  const roots = orgs.filter((org) => !org.parentId || !orgs.some((item) => item.id === org.parentId));
+  const renderNode = (org, depth = 0) => {
+    const childOrgs = getOrgChildren(org.id);
+    const children = childOrgs.map((child) => renderNode(child, depth + 1)).join("");
+    return `<div class="user-org-node-wrap">
+      <button class="user-org-node ${state.userManageOrgId === org.id ? "active" : ""}" data-user-org="${escapeAttr(org.id)}" type="button" style="--depth:${depth}">
+        ${childOrgs.length ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}
+        <span class="user-org-name">${escapeHtml(org.name)}</span>
+      </button>
+      ${children}
+    </div>`;
+  };
+  return roots.map((org) => renderNode(org)).join("") || `<div class="permission-tree-empty">暂无组织</div>`;
+}
+
+function getUserManageFilteredUsers() {
+  const filters = state.userManageFilters;
+  const selectedOrgId = state.userManageOrgId;
+  const orgIds = selectedOrgId
+    ? new Set([selectedOrgId, ...(filters.includeChildren ? getOrgDescendantIds(selectedOrgId) : [])])
+    : null;
+  return (db.users || []).filter((user) => {
+    if (orgIds && !orgIds.has(user.organizationId)) return false;
+    if (filters.username && !String(user.username || "").toLowerCase().includes(filters.username.toLowerCase())) return false;
+    if (filters.name && !String(user.name || "").toLowerCase().includes(filters.name.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function renderRoleManagePage() {
+  const rows = (db.roles || []).map((role) => {
+    const members = (db.users || []).filter((user) => getUserRoleIds(user).includes(role.id)).length;
+    const visibleCount = SYSTEM_MENUS.filter((menu) => role.permissions?.[menu.id]?.visible).length;
+    const editCount = SYSTEM_MENUS.filter((menu) => role.permissions?.[menu.id]?.editable).length;
+    return `<tr>
+      <td><strong>${escapeHtml(role.name)}</strong><small>${escapeHtml(role.description || "-")}</small></td>
+      <td>${members}</td>
+      <td>可见 ${visibleCount} 项 / 可编辑 ${editCount} 项</td>
+      <td><span class="status-dot ${role.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(role.status)}</td>
+      <td class="row-actions">
+        ${canEditMenu("roles") ? `<button class="link-button" data-edit-role="${escapeAttr(role.id)}" type="button">编辑</button>` : ""}
+        ${canEditMenu("permissions") ? `<button class="link-button" data-role-permission="${escapeAttr(role.id)}" type="button">角色权限</button>` : ""}
+        ${!canEditMenu("roles") && !canEditMenu("permissions") ? "-" : ""}
+      </td>
+    </tr>`;
+  }).join("");
+  els.contentPanel.innerHTML = renderManageShell("角色管理", `共 ${(db.roles || []).length} 个角色`, `
+    ${renderSystemToolbar("角色体系", "新增角色", "add-role")}
+    <div class="table-scroll"><table class="records-table manage-table">
+      <thead><tr><th>角色</th><th>成员数</th><th>菜单授权</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="5" class="empty-cell">暂无角色</td></tr>`}</tbody>
+    </table></div>`);
+  bindSystemManageEvents();
+}
+
+function renderOrganizationManagePage() {
+  const rows = (db.organizations || []).map((org) => {
+    const members = (db.users || []).filter((user) => user.organizationId === org.id).length;
+    return `<tr>
+      <td><strong>${escapeHtml(org.name)}</strong></td>
+      <td>${escapeHtml(getOrgName(org.parentId))}</td>
+      <td>${members}</td>
+      <td>${escapeHtml(org.manager || "-")}</td>
+      <td><span class="status-dot ${org.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(org.status)}</td>
+      <td>${canEditMenu("organizations") ? `<button class="link-button" data-edit-org="${escapeAttr(org.id)}" type="button">编辑</button>` : "-"}</td>
+    </tr>`;
+  }).join("");
+  els.contentPanel.innerHTML = renderManageShell("组织管理", `共 ${(db.organizations || []).length} 个组织`, `
+    ${renderSystemToolbar("组织体系", "新增组织", "add-org")}
+    <div class="table-scroll"><table class="records-table manage-table">
+      <thead><tr><th>组织</th><th>上级组织</th><th>成员数</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" class="empty-cell">暂无组织</td></tr>`}</tbody>
+    </table></div>`);
+  bindSystemManageEvents();
+}
+
+function renderPermissionManagePage() {
+  const view = state.permissionView || "menu";
+  const selectedMenu = SYSTEM_MENUS.find((menu) => menu.id === state.permissionMenuId) || SYSTEM_MENUS[0];
+  const subjectType = state.permissionSubjectType || "organization";
+  const subject = getPermissionSubject(subjectType, state.permissionSubjectId);
+  const body = view === "subject"
+    ? renderPermissionSubjectView(subjectType, subject)
+    : renderPermissionMenuView(selectedMenu);
+  els.contentPanel.innerHTML = renderManageShell("权限管理", "按菜单或按组织个人配置可读、可写权限", `
+    <div class="permission-view-switch">
+      <button class="${view === "menu" ? "active" : ""}" data-permission-view="menu" type="button">按菜单授权</button>
+      <button class="${view === "subject" ? "active" : ""}" data-permission-view="subject" type="button">按组织个人授权</button>
+    </div>
+    ${body}`);
+  bindSystemManageEvents();
+}
+
+function getSubjectPermissions(type, id) {
+  const store = type === "user" ? db.userPermissions : db.orgPermissions;
+  if (!store[id]) store[id] = createMenuPermissions(false, false);
+  store[id] = normalizeMenuPermissions(store[id]);
+  return store[id];
+}
+
+function renderPermissionMenuView(menu) {
+  const hasSelection = !!state.permissionMenuId && !!menu;
+  return `
+    <div class="permission-workspace">
+      <aside class="permission-tree-panel">
+        <div class="permission-tree-title">功能菜单</div>
+        <div class="permission-tree">${renderMenuPermissionTree()}</div>
+      </aside>
+      <section class="permission-detail-panel">
+        ${hasSelection ? renderMenuPermissionDetail(menu) : renderPermissionPlaceholder("请选择左侧功能菜单")}
+      </section>
+    </div>
+  `;
+}
+
+function renderPermissionSubjectView(subjectType, subject) {
+  return `
+    <div class="permission-workspace">
+      <aside class="permission-tree-panel">
+        <div class="permission-tree-title">组织 / 个人</div>
+        <div class="permission-tree">${renderSubjectPermissionTree()}</div>
+      </aside>
+      <section class="permission-detail-panel">
+        ${subject ? renderSubjectPermissionDetail(subjectType, subject) : renderPermissionPlaceholder("请选择左侧组织或个人")}
+      </section>
+    </div>
+  `;
+}
+
+function renderMenuPermissionTree() {
+  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  return groups.map((group) => {
+    const nodes = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => `
+      <button class="permission-tree-node ${state.permissionMenuId === menu.id ? "active" : ""}" data-select-permission-menu="${escapeAttr(menu.id)}" type="button">
+        <span class="tree-toggle placeholder"></span><span>${escapeHtml(menu.label)}</span>
+      </button>
+    `).join("");
+    return `<div class="permission-tree-group">
+      <button class="permission-tree-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      ${nodes}
+    </div>`;
+  }).join("");
+}
+
+function renderSubjectPermissionTree() {
+  const orgs = db.organizations || [];
+  const users = db.users || [];
+  return orgs.map((org) => {
+    const orgUsers = users.filter((user) => user.organizationId === org.id);
+    const userNodes = orgUsers.map((user) => `
+      <button class="permission-tree-node child ${state.permissionSubjectType === "user" && state.permissionSubjectId === user.id ? "active" : ""}" data-select-permission-subject="user" data-subject-id="${escapeAttr(user.id)}" type="button">
+        <span class="tree-toggle placeholder"></span><span>${escapeHtml(user.username)} / ${escapeHtml(user.name)}</span>
+      </button>
+    `).join("");
+    return `<div class="permission-tree-group">
+      <button class="permission-tree-node org ${state.permissionSubjectType === "organization" && state.permissionSubjectId === org.id ? "active" : ""}" data-select-permission-subject="organization" data-subject-id="${escapeAttr(org.id)}" type="button">
+        ${orgUsers.length ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}<span>${escapeHtml(org.name)}</span>
+      </button>
+      ${userNodes || (!orgUsers.length ? `<div class="permission-tree-empty">暂无成员</div>` : "")}
+    </div>`;
+  }).join("") || `<div class="permission-tree-empty">暂无组织</div>`;
+}
+
+function renderPermissionPlaceholder(text) {
+  return `<div class="permission-placeholder">${escapeHtml(text)}</div>`;
+}
+
+function renderMenuPermissionDetail(menu) {
+  const grants = getMenuGrantSummary(menu.id);
+  return `
+    <div class="permission-detail-header">
+      <div><h2>${escapeHtml(menu.label)}</h2><p>${escapeHtml(menu.group)} / 菜单授权</p></div>
+      ${canEditMenu("permissions") ? `<button class="primary" data-edit-menu-permission="${escapeAttr(menu.id)}" type="button">编辑权限</button>` : ""}
+    </div>
+    <div class="permission-summary-grid">
+      <div><span>可读对象</span><strong>${grants.visible.length}</strong></div>
+      <div><span>可写对象</span><strong>${grants.editable.length}</strong></div>
+    </div>
+    <div class="table-scroll"><table class="records-table manage-table permission-matrix">
+      <thead><tr><th>授权对象</th><th>类型</th><th>可读</th><th>可写</th></tr></thead>
+      <tbody>${renderMenuGrantRows(menu.id) || `<tr><td colspan="4" class="empty-cell">暂无组织或个人获得该菜单权限</td></tr>`}</tbody>
+    </table></div>
+  `;
+}
+
+function renderMenuGrantRows(menuId) {
+  const orgRows = (db.organizations || []).map((org) => renderPermissionGrantRow("organization", org, menuId)).join("");
+  const userRows = (db.users || []).map((user) => renderPermissionGrantRow("user", user, menuId)).join("");
+  return orgRows + userRows;
+}
+
+function renderPermissionGrantRow(type, target, menuId) {
+  const permission = getSubjectPermissions(type, target.id)[menuId] || {};
+  if (!permission.visible && !permission.editable) return "";
+  const typeLabel = type === "user" ? "个人" : "组织";
+  const name = type === "user" ? `${target.username} / ${target.name}` : target.name;
+  return `<tr>
+    <td><strong>${escapeHtml(name)}</strong></td>
+    <td>${typeLabel}</td>
+    <td>${permission.visible || permission.editable ? "是" : "否"}</td>
+    <td>${permission.editable ? "是" : "否"}</td>
+  </tr>`;
+}
+
+function renderSubjectPermissionDetail(subjectType, subject) {
+  const permissions = getSubjectPermissions(subjectType, subject.id);
+  const visibleCount = SYSTEM_MENUS.filter((menu) => permissions[menu.id]?.visible || permissions[menu.id]?.editable).length;
+  const editableCount = SYSTEM_MENUS.filter((menu) => permissions[menu.id]?.editable).length;
+  const subtitle = subjectType === "user" ? `${subject.username} / 个人授权` : "组织授权";
+  return `
+    <div class="permission-detail-header">
+      <div><h2>${escapeHtml(subject.name)}</h2><p>${escapeHtml(subtitle)}</p></div>
+      ${canEditMenu("permissions") ? `<button class="primary" data-edit-subject-permission="${escapeAttr(subjectType)}" data-subject-id="${escapeAttr(subject.id)}" type="button">编辑权限</button>` : ""}
+    </div>
+    <div class="permission-summary-grid">
+      <div><span>可读菜单</span><strong>${visibleCount}</strong></div>
+      <div><span>可写菜单</span><strong>${editableCount}</strong></div>
+    </div>
+    <div class="table-scroll"><table class="records-table manage-table permission-matrix">
+      <thead><tr><th>菜单分组</th><th>菜单</th><th>可读</th><th>可写</th></tr></thead>
+      <tbody>${renderSubjectGrantRows(subjectType, subject.id) || `<tr><td colspan="4" class="empty-cell">暂无菜单权限</td></tr>`}</tbody>
+    </table></div>
+  `;
+}
+
+function renderSubjectGrantRows(subjectType, subjectId) {
+  const permissions = getSubjectPermissions(subjectType, subjectId);
+  return SYSTEM_MENUS.map((menu) => {
+    const permission = permissions[menu.id] || {};
+    if (!permission.visible && !permission.editable) return "";
+    return `<tr>
+      <td>${escapeHtml(menu.group)}</td>
+      <td><strong>${escapeHtml(menu.label)}</strong></td>
+      <td>${permission.visible || permission.editable ? "是" : "否"}</td>
+      <td>${permission.editable ? "是" : "否"}</td>
+    </tr>`;
+  }).join("");
+}
+
+function getUserMenuPermissionSources(user, menuId) {
+  const sources = [];
+  let visible = false;
+  let editable = false;
+  const collect = (permission, label) => {
+    if (!permission?.visible && !permission?.editable) return;
+    if (permission.visible || permission.editable) visible = true;
+    if (permission.editable) editable = true;
+    sources.push(label);
+  };
+  collect(db.userPermissions?.[user.id]?.[menuId], "个人授权");
+  collect(db.orgPermissions?.[user.organizationId]?.[menuId], `组织权限（${getOrgName(user.organizationId)}）`);
+  getUserRoleIds(user).forEach((roleId) => {
+    const role = (db.roles || []).find((item) => item.id === roleId);
+    collect(role?.permissions?.[menuId], `角色权限（${role?.name || roleId}）`);
+  });
+  return { visible, editable, sources: [...new Set(sources)] };
+}
+
+function renderUserPermissionViewTree(user) {
+  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  return groups.map((group) => {
+    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+      const result = getUserMenuPermissionSources(user, menu.id);
+      return `<div class="permission-edit-node permission-view-node depth-1">
+        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <span>${result.visible ? "是" : "否"}</span>
+        <span>${result.editable ? "是" : "否"}</span>
+        <span class="permission-source-text">${escapeHtml(result.sources.join("、") || "-")}</span>
+      </div>`;
+    }).join("");
+    return `<div class="permission-edit-group">
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      ${menuRows}
+    </div>`;
+  }).join("");
+}
+
+function getPermissionSubject(type, id) {
+  if (!id) return null;
+  return (type === "user" ? (db.users || []) : (db.organizations || [])).find((item) => item.id === id) || null;
+}
+
+function getMenuGrantSummary(menuId) {
+  const visible = [];
+  const editable = [];
+  [...(db.organizations || []).map((item) => ({ type: "organization", item })), ...(db.users || []).map((item) => ({ type: "user", item }))].forEach(({ type, item }) => {
+    const permission = getSubjectPermissions(type, item.id)[menuId] || {};
+    if (permission.visible || permission.editable) visible.push(item.id);
+    if (permission.editable) editable.push(item.id);
+  });
+  return { visible, editable };
+}
+
+function bindSystemManageEvents() {
+  els.contentPanel.querySelector("[data-system-action='add-user']")?.addEventListener("click", () => openUserManageModal());
+  els.contentPanel.querySelector("[data-system-action='add-role']")?.addEventListener("click", () => openRoleManageModal());
+  els.contentPanel.querySelector("[data-system-action='add-org']")?.addEventListener("click", () => openOrganizationManageModal());
+  els.contentPanel.querySelectorAll("[data-edit-user]").forEach((button) => button.addEventListener("click", () => openUserManageModal(button.dataset.editUser)));
+  els.contentPanel.querySelectorAll("[data-user-org]").forEach((button) => button.addEventListener("click", () => {
+    state.userManageOrgId = button.dataset.userOrg;
+    state.selectedManageUserId = "";
+    renderUserManagePage();
+  }));
+  bindTreeToggleEvents(els.contentPanel);
+  els.contentPanel.querySelector("#applyUserQuery")?.addEventListener("click", () => {
+    state.userManageFilters.username = els.contentPanel.querySelector("#userQueryUsername")?.value.trim() || "";
+    state.userManageFilters.name = els.contentPanel.querySelector("#userQueryName")?.value.trim() || "";
+    state.userManageFilters.includeChildren = !!els.contentPanel.querySelector("#userIncludeChildren")?.checked;
+    renderUserManagePage();
+  });
+  els.contentPanel.querySelector("#resetUserQuery")?.addEventListener("click", () => {
+    state.userManageFilters = { username: "", name: "", includeChildren: true };
+    renderUserManagePage();
+  });
+  els.contentPanel.querySelector("#userOrgSearch")?.addEventListener("input", (event) => {
+    const keyword = event.target.value.trim().toLowerCase();
+    els.contentPanel.querySelectorAll(".user-org-node-wrap").forEach((node) => {
+      const text = node.textContent.toLowerCase();
+      node.classList.toggle("hidden", !!keyword && !text.includes(keyword));
+    });
+  });
+  els.contentPanel.querySelectorAll("[data-user-row]").forEach((row) => row.addEventListener("click", () => {
+    state.selectedManageUserId = row.dataset.userRow;
+    renderUserManagePage();
+  }));
+  els.contentPanel.querySelector("#editSelectedUser")?.addEventListener("click", () => {
+    if (!state.selectedManageUserId) return showToast("请先选择用户");
+    openUserManageModal(state.selectedManageUserId);
+  });
+  els.contentPanel.querySelector("#authorizeSelectedUser")?.addEventListener("click", () => {
+    if (!state.selectedManageUserId) return showToast("请先选择用户");
+    openSubjectPermissionModal("user", state.selectedManageUserId);
+  });
+  els.contentPanel.querySelector("#viewSelectedUserPermission")?.addEventListener("click", () => {
+    if (!state.selectedManageUserId) return showToast("请先选择用户");
+    openUserPermissionViewModal(state.selectedManageUserId);
+  });
+  els.contentPanel.querySelectorAll("[data-edit-role]").forEach((button) => button.addEventListener("click", () => openRoleManageModal(button.dataset.editRole)));
+  els.contentPanel.querySelectorAll("[data-edit-org]").forEach((button) => button.addEventListener("click", () => openOrganizationManageModal(button.dataset.editOrg)));
+  els.contentPanel.querySelectorAll("[data-edit-permission]").forEach((button) => button.addEventListener("click", () => openPermissionManageModal(button.dataset.editPermission)));
+  els.contentPanel.querySelectorAll("[data-role-permission]").forEach((button) => button.addEventListener("click", () => openPermissionManageModal(button.dataset.rolePermission)));
+  els.contentPanel.querySelectorAll("[data-permission-view]").forEach((button) => button.addEventListener("click", () => {
+    state.permissionView = button.dataset.permissionView;
+    state.permissionMenuId = "";
+    state.permissionSubjectType = "organization";
+    state.permissionSubjectId = "";
+    renderPermissionManagePage();
+  }));
+  els.contentPanel.querySelectorAll("[data-select-permission-menu]").forEach((button) => button.addEventListener("click", () => {
+    state.permissionMenuId = button.dataset.selectPermissionMenu;
+    renderPermissionManagePage();
+  }));
+  els.contentPanel.querySelectorAll("[data-select-permission-subject]").forEach((button) => button.addEventListener("click", () => {
+    state.permissionSubjectType = button.dataset.selectPermissionSubject;
+    state.permissionSubjectId = button.dataset.subjectId;
+    renderPermissionManagePage();
+  }));
+  els.contentPanel.querySelectorAll("[data-permission-level='editable']").forEach((checkbox) => checkbox.addEventListener("change", () => {
+    if (!checkbox.checked) return;
+    const row = checkbox.closest("[data-permission-row]");
+    const visible = row?.querySelector("[data-permission-level='visible']");
+    if (visible) visible.checked = true;
+  }));
+  els.contentPanel.querySelectorAll("[data-edit-menu-permission]").forEach((button) => button.addEventListener("click", () => openMenuPermissionModal(button.dataset.editMenuPermission)));
+  els.contentPanel.querySelectorAll("[data-edit-subject-permission]").forEach((button) => button.addEventListener("click", () => openSubjectPermissionModal(button.dataset.editSubjectPermission, button.dataset.subjectId)));
+}
+
+function renderPermissionEditTreeRow(type, target, menuId, depth = 0, toggleKey = "") {
+  const permission = getSubjectPermissions(type, target.id)[menuId] || {};
+  const name = type === "user" ? `${target.username} / ${target.name}` : target.name;
+  return `<div class="permission-edit-node depth-${depth}" data-permission-row data-target-type="${type}" data-target-id="${escapeAttr(target.id)}" data-menu-id="${escapeAttr(menuId)}">
+    <div class="permission-edit-name">${toggleKey ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}<strong>${escapeHtml(name)}</strong><small>${type === "user" ? "个人" : "组织"}</small></div>
+    <label class="permission-check"><input data-permission-level="visible" type="checkbox" ${permission.visible ? "checked" : ""} /> 可读</label>
+    <label class="permission-check"><input data-permission-level="editable" type="checkbox" ${permission.editable ? "checked" : ""} /> 可写</label>
+  </div>`;
+}
+
+function renderMenuPermissionEditTree(menuId) {
+  return (db.organizations || []).map((org) => {
+    const orgUsers = (db.users || []).filter((user) => user.organizationId === org.id);
+    const key = `menu:${menuId}:org:${org.id}`;
+    const userRows = orgUsers
+      .map((user) => renderPermissionEditTreeRow("user", user, menuId, 1))
+      .join("");
+    return `<div class="permission-edit-group">
+      ${renderPermissionEditTreeRow("organization", org, menuId, 0, orgUsers.length ? key : "")}
+      ${userRows || (!orgUsers.length ? `<div class="permission-edit-empty">暂无成员</div>` : "")}
+    </div>`;
+  }).join("") || `<div class="permission-edit-empty">暂无授权对象</div>`;
+}
+
+function renderSubjectPermissionEditTree(subjectType, subjectId) {
+  const permissions = getSubjectPermissions(subjectType, subjectId);
+  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  return groups.map((group) => {
+    const key = `subject:${subjectType}:${subjectId}:group:${group}`;
+    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+      const permission = permissions[menu.id] || {};
+      return `<div class="permission-edit-node depth-1" data-permission-row data-target-type="${escapeAttr(subjectType)}" data-target-id="${escapeAttr(subjectId)}" data-menu-id="${escapeAttr(menu.id)}">
+        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <label class="permission-check"><input data-permission-level="visible" type="checkbox" ${permission.visible ? "checked" : ""} /> 可读</label>
+        <label class="permission-check"><input data-permission-level="editable" type="checkbox" ${permission.editable ? "checked" : ""} /> 可写</label>
+      </div>`;
+    }).join("");
+    return `<div class="permission-edit-group">
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      ${menuRows}
+    </div>`;
+  }).join("");
+}
+
+function openMenuPermissionModal(menuId) {
+  if (!canEditMenu("permissions")) return showToast("当前账号没有权限管理编辑权限");
+  const menu = SYSTEM_MENUS.find((item) => item.id === menuId);
+  if (!menu) return;
+  openFormModal(`编辑权限 - ${menu.label}`, `
+    <div class="permission-edit-scroll permission-edit-tree">${renderMenuPermissionEditTree(menu.id)}</div>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存权限</button></div>
+  `, (form) => savePermissionRows(form));
+  bindPermissionModalChecks();
+}
+
+function openSubjectPermissionModal(subjectType, subjectId) {
+  if (!canEditMenu("permissions")) return showToast("当前账号没有权限管理编辑权限");
+  const subject = getPermissionSubject(subjectType, subjectId);
+  if (!subject) return;
+  openFormModal(`编辑权限 - ${subject.name}`, `
+    <div class="permission-edit-scroll permission-edit-tree">${renderSubjectPermissionEditTree(subjectType, subject.id)}</div>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存权限</button></div>
+  `, (form) => savePermissionRows(form));
+  bindPermissionModalChecks();
+}
+
+function openUserPermissionViewModal(userId) {
+  const user = (db.users || []).find((item) => item.id === userId);
+  if (!user) return;
+  openFormModal(`菜单权限查看 - ${user.name}`, `
+    <div class="permission-view-head"><span>菜单</span><span>可读</span><span>可写</span><span>权限来源</span></div>
+    <div class="permission-edit-scroll permission-edit-tree permission-view-tree readonly">${renderUserPermissionViewTree(user)}</div>
+    <div class="form-actions"><button class="primary" type="submit">关闭</button></div>
+  `, () => closeFormModal());
+  bindTreeToggleEvents(document.querySelector(".form-card"));
+}
+
+function bindPermissionModalChecks() {
+  bindTreeToggleEvents(document.querySelector(".form-card"));
+  document.querySelectorAll(".form-card [data-permission-level='editable']").forEach((checkbox) => checkbox.addEventListener("change", () => {
+    if (!checkbox.checked) return;
+    const visible = checkbox.closest("[data-permission-row]")?.querySelector("[data-permission-level='visible']");
+    if (visible) visible.checked = true;
+  }));
+  document.querySelectorAll(".form-card [data-role-permission-level='editable']").forEach((checkbox) => checkbox.addEventListener("change", () => {
+    if (!checkbox.checked) return;
+    const visible = checkbox.closest("[data-role-permission-row]")?.querySelector("[data-role-permission-level='visible']");
+    if (visible) visible.checked = true;
+  }));
+}
+
+function savePermissionRows(form) {
+  form.querySelectorAll("[data-permission-row]").forEach((row) => {
+    const type = row.dataset.targetType;
+    const targetId = row.dataset.targetId;
+    const menuId = row.dataset.menuId;
+    const visible = !!row.querySelector("[data-permission-level='visible']")?.checked;
+    const editable = !!row.querySelector("[data-permission-level='editable']")?.checked;
+    const permissions = getSubjectPermissions(type, targetId);
+    permissions[menuId] = { visible: visible || editable, editable };
+  });
+  saveDb();
+  currentUser = getUserSessionInfo(currentUser.id) || currentUser;
+  closeFormModal();
+  renderShell();
+  normalizePageState();
+  render();
+  showToast("权限已保存");
+}
+
+function buildOptions(items, selectedId = "", emptyLabel = "") {
+  const empty = emptyLabel ? `<option value="">${emptyLabel}</option>` : "";
+  return empty + items.map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === selectedId ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("");
+}
+
+function buildMultiOptions(items, selectedIds = []) {
+  const selected = new Set(selectedIds);
+  return items.map((item) => `<option value="${escapeAttr(item.id)}" ${selected.has(item.id) ? "selected" : ""}>${escapeHtml(item.name)}</option>`).join("");
+}
+
+function openUserManageModal(userId = "") {
+  if (!canEditMenu("users")) return showToast("当前账号没有用户管理编辑权限");
+  const user = (db.users || []).find((item) => item.id === userId) || {};
+  const roleIds = getUserRoleIds(user);
+  openFormModal(userId ? "编辑用户" : "新增用户", `
+    <label>登录用户名<input name="username" value="${escapeAttr(user.username || "")}" ${userId ? "readonly" : ""} required /></label>
+    <label>密码<input name="password" value="${escapeAttr(user.password || "")}" required /></label>
+    <label>姓名<input name="name" value="${escapeAttr(user.name || "")}" required /></label>
+    <label>所属组织<select name="organizationId">${buildOptions(db.organizations || [], user.organizationId || "")}</select></label>
+    <label>所属角色<select name="roleIds" multiple size="4">${buildMultiOptions(db.roles || [], roleIds)}</select></label>
+    <label>状态<select name="status"><option ${user.status !== "停用" ? "selected" : ""}>启用</option><option ${user.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
+  `, (form) => {
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const username = userId ? user.username : data.username.trim();
+    const nextRoleIds = formData.getAll("roleIds").filter(Boolean);
+    if (!nextRoleIds.length) {
+      showToast("请至少选择一个角色");
+      return;
+    }
+    if ((db.users || []).some((item) => item.username === username && item.id !== userId)) {
+      showToast("登录用户名已存在");
+      return;
+    }
+    const next = {
+      id: userId || `user-${Date.now()}`,
+      username,
+      password: data.password.trim(),
+      name: data.name.trim(),
+      organizationId: data.organizationId,
+      roleId: nextRoleIds[0] || "",
+      roleIds: nextRoleIds,
+      status: data.status,
+      lastLogin: user.lastLogin || "",
+    };
+    if (userId) db.users = db.users.map((item) => item.id === userId ? next : item);
+    else {
+      db.users.push(next);
+      db.userPermissions[next.id] = createMenuPermissions(false, false);
+    }
+    if (currentUser.id === next.id) {
+      currentUser = getUserSessionInfo(next.id) || getAnonymousUser();
+      localStorage.setItem(SESSION_USER_KEY, next.id);
+    }
+    state.userManageOrgId = next.organizationId;
+    state.selectedManageUserId = next.id;
+    saveDb();
+    closeFormModal();
+    renderShell();
+    renderSystemManagePage();
+    showToast("用户已保存");
+  });
+}
+
+function openRoleManageModal(roleId = "") {
+  if (!canEditMenu("roles")) return showToast("当前账号没有角色管理编辑权限");
+  const role = (db.roles || []).find((item) => item.id === roleId) || {};
+  openFormModal(roleId ? "编辑角色" : "新增角色", `
+    <label>角色名称<input name="name" value="${escapeAttr(role.name || "")}" required /></label>
+    <label>角色说明<textarea name="description">${escapeHtml(role.description || "")}</textarea></label>
+    <label>状态<select name="status"><option ${role.status !== "停用" ? "selected" : ""}>启用</option><option ${role.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
+  `, (form) => {
+    const data = Object.fromEntries(new FormData(form));
+    const next = {
+      id: roleId || `role-${Date.now()}`,
+      name: data.name.trim(),
+      description: data.description.trim(),
+      status: data.status,
+      permissions: role.permissions || createMenuPermissions(false, false),
+    };
+    if (roleId) db.roles = db.roles.map((item) => item.id === roleId ? next : item);
+    else db.roles.push(next);
+    saveDb();
+    closeFormModal();
+    renderSystemManagePage();
+    showToast("角色已保存");
+  });
+}
+
+function openOrganizationManageModal(orgId = "") {
+  if (!canEditMenu("organizations")) return showToast("当前账号没有组织管理编辑权限");
+  const org = (db.organizations || []).find((item) => item.id === orgId) || {};
+  openFormModal(orgId ? "编辑组织" : "新增组织", `
+    <label>组织名称<input name="name" value="${escapeAttr(org.name || "")}" required /></label>
+    <label>上级组织<select name="parentId">${buildOptions((db.organizations || []).filter((item) => item.id !== orgId), org.parentId || "", "无")}</select></label>
+    <label>负责人<input name="manager" value="${escapeAttr(org.manager || "")}" /></label>
+    <label>状态<select name="status"><option ${org.status !== "停用" ? "selected" : ""}>启用</option><option ${org.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
+  `, (form) => {
+    const data = Object.fromEntries(new FormData(form));
+    const next = {
+      id: orgId || `org-${Date.now()}`,
+      name: data.name.trim(),
+      parentId: data.parentId || "",
+      manager: data.manager.trim(),
+      status: data.status,
+    };
+    if (orgId) db.organizations = db.organizations.map((item) => item.id === orgId ? next : item);
+    else {
+      db.organizations.push(next);
+      db.orgPermissions[next.id] = createMenuPermissions(false, false);
+    }
+    saveDb();
+    closeFormModal();
+    renderSystemManagePage();
+    showToast("组织已保存");
+  });
+}
+
+function openPermissionManageModal(roleId) {
+  if (!canEditMenu("permissions")) return showToast("当前账号没有权限管理编辑权限");
+  const role = (db.roles || []).find((item) => item.id === roleId);
+  if (!role) return;
+  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const rows = groups.map((group) => {
+    const key = `role:${role.id}:group:${group}`;
+    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+      const permission = role.permissions?.[menu.id] || {};
+      return `<div class="permission-edit-node depth-1" data-role-permission-row>
+        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <label class="permission-check"><input data-role-permission-level="visible" type="checkbox" name="${escapeAttr(menu.id)}_visible" ${permission.visible ? "checked" : ""} /> 可读</label>
+        <label class="permission-check"><input data-role-permission-level="editable" type="checkbox" name="${escapeAttr(menu.id)}_editable" ${permission.editable ? "checked" : ""} /> 可写</label>
+      </div>`;
+    }).join("");
+    return `<div class="permission-edit-group">
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      ${menuRows}
+    </div>`;
+  }).join("");
+  openFormModal(`配置权限 - ${role.name}`, `
+    <div class="permission-edit-scroll permission-edit-tree">${rows}</div>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存权限</button></div>
+  `, (form) => {
+    const data = Object.fromEntries(new FormData(form));
+    role.permissions = role.permissions || {};
+    SYSTEM_MENUS.forEach((menu) => {
+      role.permissions[menu.id] = {
+        visible: !!data[`${menu.id}_visible`] || !!data[`${menu.id}_editable`],
+        editable: !!data[`${menu.id}_editable`],
+      };
+    });
+    saveDb();
+    currentUser = getUserSessionInfo(currentUser.id) || currentUser;
+    closeFormModal();
+    renderShell();
+    normalizePageState();
+    render();
+    showToast("权限已保存");
+  });
+  bindPermissionModalChecks();
 }
 
 function emptyRecycleBin() {
@@ -861,8 +1704,13 @@ function getTagSummary() {
 }
 
 function renderTagsPage() {
+  if (!canViewMenu("tags")) {
+    els.contentPanel.innerHTML = renderEmpty("当前账号无权查看标签管理");
+    return;
+  }
+  const canEditTags = canEditMenu("tags");
   const { businessTags, aiTags } = getTagSummary();
-  els.contentPanel.innerHTML = renderManageShell("tags", "标签管理", `业务标签 ${businessTags.length} 个 · AI标签 ${aiTags.length} 个`, `
+  els.contentPanel.innerHTML = renderManageShell("标签管理", `业务标签 ${businessTags.length} 个 · AI标签 ${aiTags.length} 个`, `
     <div class="tabs">
       <button class="active" id="tagTabBusiness" type="button">业务标签</button>
       <button id="tagTabAI" type="button">AI标签</button>
@@ -898,13 +1746,13 @@ function renderTagsPage() {
     return result;
   };
   renderTagTableBody(flattenTree(btTree), "business");
-  document.querySelector("#addTagButton")?.classList.remove("hidden");
-  document.querySelector("#mergeTagButton")?.classList.remove("hidden");
+  document.querySelector("#addTagButton")?.classList.toggle("hidden", !canEditTags);
+  document.querySelector("#mergeTagButton")?.classList.toggle("hidden", !canEditTags);
 
   document.querySelector("#tagTabBusiness")?.addEventListener("click", () => {
     setActiveTab("tagTabBusiness", ["tagTabAI"]);
-    document.querySelector("#addTagButton")?.classList.remove("hidden");
-    document.querySelector("#mergeTagButton")?.classList.remove("hidden");
+    document.querySelector("#addTagButton")?.classList.toggle("hidden", !canEditTags);
+    document.querySelector("#mergeTagButton")?.classList.toggle("hidden", !canEditTags);
     const { businessTagTree: btTree } = getTagSummary();
     const flattenTree = (nodes) => {
       let result = [];
@@ -922,7 +1770,7 @@ function renderTagsPage() {
 
   document.querySelector("#tagTabAI")?.addEventListener("click", () => {
     setActiveTab("tagTabAI", ["tagTabBusiness"]);
-    document.querySelector("#addTagButton")?.classList.remove("hidden");
+    document.querySelector("#addTagButton")?.classList.toggle("hidden", !canEditTags);
     document.querySelector("#mergeTagButton")?.classList.add("hidden");
     const { flatAiTags: at } = getTagSummary();
     renderTagTableBody(at, "ai");
@@ -948,6 +1796,7 @@ function renderTagTableBody(tags, type) {
   const thead = document.querySelector("#tagTableHead");
   const colgroup = document.querySelector("#tagTableCols");
   if (!tbody || !thead || !colgroup) return;
+  const canEditTags = canEditMenu("tags");
 
   // --- business: tree table with indent ---
   if (type === "business") {
@@ -959,9 +1808,9 @@ function renderTagTableBody(tags, type) {
       <col style="width:220px">
       <col style="width:132px">
       <col style="width:110px">
-      <col style="width:104px">`;
+      ${canEditTags ? `<col style="width:104px">` : ""}`;
     thead.innerHTML = `<tr>
-      <th>#</th><th>标签名称</th><th>标签编码</th><th>父标签名称</th><th>标签描述</th><th>创建时间</th><th>创建人</th><th>操作</th>
+      <th>#</th><th>标签名称</th><th>标签编码</th><th>父标签名称</th><th>标签描述</th><th>创建时间</th><th>创建人</th>${canEditTags ? "<th>操作</th>" : ""}
     </tr>`;
 
     const rows = tags.map((tag, idx) => {
@@ -988,25 +1837,27 @@ function renderTagTableBody(tags, type) {
         <td class="cell-ellipsis">${escapeHtml(desc)}</td>
         <td>${escapeHtml(ctime)}</td>
         <td>${escapeHtml(cby)}</td>
-        <td>
+        ${canEditTags ? `<td>
           <div class="tag-table-actions">
             <button class="op-button" data-edit-tag="${escapeAttr(name)}" type="button" title="编辑"><span data-icon="edit"></span></button>
             <button class="op-button" data-merge-tag="${escapeAttr(name)}" type="button" title="合并到分组"><span data-icon="merge"></span></button>
           </div>
-        </td>
+        </td>` : ""}
       </tr>`;
     });
 
     tbody.innerHTML = rows.length
       ? rows.join("")
-      : `<tr><td colspan="8" class="empty-cell">暂无业务标签</td></tr>`;
+      : `<tr><td colspan="${canEditTags ? 8 : 7}" class="empty-cell">暂无业务标签</td></tr>`;
 
-    tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
-      btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));
-    });
-    tbody.querySelectorAll("[data-merge-tag]").forEach((btn) => {
-      btn.addEventListener("click", () => openMergeTagModal(btn.dataset.mergeTag));
-    });
+    if (canEditTags) {
+      tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
+        btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));
+      });
+      tbody.querySelectorAll("[data-merge-tag]").forEach((btn) => {
+        btn.addEventListener("click", () => openMergeTagModal(btn.dataset.mergeTag));
+      });
+    }
     return;
   }
 
@@ -1021,9 +1872,9 @@ function renderTagTableBody(tags, type) {
     <col style="width:100px">
     <col style="width:132px">
     <col style="width:110px">
-    <col style="width:86px">`;
+    ${canEditTags ? `<col style="width:86px">` : ""}`;
   thead.innerHTML = `<tr>
-    <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th><th>操作</th>
+    <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th>${canEditTags ? "<th>操作</th>" : ""}
   </tr>`;
 
   const aiSourceLabel = { 1: "AI 自动识别", 2: "业务预定义" };
@@ -1058,21 +1909,23 @@ function renderTagTableBody(tags, type) {
       <td>${recog}</td>
       <td>${escapeHtml(ctime)}</td>
       <td>${escapeHtml(cby)}</td>
-      <td>
+      ${canEditTags ? `<td>
         <div class="tag-table-actions">
           <button class="op-button" data-edit-tag="${escapeAttr(name)}" type="button" title="编辑"><span data-icon="edit"></span></button>
         </div>
-      </td>
+      </td>` : ""}
     </tr>`;
   });
 
   tbody.innerHTML = rows.length
     ? rows.join("")
-    : `<tr><td colspan="10" class="empty-cell">暂无AI标签</td></tr>`;
+    : `<tr><td colspan="${canEditTags ? 10 : 9}" class="empty-cell">暂无AI标签</td></tr>`;
 
-  tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
-    btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));
-  });
+  if (canEditTags) {
+    tbody.querySelectorAll("[data-edit-tag]").forEach((btn) => {
+      btn.addEventListener("click", () => openEditTagModal(btn.dataset.editTag));
+    });
+  }
 }
 
 function renderBusinessTagList(tags) {
@@ -1233,6 +2086,10 @@ function updateAddTagParentOptions() {
 }
 
 function openAddTagModal() {
+  if (!canEditMenu("tags")) {
+    showToast("当前账号没有标签编辑权限");
+    return;
+  }
   document.querySelector("#addTagName").value = "";
   document.querySelector("#addTagDesc").value = "";
   document.querySelector("#addTagType").value = "1"; // default business
@@ -1352,6 +2209,10 @@ function updateEditTagParentOptions(tagName) {
 }
 
 function openEditTagModal(oldName) {
+  if (!canEditMenu("tags")) {
+    showToast("当前账号没有标签编辑权限");
+    return;
+  }
   editTagOldName = oldName;
   const isAiTab = document.querySelector("#tagTabAI")?.classList.contains("active");
   const tag = (db.tags || []).find(t => (t.tagName || t.name || "") === oldName) || createTagRecordFromUsage(oldName, isAiTab ? 2 : 1);
@@ -1437,6 +2298,10 @@ function closeEditTagModal() {
 }
 
 async function deleteTag(tagName) {
+  if (!canEditMenu("tags")) {
+    showToast("当前账号没有标签编辑权限");
+    return;
+  }
   const count = getTagUsageCount(tagName);
   const ok = await window.Modal.confirm(`确定删除标签「${tagName}」吗？该标签当前被 ${count} 个素材使用，删除后将从所有素材中移除该标签。`);
   if (!ok) return;
@@ -1462,25 +2327,33 @@ function getTagUsageCount(tagName) {
 }
 
 function openMergeTagModal(preselectTag) {
+  if (!canEditMenu("tags")) {
+    showToast("当前账号没有标签编辑权限");
+    return;
+  }
   const { businessTags } = getTagSummary();
   const tagNames = businessTags.map(t => t.tagName || t.name || "").filter(Boolean);
+  const selectedNames = new Set(preselectTag ? [preselectTag] : []);
   const tagOptions = tagNames.map((name) => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("");
+  const sourceItems = tagNames.map((name) => `
+    <label class="merge-check-item">
+      <input type="checkbox" name="mergeSourceTag" value="${escapeAttr(name)}" ${selectedNames.has(name) ? "checked" : ""} />
+      <span>${escapeHtml(name)}</span>
+    </label>
+  `).join("");
 
-  document.querySelector("#mergeSourceTags").innerHTML = tagOptions;
+  const sourceList = document.querySelector("#mergeSourceTags");
+  sourceList.innerHTML = sourceItems || `<div class="empty">暂无可合并标签</div>`;
+  sourceList.onchange = updateMergeTagSelectionCount;
   document.querySelector("#mergeTargetTag").innerHTML = tagOptions;
-  if (preselectTag) {
-    const sourceSelect = document.querySelector("#mergeSourceTags");
-    const option = sourceSelect.querySelector(`option[value="${escapeAttr(preselectTag)}"]`);
-    if (option) option.selected = true;
-  }
+  updateMergeTagSelectionCount();
   document.querySelector("#mergeTagModal").classList.remove("hidden");
 }
 
 function handleMergeTagSubmit(event) {
   event.preventDefault();
-  const sourceSelect = document.querySelector("#mergeSourceTags");
   const targetTag = document.querySelector("#mergeTargetTag").value;
-  const sourceTags = [...sourceSelect.selectedOptions].map((opt) => opt.value);
+  const sourceTags = [...document.querySelectorAll("#mergeSourceTags input[name='mergeSourceTag']:checked")].map((input) => input.value);
 
   if (sourceTags.length === 0) {
     showToast("请选择至少一个要合并的标签");
@@ -1520,6 +2393,19 @@ function handleMergeTagSubmit(event) {
 
 function closeMergeTagModal() {
   document.querySelector("#mergeTagModal").classList.add("hidden");
+}
+
+function clearMergeTagSelection() {
+  document.querySelectorAll("#mergeSourceTags input[name='mergeSourceTag']").forEach((input) => {
+    input.checked = false;
+  });
+  updateMergeTagSelectionCount();
+}
+
+function updateMergeTagSelectionCount() {
+  const count = document.querySelectorAll("#mergeSourceTags input[name='mergeSourceTag']:checked").length;
+  const countText = document.querySelector("#mergeSelectedCount");
+  if (countText) countText.textContent = `已勾选 ${count} 个标签`;
 }
 
 function collectActivityRows() {

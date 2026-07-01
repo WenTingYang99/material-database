@@ -284,8 +284,18 @@
     <div class="menu-pop hidden" id="moreMenu">
       <div id="moreMenuContent">
         <button data-go="activity" type="button">用户动态</button>
+        <button data-go="loginLogs" type="button">用户登录日志</button>
         <button data-go="tags" type="button">标签管理</button>
         <button data-go="validity" type="button">有效期管理</button>
+        <div class="menu-section">
+          <div class="menu-section-title">系统管理</div>
+          <div class="menu-sub">
+            <button data-go="users" type="button">用户管理</button>
+            <button data-go="roles" type="button">角色管理</button>
+            <button data-go="organizations" type="button">组织管理</button>
+            <button data-go="permissions" type="button">权限管理</button>
+          </div>
+        </div>
         <button data-go="collect" type="button">收集素材</button>
         <button data-go="share" type="button">分享记录</button>
         <button data-go="recycle" type="button">回收站</button>
@@ -424,7 +434,14 @@
             <span>标签合并说明</span>
             <p>将多个标签合并为一个标签，原标签将被删除，所有使用原标签的素材将使用新标签。</p>
           </div>
-          <label>选择要合并的标签（可多选）<select id="mergeSourceTags" multiple size="6"></select></label>
+          <div class="merge-field">
+            <div class="merge-field-head">
+              <strong>选择要合并的标签（可多选）</strong>
+              <button id="mergeClearSelected" class="link-button" type="button">清除勾选</button>
+            </div>
+            <div class="merge-checklist" id="mergeSourceTags"></div>
+            <small id="mergeSelectedCount">已勾选 0 个标签</small>
+          </div>
           <label>合并到目标标签<select id="mergeTargetTag"></select></label>
           <div class="form-actions">
             <button id="mergeTagCancel" type="button">取消</button>
