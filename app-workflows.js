@@ -252,7 +252,7 @@ function openCollectorUploadModal(index) {
   closeFormModal();
   const html = renderHtmlTemplate("tplCollectorUploadForm", {
     GROUP_NAME: escapeHtml(task.group),
-    UPLOAD_ACCEPT,
+    UPLOAD_ACCEPT: getAllUploadAccept(),
   });
   openFormModal("外部提交素材", html, async (form) => {
     const data = Object.fromEntries(new FormData(form));

@@ -70,6 +70,243 @@ const UPLOAD_FILE_FORMATS = Object.values(FILE_FORMAT_CATEGORIES).flat();
 const UPLOAD_ACCEPT = UPLOAD_FILE_FORMATS.map((format) => `.${format.toLowerCase()}`).join(",");
 const COLLECT_TASK_FILE_TYPES = Object.keys(FILE_FORMAT_CATEGORIES);
 
+const SEED_VALUE_LIST_TREE = [
+  { id: "vl_root", code: "root", name: "值列表", type: "root", parentId: null, refId: null, description: "值列表管理根节点", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
+  { id: "vl_dim_matlib", code: "material_lib", name: "素材库筛选", type: "dimension", parentId: "vl_root", refId: null, description: "素材库筛选条件集合", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
+  { id: "vl_dim_brand", code: "brand", name: "品牌", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "车辆品牌列表", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_b1", code: "peugeot", name: "东风标致", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_b2", code: "citroen", name: "东风雪铁龙", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_b3", code: "jeep", name: "Jeep", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_series", code: "series", name: "车系", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "车辆系列列表", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_s1", code: "4008-import", name: "4008(进口）", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_s2", code: "4008", name: "4008", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_s3", code: "5008", name: "5008", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_s4", code: "408", name: "408", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_s5", code: "508", name: "508", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_s6", code: "new-408", name: "新一代408", type: "value", parentId: "vl_dim_series", refId: "vl_b1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_s7", code: "sarah-picasso", name: "萨拉毕加索", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_s8", code: "c5-aircross", name: "天逸 (C5)AIRCROSS", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_s9", code: "elysee", name: "经典爱丽舍", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_s10", code: "c6", name: "C6", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_s11", code: "c5", name: "C5", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_s12", code: "versailles-c5x", name: "凡尔赛C5 X", type: "value", parentId: "vl_dim_series", refId: "vl_b2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 12 },
+  { id: "vl_dim_model", code: "model", name: "车型", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "车辆型号列表", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_m1", code: "c5-2.0-manual", name: "C5舒适型2.0L手动档", type: "value", parentId: "vl_dim_model", refId: "vl_s11", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_m2", code: "c5-2011-2.0-manual", name: "11款C5舒适型2.0L 手动", type: "value", parentId: "vl_dim_model", refId: "vl_s11", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_m3", code: "versailles-25-n2", name: "凡尔赛C5X 25款 N2", type: "value", parentId: "vl_dim_model", refId: "vl_s12", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_m4", code: "versailles-24-n2p", name: "凡尔赛 C5X 旅不凡 24款 N2P++", type: "value", parentId: "vl_dim_model", refId: "vl_s12", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_dim_interior_color", code: "interior_color", name: "内饰色", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "内饰颜色列表", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ic1", code: "interior-v3000-xnfr", name: "（V3000 XNFR）新内饰", type: "value", parentId: "vl_dim_interior_color", refId: "vl_m1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ic2", code: "interior-v3000-6bfr", name: "（V3000 6BFR）驼绒灰(天鹅绒)", type: "value", parentId: "vl_dim_interior_color", refId: "vl_m1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ic3", code: "interior-v8fa2-6bfr", name: "（V8FA2 6BFR）驼绒灰(天鹅绒)", type: "value", parentId: "vl_dim_interior_color", refId: "vl_m2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_exterior_color", code: "exterior_color", name: "外饰色", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "外饰颜色列表", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ec1", code: "exterior-v8fa5-6bfd", name: "（V8FA5 6BFD）浅色天鹅绒", type: "value", parentId: "vl_dim_exterior_color", refId: "vl_m1", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ec2", code: "exterior-v8fa5-6bfd-m2", name: "（V8FA5 6BFD）浅色天鹅绒", type: "value", parentId: "vl_dim_exterior_color", refId: "vl_m2", description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_file_format", code: "file_format", name: "文件格式", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "文件格式分类", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff1", code: "image", name: "图片", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff11", code: "jpg", name: "JPG", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff12", code: "jpeg", name: "JPEG", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff13", code: "png", name: "PNG", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff14", code: "tif", name: "TIF", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff15", code: "tiff", name: "TIFF", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff16", code: "webp", name: "WEBP", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff17", code: "gif", name: "GIF", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff18", code: "svg", name: "SVG", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff19", code: "bmp", name: "BMP", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ff20", code: "heic", name: "HEIC", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ff21", code: "pic", name: "PIC", type: "value", parentId: "vl_ff1", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_ff2", code: "video", name: "视频", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff22", code: "mp4", name: "MP4", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff23", code: "mov", name: "MOV", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff24", code: "m4v", name: "M4V", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff25", code: "avi", name: "AVI", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff26", code: "mkv", name: "MKV", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff27", code: "rmvb", name: "RMVB", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff28", code: "rm", name: "RM", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff29", code: "mpg", name: "MPG", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff30", code: "flv", name: "FLV", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ff31", code: "ts", name: "TS", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ff32", code: "aep", name: "AEP", type: "value", parentId: "vl_ff2", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_ff3", code: "document", name: "文档", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff33", code: "pdf", name: "PDF", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff34", code: "doc", name: "DOC", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff35", code: "docx", name: "DOCX", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff36", code: "ppt", name: "PPT", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff37", code: "pptx", name: "PPTX", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff38", code: "wps", name: "WPS", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff39", code: "pages", name: "PAGES", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff40", code: "key", name: "KEY", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff41", code: "txt", name: "TXT", type: "value", parentId: "vl_ff3", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ff4", code: "design", name: "设计源文件", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff42", code: "psd", name: "PSD", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff43", code: "ai", name: "AI", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff44", code: "psb", name: "PSB", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff45", code: "sketch", name: "SKETCH", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff46", code: "c4d", name: "C4D", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff47", code: "ps", name: "PS", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff48", code: "coreldraw", name: "CORELDRAW", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff49", code: "eps", name: "EPS", type: "value", parentId: "vl_ff4", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff5", code: "text", name: "纯文本", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff50", code: "text-file", name: "TEXT", type: "value", parentId: "vl_ff5", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff6", code: "spreadsheet", name: "表格", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff51", code: "xls", name: "XLS", type: "value", parentId: "vl_ff6", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff52", code: "xlsx", name: "XLSX", type: "value", parentId: "vl_ff6", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff53", code: "csv", name: "CSV", type: "value", parentId: "vl_ff6", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff54", code: "numbers", name: "NUMBERS", type: "value", parentId: "vl_ff6", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff7", code: "font", name: "字体文件", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff55", code: "ttf", name: "TTF", type: "value", parentId: "vl_ff7", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff56", code: "ttc", name: "TTC", type: "value", parentId: "vl_ff7", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff57", code: "otf", name: "OTF", type: "value", parentId: "vl_ff7", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff8", code: "audio", name: "音频", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff58", code: "mp3", name: "MP3", type: "value", parentId: "vl_ff8", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff59", code: "m4a", name: "M4A", type: "value", parentId: "vl_ff8", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff60", code: "wav", name: "WAV", type: "value", parentId: "vl_ff8", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff9", code: "archive", name: "压缩包", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ff61", code: "zip", name: "ZIP", type: "value", parentId: "vl_ff9", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff62", code: "rar", name: "RAR", type: "value", parentId: "vl_ff9", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff63", code: "7z", name: "7Z", type: "value", parentId: "vl_ff9", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff64", code: "gz", name: "GZ", type: "value", parentId: "vl_ff9", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff10", code: "3d-model", name: "三维模型文件", type: "group", parentId: "vl_dim_file_format", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ff65", code: "3dm", name: "3DM", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ff66", code: "3ds", name: "3DS", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ff67", code: "3mf", name: "3MF", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ff68", code: "amf", name: "AMF", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ff69", code: "bim", name: "BIM", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ff70", code: "brep", name: "BREP", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff71", code: "dae", name: "DAE", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ff72", code: "fbx", name: "FBX", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ff73", code: "fcstd", name: "FCSTD", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ff74", code: "ifc", name: "IFC", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ff75", code: "iges", name: "IGES", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_ff76", code: "step", name: "STEP", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 12 },
+  { id: "vl_ff77", code: "stl", name: "STL", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 13 },
+  { id: "vl_ff78", code: "obj", name: "OBJ", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 14 },
+  { id: "vl_ff79", code: "off", name: "OFF", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 15 },
+  { id: "vl_ff80", code: "ply", name: "PLY", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 16 },
+  { id: "vl_dim_source", code: "source", name: "素材来源", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材来源类型", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_src1", code: "internal", name: "内部上传", type: "value", parentId: "vl_dim_source", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_src2", code: "ai-generated", name: "AI生成", type: "value", parentId: "vl_dim_source", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_src3", code: "external", name: "外部导入", type: "value", parentId: "vl_dim_source", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_permission_scope", code: "permission_scope", name: "权限范围", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材权限范围", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ps1", code: "downloadable", name: "可下载", type: "value", parentId: "vl_dim_permission_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ps2", code: "shareable", name: "可分享", type: "value", parentId: "vl_dim_permission_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_asset_status", code: "asset_status", name: "素材状态", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材状态筛选", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_as1", code: "valid", name: "有效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_as2", code: "expired", name: "已失效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_as3", code: "pending", name: "待生效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_aspect_ratio", code: "aspect_ratio", name: "宽高比", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "图片/视频宽高比", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ar1", code: "1:1", name: "1:1", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "1.0", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ar2", code: "3:4", name: "3:4", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "0.75", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ar3", code: "9:16", name: "9:16", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "0.5625", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ar4", code: "4:3", name: "4:3", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "1.333", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ar5", code: "3:2", name: "3:2", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "1.5", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ar6", code: "16:9", name: "16:9", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "1.778", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ar7", code: "21:9", name: "21:9", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "2.333", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_dim_file_size", code: "file_size", name: "文件大小", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "文件大小范围", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_fs1", code: "lt5", name: "<5MB", type: "value", parentId: "vl_dim_file_size", refId: null, description: "", attr1: "0", attr2: "5242880", status: "enabled", sortOrder: 1 },
+  { id: "vl_fs2", code: "5to10", name: "5MB～10MB", type: "value", parentId: "vl_dim_file_size", refId: null, description: "", attr1: "5242880", attr2: "10485760", status: "enabled", sortOrder: 2 },
+  { id: "vl_fs3", code: "10to50", name: "10MB～50MB", type: "value", parentId: "vl_dim_file_size", refId: null, description: "", attr1: "10485760", attr2: "52428800", status: "enabled", sortOrder: 3 },
+  { id: "vl_fs4", code: "gt50", name: ">50MB", type: "value", parentId: "vl_dim_file_size", refId: null, description: "", attr1: "52428800", attr2: "", status: "enabled", sortOrder: 4 },
+];
+
+function getTreeChildren(parentId = null) {
+  return (db.valueListTree || []).filter(n => n.parentId === parentId && n.status === "enabled")
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+function getTreeNodeById(id) {
+  return (db.valueListTree || []).find(n => n.id === id);
+}
+function getTreeNodeByCode(code) {
+  return (db.valueListTree || []).find(n => n.code === code);
+}
+function getTreeNodeByName(name) {
+  return (db.valueListTree || []).find(n => n.name === name);
+}
+function getDimensionNodes(parentDimId) {
+  const parentId = parentDimId || getTreeNodeByCode("material_lib")?.id;
+  return (db.valueListTree || []).filter(n => n.parentId === parentId && n.type === "dimension" && n.status === "enabled")
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+function getCascadeChildren(dimCode, refIds) {
+  const dim = getTreeNodeByCode(dimCode);
+  if (!dim) return [];
+  const children = (db.valueListTree || []).filter(n => n.parentId === dim.id && n.status === "enabled");
+  if (!refIds || !refIds.length) return children;
+  return children.filter(n => !n.refId || refIds.includes(n.refId))
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+}
+function buildFilterTree(dimCode, parentId = null) {
+  const dim = getTreeNodeByCode(dimCode);
+  if (!dim) return [];
+  const pid = parentId !== null ? parentId : dim.id;
+  return getTreeChildren(pid).map(n => ({
+    name: n.name,
+    selectable: n.type === "value",
+    children: buildFilterTree(dimCode, n.id)
+  }));
+}
+function getAllLeafValues(dimCode) {
+  const dim = getTreeNodeByCode(dimCode);
+  if (!dim) return [];
+  const result = [];
+  const collect = (nodeId) => {
+    const children = getTreeChildren(nodeId);
+    children.forEach(c => {
+      if (c.type === "value") result.push(c);
+      else collect(c.id);
+    });
+  };
+  collect(dim.id);
+  return result;
+}
+function getAllUploadAccept() {
+  const leaves = getAllLeafValues("file_format");
+  return leaves.map(l => `.${l.code}`).join(",");
+}
+function getAllCollectTaskTypes() {
+  const dim = getTreeNodeByCode("file_format");
+  if (!dim) return [];
+  return getTreeChildren(dim.id).filter(n => n.type === "group").map(n => n.name);
+}
+function getVehicleModels() {
+  return getAllLeafValues("model").map(n => n.name);
+}
+function getFileFormatCategoriesFromTree() {
+  const dim = getTreeNodeByCode("file_format");
+  if (!dim) return {};
+  const groups = getTreeChildren(dim.id).filter(n => n.type === "group");
+  const allLeaves = getAllLeafValues("file_format");
+  const result = {};
+  groups.forEach(g => {
+    const formats = allLeaves.filter(f => {
+      let parent = getTreeNodeById(f.parentId);
+      while (parent) {
+        if (parent.id === g.id) return true;
+        parent = getTreeNodeById(parent.parentId);
+      }
+      return false;
+    });
+    result[g.name] = formats.map(f => f.name);
+  });
+  return result;
+}
+function getAspectRatiosFromTree() {
+  return getAllLeafValues("aspect_ratio").map(n => ({
+    label: n.name,
+    value: parseFloat(n.attr1) || 0
+  }));
+}
+function getAllowedUploadFormats() {
+  return getAllLeafValues("file_format").map(n => n.name);
+}
+function getFilterLabels() {
+  const dims = getDimensionNodes();
+  return dims.map(d => d.name);
+}
+function getConfigurableFilters() {
+  return [...getFilterLabels(), "宽高比", "文件大小", "上传时间", "素材失效日"];
+}
+
 function getExpireDate(daysFromNow) {
   const date = new Date();
   date.setDate(date.getDate() + daysFromNow);
@@ -185,6 +422,7 @@ const SYSTEM_MENUS = [
   { id: "collect", label: "收集素材", group: "更多功能" },
   { id: "share", label: "分享记录", group: "更多功能" },
   { id: "recycle", label: "回收站", group: "更多功能" },
+  { id: "valueLists", label: "值列表管理", group: "更多功能" },
   { id: "users", label: "用户管理", group: "系统管理" },
   { id: "roles", label: "角色管理", group: "系统管理" },
   { id: "organizations", label: "组织管理", group: "系统管理" },
@@ -219,6 +457,10 @@ const state = {
   permissionSubjectType: "organization",
   permissionSubjectId: "",
   recycleSort: "deletedDesc",
+  selectedValueListId: "",
+  valueListSearch: { keyword: "" },
+  valueListSelectedNodeId: "",
+  valueListExpandedIds: new Set(),
   theme: localStorage.getItem("dp-material-library-theme") || "light",
   zoomLevel: 100,
   panX: 0,
@@ -432,6 +674,10 @@ function ensureSystemData() {
     db.loginLogs = [];
     changed = true;
   }
+  if (!Array.isArray(db.valueListTree) || !db.valueListTree.length) {
+    db.valueListTree = SEED_VALUE_LIST_TREE;
+    changed = true;
+  }
   if (!db.orgPermissions || typeof db.orgPermissions !== "object" || Array.isArray(db.orgPermissions)) {
     db.orgPermissions = {};
     changed = true;
@@ -483,6 +729,7 @@ function bootstrap() {
   migrateAssetMetadata();
   migrateShareExpiresAt();
   renderShell();
+  initValueListModalEvents();
   const collectCode = new URLSearchParams(window.location.search).get("collect");
   if (collectCode) {
     renderCollectorPortal(collectCode);
@@ -504,7 +751,7 @@ function bootstrap() {
 }
 
 function normalizePageState() {
-  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "users", "roles", "organizations", "permissions", "collect", "share", "recycle"];
+  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "valueLists", "users", "roles", "organizations", "permissions", "collect", "share", "recycle"];
   if (!validPages.includes(state.page)) {
     state.page = "all";
     state.groupId = "all";
@@ -529,9 +776,10 @@ function applyHashState() {
 
 function migrateVehicleModels() {
   let changed = false;
+  const models = getVehicleModels();
   db.assets.forEach((asset, index) => {
-    if (!VEHICLE_MODELS.includes(asset.model)) {
-      asset.model = detectVehicleModel(asset.name) || VEHICLE_MODELS[index % VEHICLE_MODELS.length];
+    if (!models.includes(asset.model)) {
+      asset.model = detectVehicleModel(asset.name) || models[index % models.length];
       changed = true;
     }
   });
@@ -727,7 +975,7 @@ function renderCollectorPortal(code) {
           <label>提交人<input name="author" placeholder="姓名 / 部门 / 联系方式" required /></label>
           <label>素材说明<textarea name="note" placeholder="补充用途、活动、车型、版权说明等"></textarea></label>
           <label>业务标签<input name="businessTags" placeholder="例如：618活动、经销商，多个标签用逗号分隔" /></label>
-          <label>选择文件<input name="files" type="file" multiple required accept="${UPLOAD_ACCEPT}" /></label>
+          <label>选择文件<input name="files" type="file" multiple required accept="${getAllUploadAccept()}" /></label>
           <label>素材失效时间
             <div class="date-time-row">
               <input name="validUntilDate" type="date" readonly inputmode="none" />
@@ -806,14 +1054,14 @@ function ensureRuntimeElements() {
   fileInput.id = "fileInput";
   fileInput.type = "file";
   fileInput.multiple = true;
-  fileInput.accept = UPLOAD_ACCEPT;
+  fileInput.accept = getAllUploadAccept();
   fileInput.hidden = true;
 
   const folderInput = document.createElement("input");
   folderInput.id = "folderInput";
   folderInput.type = "file";
   folderInput.multiple = true;
-  folderInput.accept = UPLOAD_ACCEPT;
+  folderInput.accept = getAllUploadAccept();
   folderInput.webkitdirectory = true;
   folderInput.hidden = true;
 
@@ -989,7 +1237,8 @@ function renderFilterChips() {
 }
 
 function renderFilterConfig() {
-  els.tagBank.innerHTML = configurableFilters.map((item) => {
+  const allFilters = getConfigurableFilters();
+  els.tagBank.innerHTML = allFilters.map((item) => {
     const selected = state.visibleFilters.includes(item);
     return `<button class="${selected ? "" : "inactive"}" data-config-filter="${item}" type="button">${item}</button>`;
   }).join("");

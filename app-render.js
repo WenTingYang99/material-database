@@ -5,7 +5,7 @@ function render() {
   const showGroupsInput = document.querySelector("#showGroups");
   if (showGroupsInput) showGroupsInput.checked = state.showGroupDescendants;
   document.querySelectorAll(".nav-item").forEach((button) => {
-    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "users", "roles", "organizations", "permissions"].includes(state.page);
+    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions"].includes(state.page);
     button.classList.toggle("active", button.dataset.page === state.page || (morePage && button.dataset.page === "more"));
   });
   els.assetToolbar.classList.toggle("hidden", !["all", "pending", "created"].includes(state.page));
@@ -27,6 +27,7 @@ function render() {
     share: "分享记录",
     recycle: "回收站",
     validity: "有效期管理",
+    valueLists: "值列表管理",
     users: "用户管理",
     roles: "角色管理",
     organizations: "组织管理",
@@ -36,7 +37,7 @@ function render() {
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
 
-  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "users", "roles", "organizations", "permissions"].includes(state.page)) renderManagePageV2();
+  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions"].includes(state.page)) renderManagePageV2();
   else if (state.page === "tags") renderTagsPage();
   else renderAssets();
   initProjectDatePickers();
@@ -581,6 +582,11 @@ function renderManagePageV2() {
     return;
   }
 
+  if (state.page === "valueLists") {
+    renderValueListPage();
+    return;
+  }
+
   const now = new Date();
   const assets = db.assets.filter((asset) => {
     if (asset.status === "deleted") return false;
@@ -632,6 +638,801 @@ function renderManageShell(title, subtitle, body) {
         ${body}
       </section>
     </div>`;
+}
+
+function renderValueListPage() {
+  const tree = db.valueListTree || [];
+  const root = tree.find(n => n.type === "root") || tree[0];
+  if (!root) return;
+
+  // 默认选中根节点
+  if (!state.valueListSelectedNodeId || !tree.find(n => n.id === state.valueListSelectedNodeId)) {
+    state.valueListSelectedNodeId = root.id;
+  }
+  if (!state.valueListExpandedIds) state.valueListExpandedIds = new Set();
+  state.valueListExpandedIds.add(root.id);
+
+  const selectedNodeId = state.valueListSelectedNodeId;
+  const selectedNode = getTreeNodeById(selectedNodeId);
+
+  const keyword = String(state.valueListSearch?.keyword || "").trim().toLowerCase();
+
+  // 获取当前选中节点的直接子节点
+  let children = tree.filter(n => n.parentId === selectedNodeId && n.status !== "deleted")
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+  if (keyword) {
+    children = children.filter(n =>
+      String(n.code).toLowerCase().includes(keyword) ||
+      String(n.name).toLowerCase().includes(keyword)
+    );
+  }
+
+  const breadcrumb = getValueListBreadcrumb(selectedNodeId);
+
+  const listRows = children.map((child) => {
+    const childCount = tree.filter(n => n.parentId === child.id && n.status !== "deleted").length;
+    const typeLabel = child.type === "root" ? "根" : child.type === "dimension" ? "维度" : child.type === "group" ? "分组" : "选项";
+    const parentNode = tree.find(n => n.id === child.parentId);
+    const parentText = parentNode ? `${parentNode.name} (${parentNode.code})` : "-";
+    const refNode = child.refId ? tree.find(n => n.id === child.refId) : null;
+    const refText = refNode ? `${refNode.name} (${refNode.code})` : "-";
+    const relationText = [parentText, refText].filter(Boolean).join(" / ");
+    const attrText = [child.attr1, child.attr2].filter(Boolean).join(" / ") || "-";
+    return `<tr>
+      <td><span class="cell-ellipsis" title="${escapeAttr(child.code)}">${escapeHtml(child.code)}</span></td>
+      <td><span class="cell-ellipsis" title="${escapeAttr(child.name)}">${escapeHtml(child.name)}</span></td>
+      <td>${typeLabel}</td>
+      <td><span class="cell-ellipsis" title="${escapeAttr(child.description || "")}">${escapeHtml(child.description || "-")}</span></td>
+      <td><span class="cell-ellipsis" title="${escapeAttr(relationText)}">${escapeHtml(relationText)}</span></td>
+      <td><span class="cell-ellipsis" title="${escapeAttr(attrText)}">${escapeHtml(attrText)}</span></td>
+      <td>${childCount}</td>
+      <td><span class="status-dot ${child.status === "enabled" ? "ok" : "off"}"></span>${child.status === "enabled" ? "启用" : "停用"}</td>
+      <td>
+        <button class="link-button" data-view-value-items="${escapeAttr(child.id)}" type="button">查看</button>
+        <button class="link-button" data-edit-value-list="${escapeAttr(child.id)}" type="button">修改</button>
+        <button class="link-button" data-delete-value-list="${escapeAttr(child.id)}" type="button">删除</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const treeHtml = renderValueListTreeNodes(tree, null, 0);
+
+  els.contentPanel.innerHTML = `
+    <div class="value-list-layout">
+      <aside class="value-list-tree-panel">
+        <div class="value-list-tree-body filter-tree-container" style="padding-top: 8px">
+          ${treeHtml}
+        </div>
+      </aside>
+      <section class="value-list-content-panel">
+        <div class="value-list-search-bar">
+          <label>编码<input id="valueListSearchCode" value="${escapeAttr(state.valueListSearch?.keyword || "")}" placeholder="输入编码" /></label>
+          <label>名称<input id="valueListSearchName" value="${escapeAttr(state.valueListSearch?.keyword || "")}" placeholder="输入名称" /></label>
+          <div class="value-list-search-actions">
+            <button class="primary" id="valueListSearchBtn" type="button">查询</button>
+            <button id="valueListResetBtn" type="button">重置</button>
+          </div>
+        </div>
+        <div class="value-list-content-body">
+          <div class="value-list-action-bar">
+            <button class="primary" id="addValueListChild" type="button">+ 新增</button>
+            <button class="primary" id="editValueListCurrent" type="button">修改</button>
+            <button class="danger" id="deleteValueListCurrent" type="button" ${selectedNode?.type === "root" ? "disabled" : ""}>删除</button>
+          </div>
+          <div class="value-list-breadcrumb">当前位置：${breadcrumb}</div>
+          <div class="table-scroll">
+            <table class="records-table manage-table">
+              <colgroup>
+                <col style="width:120px">
+                <col style="width:160px">
+                <col style="width:70px">
+                <col style="width:160px">
+                <col style="width:160px">
+                <col style="width:120px">
+                <col style="width:70px">
+                <col style="width:70px">
+                <col style="width:160px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>编码</th>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>描述</th>
+                  <th>关联管理</th>
+                  <th>属性值</th>
+                  <th>子节点数</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody>${listRows || `<tr><td colspan="9" class="empty-cell">暂无数据</td></tr>`}</tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  `;
+
+  bindValueListEvents();
+}
+
+function getValueListBreadcrumb(nodeId) {
+  const tree = db.valueListTree || [];
+  const parts = [];
+  let current = tree.find(n => n.id === nodeId);
+  while (current) {
+    parts.unshift(`<strong>${escapeHtml(current.name)}</strong>`);
+    current = tree.find(n => n.id === current.parentId);
+  }
+  return parts.join(" / ") || "-";
+}
+
+function renderValueListTreeNodes(tree, parentId, depth) {
+  const children = tree.filter(n => n.parentId === parentId && n.status !== "deleted")
+    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  if (!children.length) return "";
+
+  const selectedId = state.valueListSelectedNodeId;
+  const expandedIds = state.valueListExpandedIds || new Set();
+
+  const items = children.map(node => {
+    const hasChildren = tree.some(n => n.parentId === node.id && n.status !== "deleted");
+    const isExpanded = expandedIds.has(node.id);
+    const isSelected = selectedId === node.id;
+    const indent = depth * 18;
+    const expandIcon = hasChildren ?
+      `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-vl-expand="${escapeAttr(node.id)}">▶</span>` :
+      `<span class="tree-expand-placeholder"></span>`;
+
+    const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
+
+    return `<div class="tree-node">
+      <button class="tree-item ${typeClass} ${isSelected ? "active-side" : ""}" data-vl-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
+        ${expandIcon}
+        <span class="tree-label">${escapeHtml(node.name)}</span>
+      </button>
+      ${isExpanded ? `<div class="tree-children">${renderValueListTreeNodes(tree, node.id, depth + 1)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  return items;
+}
+
+function bindValueListEvents() {
+  // 左侧树展开/折叠
+  document.querySelectorAll("[data-vl-expand]").forEach(btn => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const id = btn.dataset.vlExpand;
+      if (!state.valueListExpandedIds) state.valueListExpandedIds = new Set();
+      if (state.valueListExpandedIds.has(id)) {
+        state.valueListExpandedIds.delete(id);
+      } else {
+        state.valueListExpandedIds.add(id);
+      }
+      renderValueListPage();
+    });
+  });
+
+  // 左侧树选择
+  document.querySelectorAll("[data-vl-select]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.valueListSelectedNodeId = btn.dataset.vlSelect;
+      if (!state.valueListExpandedIds) state.valueListExpandedIds = new Set();
+      state.valueListExpandedIds.add(btn.dataset.vlSelect);
+      renderValueListPage();
+    });
+  });
+
+  // 查询
+  document.querySelector("#valueListSearchBtn")?.addEventListener("click", () => {
+    const code = document.querySelector("#valueListSearchCode")?.value.trim() || "";
+    const name = document.querySelector("#valueListSearchName")?.value.trim() || "";
+    state.valueListSearch = { keyword: code || name };
+    renderValueListPage();
+  });
+
+  // 重置
+  document.querySelector("#valueListResetBtn")?.addEventListener("click", () => {
+    state.valueListSearch = { keyword: "" };
+    renderValueListPage();
+  });
+
+  // 新增子节点
+  document.querySelector("#addValueListChild")?.addEventListener("click", () => {
+    openValueListModal(null, state.valueListSelectedNodeId);
+  });
+
+  // 修改当前节点
+  document.querySelector("#editValueListCurrent")?.addEventListener("click", () => {
+    openValueListModal(state.valueListSelectedNodeId);
+  });
+
+  // 删除当前节点
+  document.querySelector("#deleteValueListCurrent")?.addEventListener("click", () => {
+    deleteValueListItem(state.valueListSelectedNodeId);
+  });
+
+  // 表格操作
+  document.querySelectorAll("[data-edit-value-list]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      openValueListModal(btn.dataset.editValueList);
+    });
+  });
+
+  document.querySelectorAll("[data-view-value-items]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      state.valueListSelectedNodeId = btn.dataset.viewValueItems;
+      if (!state.valueListExpandedIds) state.valueListExpandedIds = new Set();
+      state.valueListExpandedIds.add(btn.dataset.viewValueItems);
+      renderValueListPage();
+    });
+  });
+
+  document.querySelectorAll("[data-delete-value-list]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      deleteValueListItem(btn.dataset.deleteValueList);
+    });
+  });
+}
+
+function openValueListModal(nodeId = null, parentId = null) {
+  const modal = document.querySelector("#valueListModal");
+  const title = document.querySelector("#valueListModalTitle");
+  const form = document.querySelector("#valueListForm");
+  const tree = db.valueListTree || [];
+  const parentSelect = document.querySelector("#valueListParentId");
+  const hiddenRefId = document.querySelector("#valueListRefId");
+  const triggerText = document.querySelector("#valueListRefIdDropdown .tree-dropdown-text");
+
+  form.reset();
+  populateValueListParentSelect(nodeId);
+
+  // 先设置 hidden input 的值，再渲染下拉树
+  if (hiddenRefId) hiddenRefId.value = "";
+
+  if (nodeId) {
+    const node = tree.find(n => n.id === nodeId);
+    if (node) {
+      title.textContent = "修改节点";
+      document.querySelector("#valueListId").value = node.id;
+      document.querySelector("#valueListCode").value = node.code;
+      document.querySelector("#valueListName").value = node.name;
+      document.querySelector("#valueListType").value = node.type || "dimension";
+      parentSelect.value = node.parentId || "";
+      if (hiddenRefId) hiddenRefId.value = node.refId || "";
+      document.querySelector("#valueListDesc").value = node.description || "";
+      document.querySelector("#valueListAttr1").value = node.attr1 || "";
+      document.querySelector("#valueListAttr2").value = node.attr2 || "";
+      document.querySelector("#valueListStatus").value = node.status || "enabled";
+    }
+  } else {
+    title.textContent = "新增节点";
+    document.querySelector("#valueListType").value = "value";
+    if (parentId) {
+      parentSelect.value = parentId;
+    }
+  }
+
+  parentSelect.disabled = true;
+  renderValueListRefIdDropdown(nodeId, hiddenRefId?.value || "");
+
+  // 绑定下拉面板事件
+  bindRefIdDropdownEvents();
+
+  modal.classList.remove("hidden");
+}
+
+function populateValueListParentSelect(excludeNodeId) {
+  const select = document.querySelector("#valueListParentId");
+  if (!select) return;
+  const tree = db.valueListTree || [];
+  const options = tree.filter(n => n.status !== "deleted" && n.id !== excludeNodeId)
+    .map(n => `<option value="${escapeAttr(n.id)}">${escapeHtml(n.name)} (${n.code})</option>`)
+    .join("");
+  select.innerHTML = '<option value="">无</option>' + options;
+}
+
+function renderValueListRefIdDropdown(excludeNodeId, selectedRefId) {
+  const panel = document.querySelector("#valueListRefIdPanel");
+  const triggerText = document.querySelector("#valueListRefIdDropdown .tree-dropdown-text");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  if (!panel) return;
+
+  const tree = db.valueListTree || [];
+  const expandedIds = new Set();
+
+  // 收集排除节点及其子孙
+  const forbiddenIds = new Set();
+  if (excludeNodeId) {
+    forbiddenIds.add(excludeNodeId);
+    (function collect(nodeId) {
+      tree.filter(n => n.parentId === nodeId && n.status !== "deleted").forEach(n => {
+        forbiddenIds.add(n.id);
+        collect(n.id);
+      });
+    })(excludeNodeId);
+  }
+
+  // 递归渲染树节点 HTML
+  function renderNodes(parentId, depth) {
+    const children = tree.filter(n => n.parentId === parentId && n.status !== "deleted")
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return children.map(node => {
+      if (forbiddenIds.has(node.id)) return "";
+      const hasChildren = tree.some(n => n.parentId === node.id && n.status !== "deleted");
+      const isExpanded = expandedIds.has(node.id);
+      const isSelected = hiddenInput.value === node.id;
+      const indent = depth * 18;
+      const expandIcon = hasChildren ?
+        `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-refid-expand="${escapeAttr(node.id)}">▶</span>` :
+        `<span class="tree-expand-placeholder"></span>`;
+      const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
+
+      return `<div class="tree-node">
+        <button class="tree-item ${typeClass} ${isSelected ? "selected" : ""}" data-refid-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
+          ${expandIcon}
+          <span class="tree-label">${escapeHtml(node.name)} <small>(${node.code})</small></span>
+        </button>
+        ${hasChildren ? `<div class="tree-children${isExpanded ? "" : " hidden"}">${renderNodes(node.id, depth + 1)}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  const root = tree.find(n => n.type === "root");
+  let treeHtml = "";
+  if (root) {
+    const isRootSelected = hiddenInput.value === root.id;
+    treeHtml = `<div class="tree-node">
+      <button class="tree-item tree-category ${isRootSelected ? "selected" : ""}" data-refid-select="${escapeAttr(root.id)}" style="padding-left: 8px" type="button">
+        <span class="tree-expand-placeholder"></span>
+        <span class="tree-label">${escapeHtml(root.name)} <small>(${root.code})</small></span>
+      </button>
+    </div>`;
+    expandedIds.add(root.id);
+    treeHtml += `<div class="tree-children">${renderNodes(root.id, 1)}</div>`;
+  } else {
+    treeHtml = renderNodes(null, 0);
+  }
+
+  panel.innerHTML = `
+    <button class="tree-item tree-dropdown-clear" data-refid-select="" style="padding-left: 8px" type="button">
+      <span class="tree-expand-placeholder"></span>
+      <span class="tree-label" style="color: var(--text-secondary); font-style: italic;">无 (清除关联)</span>
+    </button>
+    ${treeHtml}`;
+
+  // 更新触发按钮显示
+  if (selectedRefId) {
+    const refNode = tree.find(n => n.id === selectedRefId);
+    triggerText.textContent = refNode ? `${refNode.name} (${refNode.code})` : "无";
+  } else {
+    triggerText.textContent = "无";
+  }
+}
+
+function bindRefIdDropdownEvents() {
+  const dropdown = document.querySelector("#valueListRefIdDropdown");
+  const trigger = document.querySelector("#valueListRefIdTrigger");
+  const panel = document.querySelector("#valueListRefIdPanel");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  const triggerText = dropdown?.querySelector(".tree-dropdown-text");
+
+  if (!dropdown || !trigger || !panel || !hiddenInput) return;
+
+  // 移除旧事件（避免重复绑定）
+  const newTrigger = trigger.cloneNode(true);
+  trigger.parentNode.replaceChild(newTrigger, trigger);
+
+  // 触发器：切换面板
+  newTrigger.addEventListener("click", () => {
+    const isOpen = !panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", isOpen);
+    dropdown.classList.toggle("open", !isOpen);
+  });
+
+  // 面板内事件委托
+  panel.addEventListener("click", (event) => {
+    // 展开/折叠
+    const expandBtn = event.target.closest("[data-refid-expand]");
+    if (expandBtn) {
+      event.stopPropagation();
+      const id = expandBtn.dataset.refidExpand;
+      const childDiv = expandBtn.closest(".tree-node").querySelector(":scope > .tree-children");
+      if (childDiv) {
+        const isHidden = childDiv.classList.contains("hidden");
+        childDiv.classList.toggle("hidden", !isHidden);
+        expandBtn.classList.toggle("expanded", !isHidden);
+      }
+      return;
+    }
+
+    // 选择节点
+    const item = event.target.closest("[data-refid-select]");
+    if (item) {
+      event.stopPropagation();
+      const nodeId = item.dataset.refidSelect;
+      hiddenInput.value = nodeId;
+
+      const tree = db.valueListTree || [];
+      const node = tree.find(n => n.id === nodeId);
+      if (triggerText) triggerText.textContent = node ? `${node.name} (${node.code})` : "无";
+
+      // 更新选中样式
+      panel.querySelectorAll(".tree-item.selected").forEach(el => el.classList.remove("selected"));
+      item.classList.add("selected");
+
+      // 关闭面板
+      panel.classList.add("hidden");
+      dropdown.classList.remove("open");
+    }
+  });
+
+  // 点击外部关闭
+  document.addEventListener("click", function closeRefIdDropdown(e) {
+    if (!dropdown.contains(e.target)) {
+      panel.classList.add("hidden");
+      dropdown.classList.remove("open");
+    }
+  }, { once: true });
+}
+
+function renderValueListRefIdDropdown(excludeNodeId, selectedRefId) {
+  const panel = document.querySelector("#valueListRefIdPanel");
+  const triggerText = document.querySelector("#valueListRefIdDropdown .tree-dropdown-text");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  if (!panel || !hiddenInput) return;
+
+  const tree = db.valueListTree || [];
+  const forbiddenIds = new Set(excludeNodeId ? [excludeNodeId] : []);
+  const expandedIds = new Set(
+    tree
+      .filter((node) => tree.some((item) => item.parentId === node.id && item.status !== "deleted"))
+      .map((node) => node.id)
+  );
+
+  hiddenInput.value = selectedRefId || "";
+
+  const renderNodes = (parentId, depth) => {
+    const children = tree
+      .filter((node) => node.parentId === parentId && node.status !== "deleted" && !forbiddenIds.has(node.id))
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+    return children.map((node) => {
+      const hasChildren = tree.some((item) => item.parentId === node.id && item.status !== "deleted" && !forbiddenIds.has(item.id));
+      const isExpanded = expandedIds.has(node.id);
+      const isSelected = selectedRefId === node.id;
+      const indent = depth * 18;
+      const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
+      const expandIcon = hasChildren
+        ? `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-refid-expand="${escapeAttr(node.id)}">▶</span>`
+        : `<span class="tree-expand-placeholder"></span>`;
+
+      return `<div class="tree-node">
+        <button class="tree-item ${typeClass} ${isSelected ? "selected" : ""}" data-refid-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
+          ${expandIcon}
+          <span class="tree-label">${escapeHtml(node.name)} <small>(${escapeHtml(node.code)})</small></span>
+        </button>
+        ${hasChildren ? `<div class="tree-children${isExpanded ? "" : " hidden"}">${renderNodes(node.id, depth + 1)}</div>` : ""}
+      </div>`;
+    }).join("");
+  };
+
+  const root = tree.find((node) => node.type === "root" && !forbiddenIds.has(node.id));
+  const treeHtml = root
+    ? `<div class="tree-node">
+        <button class="tree-item tree-category ${selectedRefId === root.id ? "selected" : ""}" data-refid-select="${escapeAttr(root.id)}" style="padding-left: 8px" type="button">
+          <span class="tree-expand-btn expanded" data-refid-expand="${escapeAttr(root.id)}">▶</span>
+          <span class="tree-label">${escapeHtml(root.name)} <small>(${escapeHtml(root.code)})</small></span>
+        </button>
+        <div class="tree-children">${renderNodes(root.id, 1)}</div>
+      </div>`
+    : renderNodes(null, 0);
+
+  panel.innerHTML = `
+    <button class="tree-item tree-dropdown-clear ${selectedRefId ? "" : "selected"}" data-refid-select="" style="padding-left: 8px" type="button">
+      <span class="tree-expand-placeholder"></span>
+      <span class="tree-label">无（清除关联）</span>
+    </button>
+    ${treeHtml || `<div class="tree-empty">暂无可关联节点</div>`}`;
+
+  const refNode = selectedRefId ? tree.find((node) => node.id === selectedRefId) : null;
+  if (triggerText) triggerText.textContent = refNode ? `${refNode.name} (${refNode.code})` : "无";
+}
+
+function bindRefIdDropdownEvents() {
+  let dropdown = document.querySelector("#valueListRefIdDropdown");
+  let trigger = document.querySelector("#valueListRefIdTrigger");
+  let panel = document.querySelector("#valueListRefIdPanel");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  if (!dropdown || !trigger || !panel || !hiddenInput) return;
+
+  const freshTrigger = trigger.cloneNode(true);
+  trigger.parentNode.replaceChild(freshTrigger, trigger);
+  const freshPanel = panel.cloneNode(true);
+  panel.parentNode.replaceChild(freshPanel, panel);
+
+  dropdown = document.querySelector("#valueListRefIdDropdown");
+  trigger = document.querySelector("#valueListRefIdTrigger");
+  panel = document.querySelector("#valueListRefIdPanel");
+  const triggerText = dropdown?.querySelector(".tree-dropdown-text");
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const isOpen = !panel.classList.contains("hidden");
+    panel.classList.toggle("hidden", isOpen);
+    dropdown.classList.toggle("open", !isOpen);
+  });
+
+  panel.addEventListener("click", (event) => {
+    const expandBtn = event.target.closest("[data-refid-expand]");
+    if (expandBtn) {
+      event.stopPropagation();
+      const childDiv = expandBtn.closest(".tree-node")?.querySelector(":scope > .tree-children");
+      if (childDiv) {
+        const isHidden = childDiv.classList.contains("hidden");
+        childDiv.classList.toggle("hidden", !isHidden);
+        expandBtn.classList.toggle("expanded", !isHidden);
+      }
+      return;
+    }
+
+    const item = event.target.closest("[data-refid-select]");
+    if (!item) return;
+
+    event.stopPropagation();
+    const nodeId = item.dataset.refidSelect;
+    hiddenInput.value = nodeId;
+
+    const node = (db.valueListTree || []).find((entry) => entry.id === nodeId);
+    if (triggerText) triggerText.textContent = node ? `${node.name} (${node.code})` : "无";
+
+    panel.querySelectorAll(".tree-item.selected").forEach((entry) => entry.classList.remove("selected"));
+    item.classList.add("selected");
+    panel.classList.add("hidden");
+    dropdown.classList.remove("open");
+  });
+
+  document.addEventListener("click", function closeRefIdDropdown(event) {
+    if (!dropdown.contains(event.target)) {
+      panel.classList.add("hidden");
+      dropdown.classList.remove("open");
+    }
+  }, { once: true });
+}
+
+function openValueListItemListModal(dimNodeId) {
+  state.selectedValueListId = dimNodeId;
+  const tree = db.valueListTree || [];
+  const dimNode = tree.find(n => n.id === dimNodeId);
+
+  const title = document.querySelector("#valueListItemListTitle");
+  if (title) title.textContent = (dimNode ? dimNode.name : "") + " - 选项管理";
+
+  // 获取该维度下的所有子孙节点（不包括自身）
+  const descendantIds = new Set();
+  function collectDescendants(nodeId) {
+    tree.filter(n => n.parentId === nodeId && n.status !== "deleted").forEach(n => {
+      descendantIds.add(n.id);
+      collectDescendants(n.id);
+    });
+  }
+  collectDescendants(dimNodeId);
+  const items = tree.filter(n => descendantIds.has(n.id));
+  
+  const topLevelCount = items.filter(n => n.parentId === dimNodeId).length;
+  const totalCount = items.length;
+  const countEl = document.querySelector("#valueListItemCount");
+  if (countEl) countEl.textContent = `共 ${totalCount} 项（顶层 ${topLevelCount} 项）`;
+
+  const tbody = document.querySelector("#valueListItemTableBody");
+  if (tbody) {
+    // 只渲染该维度下的直接子节点，递归显示子孙
+    tbody.innerHTML = renderValueListItemTree(tree, dimNodeId) || `<tr><td colspan="9" class="empty-cell">暂无选项</td></tr>`;
+    tbody.querySelectorAll("[data-edit-value-item]").forEach(btn => {
+      btn.addEventListener("click", () => openValueListItemFormModal(btn.dataset.editValueItem));
+    });
+    tbody.querySelectorAll("[data-delete-value-item]").forEach(btn => {
+      btn.addEventListener("click", () => deleteValueListItem(btn.dataset.deleteValueItem));
+    });
+  }
+
+  document.querySelector("#valueListItemListModal").classList.remove("hidden");
+}
+
+function openValueListItemFormModal(itemId = null) {
+  const modal = document.querySelector("#valueListItemFormModal");
+  const title = document.querySelector("#valueListItemFormTitle");
+  const form = document.querySelector("#valueListItemForm");
+  const tree = db.valueListTree || [];
+  
+  form.reset();
+  
+  // 确定所属的维度节点
+  const dimNodeId = state.selectedValueListId;
+  populateValueListItemParentSelect(dimNodeId);
+  
+  if (itemId) {
+    const item = tree.find(n => n.id === itemId);
+    if (item) {
+      title.textContent = "修改选项";
+      document.querySelector("#valueListItemId").value = item.id;
+      document.querySelector("#valueListItemCode").value = item.code;
+      document.querySelector("#valueListItemName").value = item.name;
+      document.querySelector("#valueListItemType").value = item.type || "value";
+      document.querySelector("#valueListItemParent").value = item.parentId || "";
+      document.querySelector("#valueListItemRefId").value = item.refId || "";
+      document.querySelector("#valueListItemAttr1").value = item.attr1 || "";
+      document.querySelector("#valueListItemAttr2").value = item.attr2 || "";
+      document.querySelector("#valueListItemStatus").value = item.status || "enabled";
+    }
+  } else {
+    title.textContent = "新增选项";
+    // 默认父级为当前维度
+    const parentSelect = document.querySelector("#valueListItemParent");
+    if (parentSelect && dimNodeId) parentSelect.value = dimNodeId;
+    document.querySelector("#valueListItemType").value = "value";
+  }
+  
+  modal.classList.remove("hidden");
+}
+
+function saveValueList(data) {
+  const editId = document.querySelector("#valueListId").value;
+  const tree = db.valueListTree || [];
+  const matLibId = getTreeNodeByCode("material_lib")?.id || "vl_dim_matlib";
+
+  if (!editId) {
+    // 新增：检查编码唯一性
+    if (tree.find(n => n.code === data.code)) {
+      showToast("编码已存在");
+      return;
+    }
+  }
+
+  const root = tree.find(n => n.type === "root") || tree[0];
+  const fallbackParentId = root?.id || "";
+  // 父级下拉已禁用，直接从 select 元素读取值
+  const parentSelect = document.querySelector("#valueListParentId");
+  const explicitParentId = parentSelect ? parentSelect.value : (data.parentId || "");
+
+  const node = {
+    id: editId || `vl_${Date.now()}`,
+    code: data.code,
+    name: data.name,
+    type: data.type || "value",
+    parentId: editId ? (explicitParentId || tree.find(n => n.id === editId)?.parentId || fallbackParentId) : (explicitParentId || fallbackParentId),
+    refId: data.refId || null,
+    description: data.description || "",
+    attr1: data.attr1 || "",
+    attr2: data.attr2 || "",
+    status: data.status || "enabled",
+    sortOrder: editId ? (tree.find(n => n.id === editId)?.sortOrder || 0) : tree.filter(n => n.parentId === (explicitParentId || fallbackParentId)).length + 1,
+  };
+
+  if (editId) {
+    const index = tree.findIndex(n => n.id === editId);
+    if (index !== -1) {
+      tree[index] = node;
+    }
+  } else {
+    tree.push(node);
+  }
+
+  db.valueListTree = tree;
+  saveDb();
+  showToast("筛选项保存成功");
+  closeModal("valueListModal");
+  render();
+}
+
+function saveValueListItem(data) {
+  const editId = document.querySelector("#valueListItemId").value;
+  const tree = db.valueListTree || [];
+  const dimNodeId = state.selectedValueListId;
+  
+  if (!dimNodeId) {
+    showToast("请先选择筛选项");
+    return;
+  }
+
+  if (!editId) {
+    // 新增：检查编码唯一性
+    if (tree.find(n => n.code === data.code)) {
+      showToast("编码已存在");
+      return;
+    }
+  }
+
+  const node = {
+    id: editId || `vl_${Date.now()}`,
+    code: data.code,
+    name: data.name,
+    type: data.type || "value",
+    parentId: data.parentId || dimNodeId,
+    refId: data.refId || null,
+    description: "",
+    attr1: data.attr1 || "",
+    attr2: data.attr2 || "",
+    status: data.status || "enabled",
+    sortOrder: tree.filter(n => n.parentId === dimNodeId).length + 1,
+  };
+
+  if (editId) {
+    const index = tree.findIndex(n => n.id === editId);
+    if (index !== -1) {
+      tree[index] = node;
+    }
+  } else {
+    tree.push(node);
+  }
+
+  db.valueListTree = tree;
+  saveDb();
+  showToast("选项保存成功");
+  closeModal("valueListItemFormModal");
+  openValueListItemListModal(dimNodeId);
+}
+
+function deleteValueListItem(itemId) {
+  const tree = db.valueListTree || [];
+  const node = tree.find(n => n.id === itemId);
+  if (!node) return;
+  
+  const hasChildren = tree.some(n => n.parentId === itemId && n.status !== "deleted");
+  const msg = hasChildren ? "此节点下还有子节点，确认删除？子节点将一并删除。" : "确认删除此选项？";
+  
+  window.Modal.confirm(msg, { danger: true }).then((ok) => {
+    if (ok) {
+      // 递归删除所有子孙
+      const idsToDelete = new Set([itemId]);
+      function collectDescendants(pid) {
+        tree.filter(n => n.parentId === pid).forEach(n => {
+          idsToDelete.add(n.id);
+          collectDescendants(n.id);
+        });
+      }
+      collectDescendants(itemId);
+      
+      db.valueListTree = tree.filter(n => !idsToDelete.has(n.id));
+      saveDb();
+      showToast("已删除");
+      // 如果删除的是当前选中节点，回退到父节点
+      if (state.valueListSelectedNodeId === itemId) {
+        state.valueListSelectedNodeId = node?.parentId || "";
+      }
+      renderValueListPage();
+    }
+  });
+}
+
+function closeModal(modalId) {
+  const modal = document.querySelector(`#${modalId}`);
+  if (modal) modal.classList.add("hidden");
+}
+
+function initValueListModalEvents() {
+  document.querySelector("#valueListForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target));
+    saveValueList(data);
+  });
+
+  document.querySelector("#valueListItemForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.target));
+    saveValueListItem(data);
+  });
+
+  document.querySelector("#addValueListItem")?.addEventListener("click", () => {
+    openValueListItemFormModal();
+  });
+
+  document.querySelectorAll("#valueListModal [data-close], #valueListItemListModal [data-close], #valueListItemFormModal [data-close]").forEach(btn => {
+    btn.addEventListener("click", () => closeModal(btn.dataset.close));
+  });
 }
 
 function renderLoginLogPage() {
@@ -2417,4 +3218,178 @@ function collectActivityRows() {
     })))
     .sort((a, b) => String(b.time).localeCompare(String(a.time)))
     .slice(0, 50);
+}
+
+function getValueListRefLabel(nodeId) {
+  const node = (db.valueListTree || []).find((entry) => entry.id === nodeId);
+  return node ? `${node.name} (${node.code})` : "";
+}
+
+function getValueListRefSearchText() {
+  return document.querySelector("#valueListRefIdSearch")?.value.trim().toLowerCase() || "";
+}
+
+function valueListRefNodeMatches(node, keyword) {
+  if (!keyword) return true;
+  return [node.name, node.code, node.description, node.attr1, node.attr2]
+    .some((value) => String(value || "").toLowerCase().includes(keyword));
+}
+
+function valueListRefBranchMatches(node, keyword, forbiddenIds) {
+  if (valueListRefNodeMatches(node, keyword)) return true;
+  return (db.valueListTree || [])
+    .filter((child) => child.parentId === node.id && child.status !== "deleted" && !forbiddenIds.has(child.id))
+    .some((child) => valueListRefBranchMatches(child, keyword, forbiddenIds));
+}
+
+function renderValueListRefIdDropdown(excludeNodeId, selectedRefId, keyword = "") {
+  const panel = document.querySelector("#valueListRefIdPanel");
+  const searchInput = document.querySelector("#valueListRefIdSearch");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  if (!panel || !hiddenInput) return;
+
+  const tree = db.valueListTree || [];
+  const normalizedKeyword = String(keyword || "").trim().toLowerCase();
+  const forbiddenIds = new Set(excludeNodeId ? [excludeNodeId] : []);
+  hiddenInput.value = selectedRefId || "";
+
+  const hasVisibleChildren = (nodeId) => tree.some((node) =>
+    node.parentId === nodeId &&
+    node.status !== "deleted" &&
+    !forbiddenIds.has(node.id) &&
+    valueListRefBranchMatches(node, normalizedKeyword, forbiddenIds)
+  );
+
+  const renderNodes = (parentId, depth) => {
+    const children = tree
+      .filter((node) =>
+        node.parentId === parentId &&
+        node.status !== "deleted" &&
+        !forbiddenIds.has(node.id) &&
+        valueListRefBranchMatches(node, normalizedKeyword, forbiddenIds)
+      )
+      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+    return children.map((node) => {
+      const hasChildren = hasVisibleChildren(node.id);
+      const isSelected = selectedRefId === node.id;
+      const indent = depth * 18;
+      const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
+      const expandIcon = hasChildren
+        ? `<span class="tree-expand-btn expanded" data-refid-expand="${escapeAttr(node.id)}">▶</span>`
+        : `<span class="tree-expand-placeholder"></span>`;
+
+      return `<div class="tree-node">
+        <button class="tree-item ${typeClass} ${isSelected ? "selected" : ""}" data-refid-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
+          ${expandIcon}
+          <span class="tree-label">${escapeHtml(node.name)} <small>(${escapeHtml(node.code)})</small></span>
+        </button>
+        ${hasChildren ? `<div class="tree-children">${renderNodes(node.id, depth + 1)}</div>` : ""}
+      </div>`;
+    }).join("");
+  };
+
+  const root = tree.find((node) => node.type === "root" && !forbiddenIds.has(node.id));
+  const treeHtml = root && valueListRefBranchMatches(root, normalizedKeyword, forbiddenIds)
+    ? `<div class="tree-node">
+        <button class="tree-item tree-category ${selectedRefId === root.id ? "selected" : ""}" data-refid-select="${escapeAttr(root.id)}" style="padding-left: 8px" type="button">
+          <span class="tree-expand-btn expanded" data-refid-expand="${escapeAttr(root.id)}">▶</span>
+          <span class="tree-label">${escapeHtml(root.name)} <small>(${escapeHtml(root.code)})</small></span>
+        </button>
+        <div class="tree-children">${renderNodes(root.id, 1)}</div>
+      </div>`
+    : renderNodes(null, 0);
+
+  panel.innerHTML = `
+    <button class="tree-item tree-dropdown-clear ${selectedRefId ? "" : "selected"}" data-refid-select="" style="padding-left: 8px" type="button">
+      <span class="tree-expand-placeholder"></span>
+      <span class="tree-label">无（清除关联）</span>
+    </button>
+    ${treeHtml || `<div class="tree-empty">没有匹配的关联码</div>`}`;
+
+  if (searchInput && !normalizedKeyword) {
+    searchInput.value = getValueListRefLabel(selectedRefId) || "";
+  }
+}
+
+function bindRefIdDropdownEvents() {
+  let dropdown = document.querySelector("#valueListRefIdDropdown");
+  let trigger = document.querySelector("#valueListRefIdTrigger");
+  let panel = document.querySelector("#valueListRefIdPanel");
+  let searchInput = document.querySelector("#valueListRefIdSearch");
+  const hiddenInput = document.querySelector("#valueListRefId");
+  const editNodeId = document.querySelector("#valueListId")?.value || "";
+  if (!dropdown || !trigger || !panel || !searchInput || !hiddenInput) return;
+
+  const freshTrigger = trigger.cloneNode(true);
+  trigger.parentNode.replaceChild(freshTrigger, trigger);
+  const freshPanel = panel.cloneNode(true);
+  panel.parentNode.replaceChild(freshPanel, panel);
+
+  dropdown = document.querySelector("#valueListRefIdDropdown");
+  trigger = document.querySelector("#valueListRefIdTrigger");
+  panel = document.querySelector("#valueListRefIdPanel");
+  searchInput = document.querySelector("#valueListRefIdSearch");
+
+  const openPanel = () => {
+    panel.classList.remove("hidden");
+    dropdown.classList.add("open");
+  };
+
+  trigger.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openPanel();
+    searchInput.focus();
+  });
+
+  searchInput.addEventListener("focus", () => {
+    openPanel();
+  });
+
+  searchInput.addEventListener("input", () => {
+    hiddenInput.value = "";
+    renderValueListRefIdDropdown(editNodeId, "", getValueListRefSearchText());
+    openPanel();
+  });
+
+  searchInput.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      panel.classList.add("hidden");
+      dropdown.classList.remove("open");
+      searchInput.value = getValueListRefLabel(hiddenInput.value) || "";
+    }
+  });
+
+  panel.addEventListener("click", (event) => {
+    const expandBtn = event.target.closest("[data-refid-expand]");
+    if (expandBtn) {
+      event.stopPropagation();
+      const childDiv = expandBtn.closest(".tree-node")?.querySelector(":scope > .tree-children");
+      if (childDiv) {
+        const isHidden = childDiv.classList.contains("hidden");
+        childDiv.classList.toggle("hidden", !isHidden);
+        expandBtn.classList.toggle("expanded", !isHidden);
+      }
+      return;
+    }
+
+    const item = event.target.closest("[data-refid-select]");
+    if (!item) return;
+
+    event.stopPropagation();
+    const nodeId = item.dataset.refidSelect || "";
+    hiddenInput.value = nodeId;
+    searchInput.value = getValueListRefLabel(nodeId) || "";
+    renderValueListRefIdDropdown(editNodeId, nodeId, "");
+    panel.classList.add("hidden");
+    dropdown.classList.remove("open");
+  });
+
+  document.addEventListener("click", function closeRefIdDropdown(event) {
+    if (!dropdown.contains(event.target)) {
+      panel.classList.add("hidden");
+      dropdown.classList.remove("open");
+      searchInput.value = getValueListRefLabel(hiddenInput.value) || "";
+    }
+  }, { once: true });
 }

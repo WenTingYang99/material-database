@@ -1,4 +1,4 @@
-﻿﻿# 代码记忆索引
+# 代码记忆索引
 
 更新时间：2026-06-30
 
@@ -64,6 +64,7 @@
 - 更多功能下拉菜单：`index.html:284` `#moreMenuContent`。包含用户动态、用户登录日志、标签管理等独立页面入口；系统管理作为分组展示，包含 `users / roles / organizations / permissions` 四个 `data-go` 入口。
 - 更多功能子菜单页面：所有 `#moreMenuContent` 下的 `data-go` 子菜单都是独立页面状态，不再在内容区通过 tab/二级导航切换；这样后续菜单授权可按子菜单页面单独控制。
 - 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前四个子页为前端占位表格：用户管理、角色管理、组织管理、权限管理。
+- 值列表管理页：`app-render.js:643` `renderValueListPage()`。单表格展示大类，点击"查看小类"弹框管理小类。详见下方"值列表管理"章节。
 - 登录页：`app-core.js:582` `ensureRuntimeElements()` 动态创建 `#loginPage`；提交在 `app-core.js:790` `handleLoginSubmit()`；退出在 `app-core.js:815` `logoutCurrentUser()`。
 - 用户登录日志页：页面状态 `loginLogs`；菜单入口在 `index.html` 的 `#moreMenuContent`；渲染在 `app-render.js` 的 `renderLoginLogPage()`；登录成功时 `handleLoginSubmit()` 写入 `db.loginLogs`。
 - 标签管理页：`app-render.js:799` `renderTagsPage()`。
@@ -225,6 +226,55 @@
 - 用户登录日志：`renderLoginLogPage()` 支持按用户名、姓名、登录开始日期、登录结束日期过滤，展示用户名、姓名、登录时间、IP 地址、登录入口。
 - 样式：`styles.css:1118` `.menu-section` / `.menu-section-title` / `.menu-sub button` 控制下拉菜单分组。
 - 页面独立性：管理页壳 `app-render.js:617` `renderManageShell()` 不再渲染 `renderMoreMenuPanel()`；`app-core.js` 也不再监听 `data-panel-page`，避免在页面内用 tab 切换更多功能子菜单。
+
+## 值列表管理
+
+- 页面状态值：`valueLists`（已加入 `normalizePageState()` 的 `validPages`）。
+- 菜单入口：`index.html` 的 `#moreMenuContent` 中 `data-go="valueLists"`。
+- 菜单权限：`SYSTEM_MENUS` 包含 `valueLists`，受 RBAC 控制。
+- 渲染入口：`app-render.js` `renderValueListPage()`。
+
+### 数据结构（统一树模型）
+- 使用 `db.valueListTree` 单一数组，废弃旧的 `db.valueListDefinitions` + `db.valueListItems` 双表。
+- 节点字段：`id, code, name, type, parentId, refId, description, attr1, attr2, status, sortOrder`。
+- type 取值：`root`（根节点）、`dimension`（维度/分类）、`group`（分组）、`value`（选项值）。
+- 树以"值列表"（`vl_root`, parentId=null）为根节点，"素材库筛选"（`vl_dim_matlib`）为其子节点。
+- 种子数据：`app-core.js:73` `SEED_VALUE_LIST_TREE`。
+
+### 树派生函数（app-core.js）
+- `getTreeChildren(parentId)`：按父节点+status=enabled 获取子节点。
+- `getTreeNodeById(id)` / `getTreeNodeByCode(code)` / `getTreeNodeByName(name)`：按 ID/编码/名称查找。
+- `getDimensionNodes(parentDimId)`：获取 material_lib 下所有 dimension 节点。
+- `getTreeChildrenByRefIds(dimCode, refIds)`：按关联 refId 过滤子节点（用于级联筛选）。
+- `getAllLeafValues(dimCode)`：递归获取维度下所有叶子 value 节点。
+- `buildFilterTree(dimCode)`：构建筛选菜单树形结构。
+- `getAllUploadAccept()`：从 file_format 维度动态获取上传 accept 值。
+
+### 筛选系统动态化
+- 所有筛选值从 `db.valueListTree` 动态读取，不再依赖静态常量。
+- `app-actions.js` `getFilterValues()` 使用 `buildFilterTree()` / `getAllLeafValues()` / `buildCascadeTree()`。
+- `buildCascadeTree(dimCode, parentFilter, parentDimCode)`：通用级联函数，根据上级筛选值过滤下级选项。
+
+### 页面布局
+- 左侧树 + 右侧搜索表格（`styles.css` `.value-list-layout`：grid 260px+1fr）。
+- 左侧树：`renderValueListTreeNodes(tree, null, 0)` 从 null parentId 开始递归渲染完整树，支持展开/折叠/选中高亮。根节点"值列表"在树中可见。
+- 右侧：搜索栏（按编码/名称过滤）+ 操作按钮（新增/修改/删除当前节点）+ 面包屑导航 + 子节点表格。
+- 表格列：编码、名称、类型、描述、**关联管理**（父级 `名称 (code)` / refId 关联节点 `名称 (code)`）、**属性值**（attr1 / attr2）、子节点数、状态、操作。
+- 状态管理：`state.valueListSearch` / `state.valueListSelectedNodeId` / `state.valueListExpandedIds`。
+
+### 弹框（index.html）
+
+- `#valueListModal`：新增/编辑节点。表单字段：编码、名称、类型（root/dimension/group/value）、父级下拉（禁用，默认当前节点且不可改）、**关联码(refId) 树状下拉**、描述、属性1、属性2、状态。逻辑：`openValueListModal(nodeId, parentId)` / `saveValueList(data)`。
+- 保留旧弹框 `#valueListItemListModal` / `#valueListItemFormModal`（不再被新布局调用，保留代码兼容）。
+- 2026-07-02 修复：`renderValueListRefIdDropdown()` 和 `bindRefIdDropdownEvents()` 已覆盖为稳定版本；关联码打开时完整展示值列表树，编辑已有节点时按 `refId` 回填 `#valueListRefIdSearch` 和选中态，选择节点后同步更新隐藏字段 `#valueListRefId`。
+- 2026-07-02 追加：关联码已从只读触发框改为可输入搜索的树状下拉，HTML 在 `index.html` 的 `#valueListRefIdSearch` / `#valueListRefIdPanel`，支持按名称、编码、描述、属性1、属性2过滤；例如输入“东风”会保留匹配节点及其父级路径。样式在 `styles.css` 的 `.tree-dropdown-input`、`.tree-dropdown-trigger`、`.tree-dropdown-panel .tree-item`，输入和选中项保持普通表单字重，不额外加粗。
+
+### 事件绑定
+- 页面级：`bindValueListEvents()` 绑定树展开/选择、搜索、新增/修改/删除当前节点、行内操作。
+- 弹框级：`initValueListModalEvents()` 在 `bootstrap()` 中一次性绑定表单提交和关闭按钮。
+- 下拉填充：
+  - `populateValueListParentSelect(excludeNodeId)` 填充节点弹窗的父级下拉。
+  - `populateValueListRefIdSelect(excludeNodeId)` 填充节点弹窗的关联码(refId)下拉，递归生成带缩进的树形 option，排除当前节点及其子孙节点以避免循环引用。
 
 ## 目前发现的 HTML 固定可变数据
 

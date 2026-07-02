@@ -488,77 +488,41 @@ function getFilterValues(label) {
     return [...new Set(items)].map((item) => ({ name: item, selectable: true, children: [] }));
   };
   
-  const buildBrandTree = () => {
-    return BRANDS.map((brand) => ({ name: brand, selectable: true, children: [] }));
-  };
-  
-  const buildSeriesTree = () => {
-    const brands = brandFilter.length > 0 ? brandFilter : BRANDS;
-    let allSeries = [];
-    brands.forEach(brand => {
-      allSeries = allSeries.concat(BRAND_SERIES[brand] || []);
-    });
-    return [...new Set(allSeries)].map((series) => ({ name: series, selectable: true, children: [] }));
-  };
-  
-  const buildModelTree = () => {
-    const brands = brandFilter.length > 0 ? brandFilter : BRANDS;
-    let allModels = [];
-    brands.forEach(brand => {
-      const seriesList = BRAND_SERIES[brand] || [];
-      const filteredSeries = seriesFilter.length > 0 ? seriesList.filter(s => seriesFilter.includes(s)) : seriesList;
-      filteredSeries.forEach(series => {
-        allModels = allModels.concat(SERIES_MODELS[series] || []);
-      });
-    });
-    return [...new Set(allModels)].map((model) => ({ name: model, selectable: true, children: [] }));
-  };
-  
-  const buildColorTree = (colorType) => {
-    const colorMap = colorType === "interior" ? MODEL_INTERIOR_COLORS : MODEL_EXTERIOR_COLORS;
-    const brands = brandFilter.length > 0 ? brandFilter : BRANDS;
-    let allColors = [];
-    brands.forEach(brand => {
-      const seriesList = BRAND_SERIES[brand] || [];
-      const filteredSeries = seriesFilter.length > 0 ? seriesList.filter(s => seriesFilter.includes(s)) : seriesList;
-      filteredSeries.forEach(series => {
-        const modelList = SERIES_MODELS[series] || [];
-        const filteredModels = modelFilter.length > 0 ? modelList.filter(m => modelFilter.includes(m)) : modelList;
-        filteredModels.forEach(model => {
-          allColors = allColors.concat(colorMap[model] || []);
-        });
-      });
-    });
-    return [...new Set(allColors)].map((color) => ({ name: color, selectable: true, children: [] }));
-  };
-  
-  const buildFileFormatTree = () => {
-    return Object.entries(FILE_FORMAT_CATEGORIES).map(([category, formats]) => ({
-      name: category,
-      selectable: false,
-      children: formats.map(f => ({ name: f, selectable: true, children: [] }))
-    }));
+  // Build cascaded tree (eg. series filtered by selected brands)
+  const buildCascadeTree = (dimCode, parentFilter, parentDimCode) => {
+    const dim = getTreeNodeByCode(dimCode);
+    if (!dim) return [];
+    const allItems = getTreeChildren(dim.id);
+    if (!parentFilter || !parentFilter.length) {
+      return allItems.map(item => ({ name: item.name, selectable: true, children: [] }));
+    }
+    const parentDim = getTreeNodeByCode(parentDimCode);
+    if (!parentDim) return allItems.map(item => ({ name: item.name, selectable: true, children: [] }));
+    const parentItems = getTreeChildren(parentDim.id).filter(p => parentFilter.includes(p.name));
+    const parentIds = parentItems.map(p => p.id);
+    return allItems.filter(item => !item.refId || parentIds.includes(item.refId))
+      .map(item => ({ name: item.name, selectable: true, children: [] }));
   };
   
   const map = {
     "创建者/创建部门": buildFlatTree(active.flatMap((asset) => [asset.owner, asset.department])),
-    "素材来源": buildFlatTree(["内部上传", "AI生成", "外部导入"]),
-    "文件格式": buildFileFormatTree(),
-    "品牌": buildBrandTree(),
-    "车系": buildSeriesTree(),
-    "车型": buildModelTree(),
-    "内饰色": buildColorTree("interior"),
-    "外饰色": buildColorTree("exterior"),
-    "权限范围": buildFlatTree(["可下载", "可分享"]),
+    "素材来源": buildFlatTree(getAllLeafValues("source").map(n => n.name)),
+    "文件格式": buildFilterTree("file_format"),
+    "品牌": buildFilterTree("brand"),
+    "车系": buildCascadeTree("series", brandFilter, "brand"),
+    "车型": buildCascadeTree("model", seriesFilter, "series"),
+    "内饰色": buildCascadeTree("interior_color", modelFilter, "model"),
+    "外饰色": buildCascadeTree("exterior_color", modelFilter, "model"),
+    "权限范围": buildFlatTree(getAllLeafValues("permission_scope").map(n => n.name)),
     "业务标签": getTagSummary().businessTagTree.map(t => ({ ...t, selectable: true })),
     "AI标签": getTagSummary().aiTagTree.map(t => ({ ...t, selectable: true })),
-    "素材状态": buildFlatTree(["有效", "已失效", "待生效"]),
+    "素材状态": buildFlatTree(getAllLeafValues("asset_status").map(n => n.name)),
     "素材失效日": buildFlatTree(["永久有效", "30天内", "90天内"]),
     "颜色": buildFlatTree(active.map((asset) => asset.color).filter(Boolean)),
     "时长": buildFlatTree(["图片", "短视频", "长视频"]),
     "创建时间": buildFlatTree(["今天", "近7天", "近30天"]),
-    "宽高比": buildFlatTree(ASPECT_RATIOS.map(r => r.label)),
-    "文件大小": buildFlatTree(["<5MB", "5MB～10MB", "10MB～50MB", ">50MB"]),
+    "宽高比": buildFlatTree(getAllLeafValues("aspect_ratio").map(n => n.name)),
+    "文件大小": buildFlatTree(getAllLeafValues("file_size").map(n => n.name)),
   };
   
   return map[label] || [];
@@ -1172,8 +1136,9 @@ function openEditAssetModal(id) {
   document.querySelector("#editAssetValidUntilDate").value = escapeAttr(validUntilParts.date);
   document.querySelector("#editAssetValidUntilTime").value = escapeAttr(validUntilParts.time || "23:59");
   
-  document.querySelector("#editAssetModel").innerHTML = VEHICLE_MODELS.map((model) => `<option value="${model}">${model}</option>`).join("");
-  document.querySelector("#editAssetModel").value = asset.model || VEHICLE_MODELS[0];
+  const vehicleModels = getVehicleModels();
+  document.querySelector("#editAssetModel").innerHTML = vehicleModels.map((model) => `<option value="${model}">${model}</option>`).join("");
+  document.querySelector("#editAssetModel").value = asset.model || vehicleModels[0];
   document.querySelector("#editAssetPermission").value = asset.permission;
   
   document.querySelector("#editAssetModal").classList.remove("hidden");
@@ -1360,7 +1325,7 @@ function openCollectTaskModal(defaultGroupName = "") {
   document.querySelector("#collectTaskName").value = "";
   document.querySelector("#collectTaskDesc").value = "";
   document.querySelector("#collectTaskDeadline").value = "";
-  document.querySelector("#collectTaskTypes").innerHTML = COLLECT_TASK_FILE_TYPES.map((type) => `<option>${escapeHtml(type)}</option>`).join("");
+  document.querySelector("#collectTaskTypes").innerHTML = getAllCollectTaskTypes().map((type) => `<option>${escapeHtml(type)}</option>`).join("");
   
   document.querySelector("#collectTaskModal").classList.remove("hidden");
 }

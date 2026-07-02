@@ -116,7 +116,8 @@ function matchFilter(asset, label, value) {
 function matchAspectRatioFilter(asset, value) {
   const ratio = asset.aspectRatio || (asset.width && asset.height ? asset.width / asset.height : null);
   if (!ratio) return false;
-  const targetRatio = ASPECT_RATIOS.find(r => r.label === value);
+  const ratios = getAspectRatiosFromTree();
+  const targetRatio = ratios.find(r => r.label === value);
   if (!targetRatio) return false;
   return Math.abs(ratio - targetRatio.value) < 0.05;
 }
@@ -243,6 +244,7 @@ function getPageBreadcrumb(page) {
     collect: "全部 › 更多功能 › 收集素材管理",
     share: "全部 › 更多功能 › 分享记录",
     recycle: "全部 › 更多功能 › 回收站",
+    valueLists: "全部 › 更多功能 › 值列表管理",
     users: "全部 › 更多功能 › 系统管理 › 用户管理",
     roles: "全部 › 更多功能 › 系统管理 › 角色管理",
     organizations: "全部 › 更多功能 › 系统管理 › 组织管理",
@@ -258,12 +260,13 @@ function getFormat(file) {
 }
 
 function isAllowedUploadFile(file) {
-  return UPLOAD_FILE_FORMATS.includes(getFormat(file));
+  return getAllowedUploadFormats().includes(getFormat(file));
 }
 
 function getFormatCategory(format = "") {
   const value = String(format).toUpperCase();
-  return Object.entries(FILE_FORMAT_CATEGORIES).find(([, formats]) => formats.includes(value))?.[0] || "文件";
+  const categories = getFileFormatCategoriesFromTree();
+  return Object.entries(categories).find(([, formats]) => formats.includes(value))?.[0] || "文件";
 }
 
 function getType(file) {

@@ -286,6 +286,7 @@
         <button data-go="activity" type="button">用户动态</button>
         <button data-go="loginLogs" type="button">用户登录日志</button>
         <button data-go="tags" type="button">标签管理</button>
+        <button data-go="valueLists" type="button">值列表管理</button>
         <button data-go="validity" type="button">有效期管理</button>
         <div class="menu-section">
           <div class="menu-section-title">系统管理</div>
@@ -782,6 +783,112 @@
         </div>
       </div>
     </template>
+
+    <!-- 值列表管理 - 新增/编辑节点弹框 -->
+    <div class="modal hidden" id="valueListModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="valueListModalTitle">新增节点</h2>
+          <button class="plain-icon" data-close="valueListModal" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="valueListForm">
+          <input type="hidden" id="valueListId" name="id">
+          <label>编码<input id="valueListCode" name="code" placeholder="输入编码(英文)" required /></label>
+          <label>名称<input id="valueListName" name="name" placeholder="输入名称" required /></label>
+          <label>类型<select id="valueListType" name="type"><option value="root">根</option><option value="dimension">筛选维度</option><option value="value">可选项</option><option value="group">分组</option></select></label>
+          <label>父级<select id="valueListParentId" name="parentId"><option value="">无</option></select></label>
+          <div class="form-group">
+            <label>关联码 (refId)</label>
+            <div class="tree-dropdown" id="valueListRefIdDropdown">
+              <div class="tree-dropdown-trigger" id="valueListRefIdTrigger">
+                <input type="text" class="tree-dropdown-input" id="valueListRefIdSearch" autocomplete="off" placeholder="输入名称或编码搜索，也可下拉选择" />
+                <span class="tree-dropdown-arrow">▾</span>
+              </div>
+              <input type="hidden" id="valueListRefId" name="refId" value="">
+              <div class="tree-dropdown-panel hidden" id="valueListRefIdPanel"></div>
+            </div>
+          </div>
+          <label>描述<input id="valueListDesc" name="description" placeholder="输入描述" /></label>
+          <label>属性1<input id="valueListAttr1" name="attr1" placeholder="输入属性1" /></label>
+          <label>属性2<input id="valueListAttr2" name="attr2" placeholder="输入属性2" /></label>
+          <label>状态<select id="valueListStatus" name="status"><option value="enabled">启用</option><option value="disabled">停用</option></select></label>
+          <div class="form-actions">
+            <button type="button" data-close="valueListModal">取消</button>
+            <button class="primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 值列表管理 - 查看选项弹框 -->
+    <div class="modal hidden" id="valueListItemListModal">
+      <div class="modal-card">
+        <header>
+          <h2 id="valueListItemListTitle">选项管理</h2>
+          <button class="plain-icon" data-close="valueListItemListModal" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <div class="value-list-item-modal-body">
+          <div class="value-list-item-toolbar">
+            <button class="primary" id="addValueListItem" type="button">新增选项</button>
+            <span class="value-list-count" id="valueListItemCount"></span>
+          </div>
+          <div class="table-scroll">
+            <table class="records-table manage-table">
+              <colgroup>
+                <col style="width:100px">
+                <col style="width:160px">
+                <col style="width:80px">
+                <col style="width:100px">
+                <col style="width:120px">
+                <col style="width:120px">
+                <col style="width:120px">
+                <col style="width:80px">
+                <col style="width:100px">
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>编码</th>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>父级编码</th>
+                  <th>父级名称</th>
+                  <th>属性1</th>
+                  <th>属性2</th>
+                  <th>状态</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="valueListItemTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 值列表管理 - 新增/编辑小类弹框 -->
+    <div class="modal hidden" id="valueListItemFormModal">
+      <div class="modal-card form-card">
+        <header>
+          <h2 id="valueListItemFormTitle">新增选项</h2>
+          <button class="plain-icon" data-close="valueListItemFormModal" type="button" aria-label="关闭"><span data-icon="x"></span></button>
+        </header>
+        <form id="valueListItemForm">
+          <input type="hidden" id="valueListItemId" name="id">
+          <label>编码<input id="valueListItemCode" name="code" placeholder="输入编码(英文)" required /></label>
+          <label>名称<input id="valueListItemName" name="name" placeholder="输入名称" required /></label>
+          <label>类型<select id="valueListItemType" name="type"><option value="value">可选项</option><option value="group">分组</option></select></label>
+          <label>父级<select id="valueListItemParent" name="parentId"><option value="">无</option></select></label>
+          <label>关联码 (refId)<input id="valueListItemRefId" name="refId" placeholder="输入关联父项编码" /></label>
+          <label>属性1<input id="valueListItemAttr1" name="attr1" placeholder="输入属性1" /></label>
+          <label>属性2<input id="valueListItemAttr2" name="attr2" placeholder="输入属性2" /></label>
+          <label>状态<select id="valueListItemStatus" name="status"><option value="enabled">启用</option><option value="disabled">停用</option></select></label>
+          <div class="form-actions">
+            <button type="button" data-close="valueListItemFormModal">取消</button>
+            <button class="primary" type="submit">保存</button>
+          </div>
+        </form>
+      </div>
+    </div>
 
     <template id="tplGlobalLoading">
       <div id="dpLoadingRoot" class="dp-loading hidden">
