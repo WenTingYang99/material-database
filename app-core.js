@@ -53,22 +53,6 @@ const MODEL_EXTERIOR_COLORS = {
   "C5舒适型2.0L手动档": ["（V8FA5 6BFD）浅色天鹅绒"],
   "11款C5舒适型2.0L 手动": ["（V8FA5 6BFD）浅色天鹅绒"]
 };
-const VEHICLE_MODELS = ["4008", "408", "5008", "508L", "凡尔赛C5X", "天逸", "C5舒适型2.0L手动档", "11款C5舒适型2.0L 手动", "凡尔赛C5X 25款 N2", "凡尔赛 C5X 旅不凡 24款 N2P++"];
-const FILE_FORMAT_CATEGORIES = {
-  图片: ["JPG", "JPEG", "PNG", "TIF", "TIFF", "WEBP", "GIF", "SVG", "BMP", "HEIC", "PIC"],
-  视频: ["MP4", "MOV", "M4V", "AVI", "MKV", "RMVB", "RM", "MPG", "FLV", "TS", "AEP"],
-  文档: ["PDF", "DOC", "DOCX", "PPT", "PPTX", "WPS", "PAGES", "KEY", "TXT"],
-  设计源文件: ["PSD", "AI", "PSB", "SKETCH", "C4D", "PS", "CORELDRAW", "EPS"],
-  纯文本: ["TEXT"],
-  表格: ["XLS", "XLSX", "CSV", "NUMBERS"],
-  字体文件: ["TTF", "TTC", "OTF"],
-  音频: ["MP3", "M4A", "WAV"],
-  压缩包: ["ZIP", "RAR", "7Z", "GZ"],
-  三维模型文件: ["3DM", "3DS", "3MF", "AMF", "BIM", "BREP", "DAE", "FBX", "FCSTD", "IFC", "IGES", "STEP", "STL", "OBJ", "OFF", "PLY"],
-};
-const UPLOAD_FILE_FORMATS = Object.values(FILE_FORMAT_CATEGORIES).flat();
-const UPLOAD_ACCEPT = UPLOAD_FILE_FORMATS.map((format) => `.${format.toLowerCase()}`).join(",");
-const COLLECT_TASK_FILE_TYPES = Object.keys(FILE_FORMAT_CATEGORIES);
 
 const SEED_VALUE_LIST_TREE = [
   { id: "vl_root", code: "root", name: "值列表", type: "root", parentId: null, refId: null, description: "值列表管理根节点", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
@@ -304,7 +288,7 @@ function getFilterLabels() {
   return dims.map(d => d.name);
 }
 function getConfigurableFilters() {
-  return [...getFilterLabels(), "宽高比", "文件大小", "上传时间", "素材失效日"];
+  return [...new Set([...getFilterLabels(), "宽高比", "文件大小", "上传时间", "素材失效日"])];
 }
 
 function getExpireDate(daysFromNow) {
@@ -331,7 +315,7 @@ const seedAssets = seedNames.map((name, index) => {
     height: index < 5 ? 2000 : 1920,
     desc: index === 0 ? "活动素材" : "",
     brand: index % 3 === 0 ? "东风标致" : "东风雪铁龙",
-    model: VEHICLE_MODELS[index % VEHICLE_MODELS.length],
+    model: SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model" && n.status !== "deleted").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))[index % 5]?.name || "",
     customTags: [["试驾活动"], ["车展物料","618促销"], ["产品宣传","自媒体推广"], ["经销商素材"], ["KOL合作"], ["车展物料"], ["618促销","自媒体推广"], ["产品宣传"], ["KOL合作","试驾活动"], ["经销商素材","售后服务"], ["国庆活动"], ["车展物料","618促销"]][index] || [],
     aiTags: [["汽车","户外场景","城市街道","品牌Logo"], ["产品特写","外观展示","汽车"], ["汽车","高清锐利","外观展示"], ["户外场景","自然风光","汽车"], ["汽车","内饰展示","胶片颗粒感"], ["人物","活动","汽车"], ["汽车","赛道","高清锐利"], ["户外场景","城市街道","横版"], ["产品特写","灯光细节","竖版"], ["汽车","外观展示","柔光朦胧"], ["人物","品牌Logo","活动"], ["汽车","内饰展示","产品特写"]][index] || [],
     color: index < 5 ? "蓝色" : "红色",
@@ -403,15 +387,6 @@ const seedTags = [
 
 const filterLabels = ["素材来源", "文件格式", "品牌", "车系", "车型", "内饰色", "外饰色", "权限范围", "业务标签", "AI标签", "素材状态", "上传时间", "素材失效日"];
 const configurableFilters = [...filterLabels, "宽高比", "文件大小"];
-const ASPECT_RATIOS = [
-  { label: "1:1", value: 1.0 },
-  { label: "3:4", value: 0.75 },
-  { label: "9:16", value: 0.5625 },
-  { label: "4:3", value: 1.333 },
-  { label: "3:2", value: 1.5 },
-  { label: "16:9", value: 1.778 },
-  { label: "21:9", value: 2.333 },
-];
 
 const SESSION_USER_KEY = "dp-material-library-current-user";
 const SYSTEM_MENUS = [

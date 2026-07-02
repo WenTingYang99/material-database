@@ -254,6 +254,8 @@
 - 所有筛选值从 `db.valueListTree` 动态读取，不再依赖静态常量。
 - `app-actions.js` `getFilterValues()` 使用 `buildFilterTree()` / `getAllLeafValues()` / `buildCascadeTree()`。
 - `buildCascadeTree(dimCode, parentFilter, parentDimCode)`：通用级联函数，根据上级筛选值过滤下级选项。
+- **已删除废弃常量**：`FILE_FORMAT_CATEGORIES`、`UPLOAD_FILE_FORMATS`、`UPLOAD_ACCEPT`、`COLLECT_TASK_FILE_TYPES`、`ASPECT_RATIOS`（2026-07-02 清理）
+- **种子数据**：model 字段从 `vl_dim_model` 子节点读取（`SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model")...`），不再使用 `VEHICLE_MODELS` 常量
 
 ### 页面布局
 - 左侧树 + 右侧搜索表格（`styles.css` `.value-list-layout`：grid 260px+1fr）。
