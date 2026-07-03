@@ -5,7 +5,7 @@ function render() {
   const showGroupsInput = document.querySelector("#showGroups");
   if (showGroupsInput) showGroupsInput.checked = state.showGroupDescendants;
   document.querySelectorAll(".nav-item").forEach((button) => {
-    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions"].includes(state.page);
+    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus"].includes(state.page);
     button.classList.toggle("active", button.dataset.page === state.page || (morePage && button.dataset.page === "more"));
   });
   els.assetToolbar.classList.toggle("hidden", !["all", "pending", "created"].includes(state.page));
@@ -32,12 +32,13 @@ function render() {
     roles: "角色管理",
     organizations: "组织管理",
     permissions: "权限管理",
+    menus: "菜单管理",
   };
   els.pageTitle.textContent = titleMap[state.page] || "全部素材";
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
 
-  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions"].includes(state.page)) renderManagePageV2();
+  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus"].includes(state.page)) renderManagePageV2();
   else if (state.page === "tags") renderTagsPage();
   else renderAssets();
   initProjectDatePickers();
@@ -587,6 +588,11 @@ function renderManagePageV2() {
     return;
   }
 
+  if (state.page === "menus") {
+    renderMenuManagePage();
+    return;
+  }
+
   const now = new Date();
   const assets = db.assets.filter((asset) => {
     if (asset.status === "deleted") return false;
@@ -935,273 +941,21 @@ function populateValueListParentSelect(excludeNodeId) {
   select.innerHTML = '<option value="">无</option>' + options;
 }
 
-function renderValueListRefIdDropdown(excludeNodeId, selectedRefId) {
-  const panel = document.querySelector("#valueListRefIdPanel");
-  const triggerText = document.querySelector("#valueListRefIdDropdown .tree-dropdown-text");
-  const hiddenInput = document.querySelector("#valueListRefId");
-  if (!panel) return;
-
-  const tree = db.valueListTree || [];
-  const expandedIds = new Set();
-
-  // 收集排除节点及其子孙
-  const forbiddenIds = new Set();
-  if (excludeNodeId) {
-    forbiddenIds.add(excludeNodeId);
-    (function collect(nodeId) {
-      tree.filter(n => n.parentId === nodeId && n.status !== "deleted").forEach(n => {
-        forbiddenIds.add(n.id);
-        collect(n.id);
-      });
-    })(excludeNodeId);
-  }
-
-  // 递归渲染树节点 HTML
-  function renderNodes(parentId, depth) {
-    const children = tree.filter(n => n.parentId === parentId && n.status !== "deleted")
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-    return children.map(node => {
-      if (forbiddenIds.has(node.id)) return "";
-      const hasChildren = tree.some(n => n.parentId === node.id && n.status !== "deleted");
-      const isExpanded = expandedIds.has(node.id);
-      const isSelected = hiddenInput.value === node.id;
-      const indent = depth * 18;
-      const expandIcon = hasChildren ?
-        `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-refid-expand="${escapeAttr(node.id)}">▶</span>` :
-        `<span class="tree-expand-placeholder"></span>`;
-      const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
-
-      return `<div class="tree-node">
-        <button class="tree-item ${typeClass} ${isSelected ? "selected" : ""}" data-refid-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
-          ${expandIcon}
-          <span class="tree-label">${escapeHtml(node.name)} <small>(${node.code})</small></span>
-        </button>
-        ${hasChildren ? `<div class="tree-children${isExpanded ? "" : " hidden"}">${renderNodes(node.id, depth + 1)}</div>` : ""}
-      </div>`;
-    }).join("");
-  }
-
-  const root = tree.find(n => n.type === "root");
-  let treeHtml = "";
-  if (root) {
-    const isRootSelected = hiddenInput.value === root.id;
-    treeHtml = `<div class="tree-node">
-      <button class="tree-item tree-category ${isRootSelected ? "selected" : ""}" data-refid-select="${escapeAttr(root.id)}" style="padding-left: 8px" type="button">
-        <span class="tree-expand-placeholder"></span>
-        <span class="tree-label">${escapeHtml(root.name)} <small>(${root.code})</small></span>
-      </button>
-    </div>`;
-    expandedIds.add(root.id);
-    treeHtml += `<div class="tree-children">${renderNodes(root.id, 1)}</div>`;
-  } else {
-    treeHtml = renderNodes(null, 0);
-  }
-
-  panel.innerHTML = `
-    <button class="tree-item tree-dropdown-clear" data-refid-select="" style="padding-left: 8px" type="button">
-      <span class="tree-expand-placeholder"></span>
-      <span class="tree-label" style="color: var(--text-secondary); font-style: italic;">无 (清除关联)</span>
-    </button>
-    ${treeHtml}`;
-
-  // 更新触发按钮显示
-  if (selectedRefId) {
-    const refNode = tree.find(n => n.id === selectedRefId);
-    triggerText.textContent = refNode ? `${refNode.name} (${refNode.code})` : "无";
-  } else {
-    triggerText.textContent = "无";
-  }
-}
-
-function bindRefIdDropdownEvents() {
-  const dropdown = document.querySelector("#valueListRefIdDropdown");
-  const trigger = document.querySelector("#valueListRefIdTrigger");
-  const panel = document.querySelector("#valueListRefIdPanel");
-  const hiddenInput = document.querySelector("#valueListRefId");
-  const triggerText = dropdown?.querySelector(".tree-dropdown-text");
-
-  if (!dropdown || !trigger || !panel || !hiddenInput) return;
-
-  // 移除旧事件（避免重复绑定）
-  const newTrigger = trigger.cloneNode(true);
-  trigger.parentNode.replaceChild(newTrigger, trigger);
-
-  // 触发器：切换面板
-  newTrigger.addEventListener("click", () => {
-    const isOpen = !panel.classList.contains("hidden");
-    panel.classList.toggle("hidden", isOpen);
-    dropdown.classList.toggle("open", !isOpen);
-  });
-
-  // 面板内事件委托
-  panel.addEventListener("click", (event) => {
-    // 展开/折叠
-    const expandBtn = event.target.closest("[data-refid-expand]");
-    if (expandBtn) {
-      event.stopPropagation();
-      const id = expandBtn.dataset.refidExpand;
-      const childDiv = expandBtn.closest(".tree-node").querySelector(":scope > .tree-children");
-      if (childDiv) {
-        const isHidden = childDiv.classList.contains("hidden");
-        childDiv.classList.toggle("hidden", !isHidden);
-        expandBtn.classList.toggle("expanded", !isHidden);
-      }
-      return;
-    }
-
-    // 选择节点
-    const item = event.target.closest("[data-refid-select]");
-    if (item) {
-      event.stopPropagation();
-      const nodeId = item.dataset.refidSelect;
-      hiddenInput.value = nodeId;
-
-      const tree = db.valueListTree || [];
-      const node = tree.find(n => n.id === nodeId);
-      if (triggerText) triggerText.textContent = node ? `${node.name} (${node.code})` : "无";
-
-      // 更新选中样式
-      panel.querySelectorAll(".tree-item.selected").forEach(el => el.classList.remove("selected"));
-      item.classList.add("selected");
-
-      // 关闭面板
-      panel.classList.add("hidden");
-      dropdown.classList.remove("open");
-    }
-  });
-
-  // 点击外部关闭
-  document.addEventListener("click", function closeRefIdDropdown(e) {
-    if (!dropdown.contains(e.target)) {
-      panel.classList.add("hidden");
-      dropdown.classList.remove("open");
-    }
-  }, { once: true });
-}
-
-function renderValueListRefIdDropdown(excludeNodeId, selectedRefId) {
-  const panel = document.querySelector("#valueListRefIdPanel");
-  const triggerText = document.querySelector("#valueListRefIdDropdown .tree-dropdown-text");
-  const hiddenInput = document.querySelector("#valueListRefId");
-  if (!panel || !hiddenInput) return;
-
-  const tree = db.valueListTree || [];
-  const forbiddenIds = new Set(excludeNodeId ? [excludeNodeId] : []);
-  const expandedIds = new Set(
+function collectValueListDescendantIds(tree, rootId, options = {}) {
+  const { includeDeleted = false } = options;
+  const descendantIds = new Set();
+  const walk = (nodeId) => {
     tree
-      .filter((node) => tree.some((item) => item.parentId === node.id && item.status !== "deleted"))
-      .map((node) => node.id)
-  );
-
-  hiddenInput.value = selectedRefId || "";
-
-  const renderNodes = (parentId, depth) => {
-    const children = tree
-      .filter((node) => node.parentId === parentId && node.status !== "deleted" && !forbiddenIds.has(node.id))
-      .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-    return children.map((node) => {
-      const hasChildren = tree.some((item) => item.parentId === node.id && item.status !== "deleted" && !forbiddenIds.has(item.id));
-      const isExpanded = expandedIds.has(node.id);
-      const isSelected = selectedRefId === node.id;
-      const indent = depth * 18;
-      const typeClass = node.type === "root" || node.type === "dimension" ? "tree-category" : "";
-      const expandIcon = hasChildren
-        ? `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-refid-expand="${escapeAttr(node.id)}">▶</span>`
-        : `<span class="tree-expand-placeholder"></span>`;
-
-      return `<div class="tree-node">
-        <button class="tree-item ${typeClass} ${isSelected ? "selected" : ""}" data-refid-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
-          ${expandIcon}
-          <span class="tree-label">${escapeHtml(node.name)} <small>(${escapeHtml(node.code)})</small></span>
-        </button>
-        ${hasChildren ? `<div class="tree-children${isExpanded ? "" : " hidden"}">${renderNodes(node.id, depth + 1)}</div>` : ""}
-      </div>`;
-    }).join("");
+      .filter((node) => node.parentId === nodeId && (includeDeleted || node.status !== "deleted"))
+      .forEach((node) => {
+        descendantIds.add(node.id);
+        walk(node.id);
+      });
   };
-
-  const root = tree.find((node) => node.type === "root" && !forbiddenIds.has(node.id));
-  const treeHtml = root
-    ? `<div class="tree-node">
-        <button class="tree-item tree-category ${selectedRefId === root.id ? "selected" : ""}" data-refid-select="${escapeAttr(root.id)}" style="padding-left: 8px" type="button">
-          <span class="tree-expand-btn expanded" data-refid-expand="${escapeAttr(root.id)}">▶</span>
-          <span class="tree-label">${escapeHtml(root.name)} <small>(${escapeHtml(root.code)})</small></span>
-        </button>
-        <div class="tree-children">${renderNodes(root.id, 1)}</div>
-      </div>`
-    : renderNodes(null, 0);
-
-  panel.innerHTML = `
-    <button class="tree-item tree-dropdown-clear ${selectedRefId ? "" : "selected"}" data-refid-select="" style="padding-left: 8px" type="button">
-      <span class="tree-expand-placeholder"></span>
-      <span class="tree-label">无（清除关联）</span>
-    </button>
-    ${treeHtml || `<div class="tree-empty">暂无可关联节点</div>`}`;
-
-  const refNode = selectedRefId ? tree.find((node) => node.id === selectedRefId) : null;
-  if (triggerText) triggerText.textContent = refNode ? `${refNode.name} (${refNode.code})` : "无";
+  walk(rootId);
+  return descendantIds;
 }
 
-function bindRefIdDropdownEvents() {
-  let dropdown = document.querySelector("#valueListRefIdDropdown");
-  let trigger = document.querySelector("#valueListRefIdTrigger");
-  let panel = document.querySelector("#valueListRefIdPanel");
-  const hiddenInput = document.querySelector("#valueListRefId");
-  if (!dropdown || !trigger || !panel || !hiddenInput) return;
-
-  const freshTrigger = trigger.cloneNode(true);
-  trigger.parentNode.replaceChild(freshTrigger, trigger);
-  const freshPanel = panel.cloneNode(true);
-  panel.parentNode.replaceChild(freshPanel, panel);
-
-  dropdown = document.querySelector("#valueListRefIdDropdown");
-  trigger = document.querySelector("#valueListRefIdTrigger");
-  panel = document.querySelector("#valueListRefIdPanel");
-  const triggerText = dropdown?.querySelector(".tree-dropdown-text");
-
-  trigger.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const isOpen = !panel.classList.contains("hidden");
-    panel.classList.toggle("hidden", isOpen);
-    dropdown.classList.toggle("open", !isOpen);
-  });
-
-  panel.addEventListener("click", (event) => {
-    const expandBtn = event.target.closest("[data-refid-expand]");
-    if (expandBtn) {
-      event.stopPropagation();
-      const childDiv = expandBtn.closest(".tree-node")?.querySelector(":scope > .tree-children");
-      if (childDiv) {
-        const isHidden = childDiv.classList.contains("hidden");
-        childDiv.classList.toggle("hidden", !isHidden);
-        expandBtn.classList.toggle("expanded", !isHidden);
-      }
-      return;
-    }
-
-    const item = event.target.closest("[data-refid-select]");
-    if (!item) return;
-
-    event.stopPropagation();
-    const nodeId = item.dataset.refidSelect;
-    hiddenInput.value = nodeId;
-
-    const node = (db.valueListTree || []).find((entry) => entry.id === nodeId);
-    if (triggerText) triggerText.textContent = node ? `${node.name} (${node.code})` : "无";
-
-    panel.querySelectorAll(".tree-item.selected").forEach((entry) => entry.classList.remove("selected"));
-    item.classList.add("selected");
-    panel.classList.add("hidden");
-    dropdown.classList.remove("open");
-  });
-
-  document.addEventListener("click", function closeRefIdDropdown(event) {
-    if (!dropdown.contains(event.target)) {
-      panel.classList.add("hidden");
-      dropdown.classList.remove("open");
-    }
-  }, { once: true });
-}
 
 function openValueListItemListModal(dimNodeId) {
   state.selectedValueListId = dimNodeId;
@@ -1212,14 +966,7 @@ function openValueListItemListModal(dimNodeId) {
   if (title) title.textContent = (dimNode ? dimNode.name : "") + " - 选项管理";
 
   // 获取该维度下的所有子孙节点（不包括自身）
-  const descendantIds = new Set();
-  function collectDescendants(nodeId) {
-    tree.filter(n => n.parentId === nodeId && n.status !== "deleted").forEach(n => {
-      descendantIds.add(n.id);
-      collectDescendants(n.id);
-    });
-  }
-  collectDescendants(dimNodeId);
+  const descendantIds = collectValueListDescendantIds(tree, dimNodeId);
   const items = tree.filter(n => descendantIds.has(n.id));
   
   const topLevelCount = items.filter(n => n.parentId === dimNodeId).length;
@@ -1282,7 +1029,6 @@ function openValueListItemFormModal(itemId = null) {
 function saveValueList(data) {
   const editId = document.querySelector("#valueListId").value;
   const tree = db.valueListTree || [];
-  const matLibId = getTreeNodeByCode("material_lib")?.id || "vl_dim_matlib";
 
   if (!editId) {
     // 新增：检查编码唯一性
@@ -1387,14 +1133,8 @@ function deleteValueListItem(itemId) {
   window.Modal.confirm(msg, { danger: true }).then((ok) => {
     if (ok) {
       // 递归删除所有子孙
-      const idsToDelete = new Set([itemId]);
-      function collectDescendants(pid) {
-        tree.filter(n => n.parentId === pid).forEach(n => {
-          idsToDelete.add(n.id);
-          collectDescendants(n.id);
-        });
-      }
-      collectDescendants(itemId);
+      const idsToDelete = collectValueListDescendantIds(tree, itemId, { includeDeleted: true });
+      idsToDelete.add(itemId);
       
       db.valueListTree = tree.filter(n => !idsToDelete.has(n.id));
       saveDb();
@@ -1404,6 +1144,301 @@ function deleteValueListItem(itemId) {
         state.valueListSelectedNodeId = node?.parentId || "";
       }
       renderValueListPage();
+    }
+  });
+}
+
+// ---------- 菜单管理 ----------
+
+function renderMenuManagePage() {
+  const menus = db.menus || [];
+  if (!menus.length) return;
+
+  const root = menus.find((m) => m.parentId === null) || menus[0];
+
+  if (!state.menuManageSelectedId || !menus.find((m) => m.id === state.menuManageSelectedId)) {
+    state.menuManageSelectedId = root.id;
+  }
+  if (!state.menuManageExpandedIds) state.menuManageExpandedIds = new Set();
+
+  // 确保选中节点及其父节点处于展开状态
+  let current = menus.find((m) => m.id === state.menuManageSelectedId);
+  while (current) {
+    state.menuManageExpandedIds.add(current.id);
+    current = menus.find((m) => m.id === current.parentId);
+  }
+
+  const selectedNode = menus.find((m) => m.id === state.menuManageSelectedId);
+  if (state.menuManageEditingId === "") {
+    state.menuManageEditingId = state.menuManageSelectedId;
+  }
+  const isNew = state.menuManageEditingId === null;
+  const editingNode = isNew ? null : menus.find((m) => m.id === state.menuManageEditingId);
+  const canEdit = canEditMenu("menus");
+
+  const formTitle = isNew ? "新建菜单" : "修改菜单";
+  const formId = isNew ? "" : editingNode?.id || "";
+  const formCode = isNew ? "" : editingNode?.code || "";
+  const formName = isNew ? "" : editingNode?.name || "";
+  const formCategory = isNew ? "page" : editingNode?.category || "page";
+  const formHidden = isNew ? "false" : String(editingNode?.hidden || false);
+  const formPage = isNew ? "" : editingNode?.page || "";
+  const formValid = isNew ? "true" : String(editingNode?.valid !== false);
+  const formOrder = isNew ? "" : String(editingNode?.order || 0);
+  const formIcon = isNew ? "" : editingNode?.icon || "";
+  const formDesc = isNew ? "" : editingNode?.description || "";
+
+  const treeHtml = renderMenuTreeNodes(menus, null, 0);
+  const pageOptions = renderMenuPageOptions();
+
+  els.contentPanel.innerHTML = renderManageShell("菜单管理", `共 ${menus.length} 个菜单`, `
+    <div class="value-list-layout menu-manage-layout">
+      <aside class="value-list-tree-panel">
+        <div class="menu-tree-toolbar">
+          <button class="primary" id="addMenuChild" type="button" ${!canEdit ? "disabled" : ""}>+ 新增</button>
+          <button class="danger" id="deleteMenuCurrent" type="button" ${!canEdit || selectedNode?.category === "root" ? "disabled" : ""}>删除</button>
+        </div>
+        <div class="value-list-tree-body filter-tree-container">
+          ${treeHtml}
+        </div>
+      </aside>
+      <section class="value-list-content-panel">
+        <div class="menu-form-card">
+          <div class="menu-form-header">${formTitle}</div>
+          <form id="menuForm">
+            <input type="hidden" id="menuId" name="id" value="${escapeAttr(formId)}" />
+            <div class="form-row">
+              <label class="required">功能编号<input id="menuCode" name="code" value="${escapeAttr(formCode)}" placeholder="请输入" required ${!canEdit ? "readonly" : ""} /></label>
+              <label class="required">功能名称<input id="menuName" name="name" value="${escapeAttr(formName)}" placeholder="请输入" required ${!canEdit ? "readonly" : ""} /></label>
+            </div>
+            <div class="form-row">
+              <label class="required">功能分类
+                <select id="menuCategory" name="category" required ${!canEdit ? "disabled" : ""}>
+                  <option value="page" ${formCategory === "page" ? "selected" : ""}>页面</option>
+                  <option value="button" ${formCategory === "button" ? "selected" : ""}>按钮</option>
+                  <option value="api" ${formCategory === "api" ? "selected" : ""}>接口</option>
+                </select>
+              </label>
+              <label class="required">是否隐藏
+                <select id="menuHidden" name="hidden" required ${!canEdit ? "disabled" : ""}>
+                  <option value="false" ${formHidden === "false" ? "selected" : ""}>否</option>
+                  <option value="true" ${formHidden === "true" ? "selected" : ""}>是</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>对应页面
+                <select id="menuPage" name="page" ${!canEdit ? "disabled" : ""}>
+                  <option value="">请选择对应页面</option>
+                  ${pageOptions}
+                </select>
+              </label>
+              <label class="required">是否有效
+                <select id="menuValid" name="valid" required ${!canEdit ? "disabled" : ""}>
+                  <option value="true" ${formValid === "true" ? "selected" : ""}>是</option>
+                  <option value="false" ${formValid === "false" ? "selected" : ""}>否</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="required">同级序号<input id="menuOrder" name="order" type="number" value="${escapeAttr(formOrder)}" placeholder="请输入" required ${!canEdit ? "readonly" : ""} /></label>
+              <label>功能图标<input id="menuIcon" name="icon" value="${escapeAttr(formIcon)}" placeholder="请输入图标样式名称" ${!canEdit ? "readonly" : ""} /></label>
+            </div>
+            <label>功能描述<textarea id="menuDesc" name="description" rows="3" placeholder="请输入功能描述" ${!canEdit ? "readonly" : ""}>${escapeHtml(formDesc)}</textarea></label>
+            <div class="form-actions">
+              <button class="primary" type="submit" ${!canEdit ? "disabled" : ""}>保存</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  `);
+
+  const pageSelect = document.querySelector("#menuPage");
+  if (pageSelect) pageSelect.value = formPage;
+
+  bindMenuManageEvents();
+}
+
+function renderMenuTreeNodes(tree, parentId, depth) {
+  const children = tree.filter((m) => m.parentId === parentId)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  if (!children.length) return "";
+
+  const selectedId = state.menuManageSelectedId;
+  const expandedIds = state.menuManageExpandedIds || new Set();
+
+  const items = children.map((node) => {
+    const hasChildren = tree.some((m) => m.parentId === node.id);
+    const isExpanded = expandedIds.has(node.id);
+    const isSelected = selectedId === node.id;
+    const indent = depth * 18;
+    const expandIcon = hasChildren
+      ? `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-menu-expand="${escapeAttr(node.id)}">▶</span>`
+      : `<span class="tree-expand-placeholder"></span>`;
+
+    const categoryClass = node.category === "root" || node.category === "group" ? "tree-category" : "";
+    const validClass = node.valid === false ? "menu-item-invalid" : "";
+
+    return `<div class="tree-node">
+      <button class="tree-item ${categoryClass} ${validClass} ${isSelected ? "active-side" : ""}" data-menu-select="${escapeAttr(node.id)}" style="padding-left: ${8 + indent}px" type="button">
+        ${expandIcon}
+        <span class="tree-label">${escapeHtml(node.name)}</span>
+      </button>
+      ${isExpanded ? `<div class="tree-children">${renderMenuTreeNodes(tree, node.id, depth + 1)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  return items;
+}
+
+function renderMenuPageOptions() {
+  const pages = [
+    { value: "all", label: "全部素材" },
+    { value: "pending", label: "待入库" },
+    { value: "created", label: "我创建的组" },
+    { value: "activity", label: "用户动态" },
+    { value: "loginLogs", label: "用户登录日志" },
+    { value: "tags", label: "标签管理" },
+    { value: "valueLists", label: "值列表管理" },
+    { value: "validity", label: "有效期管理" },
+    { value: "users", label: "用户管理" },
+    { value: "roles", label: "角色管理" },
+    { value: "organizations", label: "组织管理" },
+    { value: "permissions", label: "权限管理" },
+    { value: "menus", label: "菜单管理" },
+    { value: "collect", label: "收集素材" },
+    { value: "share", label: "分享记录" },
+    { value: "recycle", label: "回收站" },
+  ];
+  return pages.map((p) => `<option value="${escapeAttr(p.value)}">${escapeHtml(p.label)}</option>`).join("");
+}
+
+function bindMenuManageEvents() {
+  document.querySelectorAll("[data-menu-expand]").forEach((btn) => {
+    btn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const id = btn.dataset.menuExpand;
+      if (!state.menuManageExpandedIds) state.menuManageExpandedIds = new Set();
+      if (state.menuManageExpandedIds.has(id)) {
+        state.menuManageExpandedIds.delete(id);
+      } else {
+        state.menuManageExpandedIds.add(id);
+      }
+      renderMenuManagePage();
+    });
+  });
+
+  document.querySelectorAll("[data-menu-select]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.menuManageSelectedId = btn.dataset.menuSelect;
+      state.menuManageEditingId = btn.dataset.menuSelect;
+      renderMenuManagePage();
+    });
+  });
+
+  document.querySelector("#addMenuChild")?.addEventListener("click", () => {
+    if (!canEditMenu("menus")) return showToast("当前账号没有菜单管理编辑权限");
+    state.menuManageEditingId = null;
+    renderMenuManagePage();
+  });
+
+  document.querySelector("#deleteMenuCurrent")?.addEventListener("click", () => {
+    if (!canEditMenu("menus")) return showToast("当前账号没有菜单管理编辑权限");
+    deleteMenu(state.menuManageSelectedId);
+  });
+
+  document.querySelector("#menuForm")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    if (!canEditMenu("menus")) return showToast("当前账号没有菜单管理编辑权限");
+    const data = Object.fromEntries(new FormData(event.target));
+    saveMenu(data);
+  });
+}
+
+function saveMenu(data) {
+  const menus = db.menus || [];
+  const editId = data.id;
+  const isNew = !editId;
+
+  const existingByCode = menus.find((m) => m.code === data.code && m.id !== editId);
+  if (existingByCode) {
+    showToast("功能编号已存在");
+    return;
+  }
+
+  if (isNew) {
+    const parentId = state.menuManageSelectedId;
+    const newId = `menu_${data.code}`;
+    if (menus.some((m) => m.id === newId)) {
+      showToast("该功能编号已存在");
+      return;
+    }
+    const newMenu = {
+      id: newId,
+      code: data.code,
+      name: data.name,
+      category: data.category,
+      hidden: data.hidden === "true",
+      page: data.page || "",
+      valid: data.valid === "true",
+      order: Number(data.order) || 0,
+      icon: data.icon || "",
+      description: data.description || "",
+      parentId,
+    };
+    menus.push(newMenu);
+    state.menuManageSelectedId = newMenu.id;
+    state.menuManageEditingId = newMenu.id;
+    if (!state.menuManageExpandedIds) state.menuManageExpandedIds = new Set();
+    state.menuManageExpandedIds.add(parentId);
+    showToast("已新增");
+  } else {
+    const menu = menus.find((m) => m.id === editId);
+    if (!menu) return;
+    menu.code = data.code;
+    menu.name = data.name;
+    menu.category = data.category;
+    menu.hidden = data.hidden === "true";
+    menu.page = data.page || "";
+    menu.valid = data.valid === "true";
+    menu.order = Number(data.order) || 0;
+    menu.icon = data.icon || "";
+    menu.description = data.description || "";
+    showToast("已保存");
+  }
+
+  saveDb();
+  renderMenuManagePage();
+}
+
+function deleteMenu(menuId) {
+  const menus = db.menus || [];
+  const menu = menus.find((m) => m.id === menuId);
+  if (!menu) return;
+  if (menu.category === "root") {
+    showToast("根节点不能删除");
+    return;
+  }
+
+  const hasChildren = menus.some((m) => m.parentId === menuId);
+  const msg = hasChildren ? "此菜单下还有子菜单，确认删除？子菜单将一并删除。" : "确认删除此菜单？";
+
+  window.Modal.confirm(msg, { danger: true }).then((ok) => {
+    if (ok) {
+      const idsToDelete = new Set();
+      const collect = (id) => {
+        idsToDelete.add(id);
+        menus.filter((m) => m.parentId === id).forEach((m) => collect(m.id));
+      };
+      collect(menuId);
+
+      db.menus = menus.filter((m) => !idsToDelete.has(m.id));
+      saveDb();
+      showToast("已删除");
+      state.menuManageSelectedId = menu.parentId || "";
+      state.menuManageEditingId = menu.parentId || "";
+      renderMenuManagePage();
     }
   });
 }
@@ -2504,6 +2539,18 @@ function getTagSummary() {
   };
 }
 
+function flattenTagTree(nodes) {
+  const result = [];
+  const flatten = (node, depth = 0) => {
+    result.push({ ...node, _depth: depth });
+    if (node.children) {
+      node.children.forEach((child) => flatten(child, depth + 1));
+    }
+  };
+  nodes.forEach((node) => flatten(node, 0));
+  return result;
+}
+
 function renderTagsPage() {
   if (!canViewMenu("tags")) {
     els.contentPanel.innerHTML = renderEmpty("当前账号无权查看标签管理");
@@ -2535,18 +2582,7 @@ function renderTagsPage() {
   `);
 
   const { businessTagTree: btTree } = getTagSummary();
-  const flattenTree = (nodes) => {
-    let result = [];
-    const flatten = (node, depth = 0) => {
-      result.push({ ...node, _depth: depth });
-      if (node.children) {
-        node.children.forEach(child => flatten(child, depth + 1));
-      }
-    };
-    btTree.forEach(node => flatten(node, 0));
-    return result;
-  };
-  renderTagTableBody(flattenTree(btTree), "business");
+  renderTagTableBody(flattenTagTree(btTree), "business");
   document.querySelector("#addTagButton")?.classList.toggle("hidden", !canEditTags);
   document.querySelector("#mergeTagButton")?.classList.toggle("hidden", !canEditTags);
 
@@ -2555,18 +2591,7 @@ function renderTagsPage() {
     document.querySelector("#addTagButton")?.classList.toggle("hidden", !canEditTags);
     document.querySelector("#mergeTagButton")?.classList.toggle("hidden", !canEditTags);
     const { businessTagTree: btTree } = getTagSummary();
-    const flattenTree = (nodes) => {
-      let result = [];
-      const flatten = (node, depth = 0) => {
-        result.push({ ...node, _depth: depth });
-        if (node.children) {
-          node.children.forEach(child => flatten(child, depth + 1));
-        }
-      };
-      btTree.forEach(node => flatten(node, 0));
-      return result;
-    };
-    renderTagTableBody(flattenTree(btTree), "business");
+    renderTagTableBody(flattenTagTree(btTree), "business");
   });
 
   document.querySelector("#tagTabAI")?.addEventListener("click", () => {
@@ -2729,92 +2754,6 @@ function renderTagTableBody(tags, type) {
   }
 }
 
-function renderBusinessTagList(tags) {
-  const container = document.querySelector("#tagListContainer");
-  if (!container) return;
-
-  const renderTagTree = (nodes, depth = 0) => {
-    return nodes.map((tag) => `
-      <div class="tag-item" data-tag="${escapeAttr(tag.name)}" style="padding-left: ${depth * 20}px;">
-        ${tag.children.length > 0 ? `<span class="tag-expand" data-expand-tag="${escapeAttr(tag.name)}">▶</span>` : `<span class="tag-expand-placeholder"></span>`}
-        <span class="tag-name">${escapeHtml(tag.name)}</span>
-        <span class="tag-count">${tag.count} 次</span>
-        <div class="tag-actions">
-          <button data-edit-tag="${escapeAttr(tag.name)}" type="button" title="编辑"><span data-icon="edit"></span></button>
-          <button data-delete-tag="${escapeAttr(tag.name)}" type="button" title="删除"><span data-icon="trash"></span></button>
-        </div>
-        ${tag.children.length > 0 ? `<div class="tag-children" data-children="${escapeAttr(tag.name)}">${renderTagTree(tag.children, depth + 1)}</div>` : ""}
-      </div>
-    `).join("");
-  };
-
-  container.innerHTML = `
-    <h3>业务手写标签</h3>
-    <p class="tag-desc">业务人员可自由创建、编辑、删除，用于筛选和归类素材</p>
-    <div class="tag-grid">
-      ${renderTagTree(tags) || `<div class="empty">暂无业务标签</div>`}
-    </div>
-  `;
-
-  document.querySelectorAll("[data-expand-tag]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      const tagName = button.dataset.expandTag;
-      const children = document.querySelector(`[data-children="${escapeAttr(tagName)}"]`);
-      if (children) {
-        children.classList.toggle("hidden");
-        button.textContent = children.classList.contains("hidden") ? "▶" : "▼";
-      }
-    });
-  });
-}
-
-function renderAITagList(tags) {
-  const container = document.querySelector("#tagListContainer");
-  if (!container) return;
-  container.innerHTML = `
-    <h3>AI标签</h3>
-    <p class="tag-desc">AI识别素材后自动生成的标签，不可直接编辑，可通过重新打标更新</p>
-    <div class="tag-grid ai-tag-grid">
-      ${tags.map((tag) => `
-        <div class="tag-item" data-tag="${escapeAttr(tag.name)}">
-          <span class="tag-name">${escapeHtml(tag.name)}</span>
-          <span class="tag-count">${tag.count} 次</span>
-          <div class="tag-actions">
-            <button data-retag-tag="${escapeAttr(tag.name)}" type="button" title="查找使用此标签的素材"><span data-icon="search"></span></button>
-          </div>
-        </div>
-      `).join("") || `<div class="empty">暂无AI标签</div>`}
-    </div>
-  `;
-  document.querySelectorAll("[data-retag-tag]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const tagName = button.dataset.retagTag;
-      state.page = "all";
-      state.filters["AI标签"] = [tagName];
-      render();
-    });
-  });
-}
-
-function renderSystemTagList(tags) {
-  const container = document.querySelector("#tagListContainer");
-  if (!container) return;
-  container.innerHTML = `
-    <h3>系统标签</h3>
-    <p class="tag-desc">系统自动生成的标签，仅做展示，不可编辑、删除或用于查询</p>
-    <div class="tag-grid system-tag-grid">
-      ${tags.map((tag) => `
-        <div class="tag-item" data-tag="${escapeAttr(tag.name)}">
-          <span class="tag-name">${escapeHtml(tag.name)}</span>
-          <span class="tag-count">${tag.count} 次</span>
-          <div class="tag-actions">
-          </div>
-        </div>
-      `).join("") || `<div class="empty">暂无系统标签</div>`}
-    </div>
-  `;
-}
 
 function bindTagEvents() {
   els.contentPanel.removeEventListener("click", handleTagClick);

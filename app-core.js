@@ -25,35 +25,6 @@ const seedNames = [
   "a2f6b7922b18cdcfc56152b6712deb46",
 ];
 
-const BRANDS = ["东风标致", "东风雪铁龙", "Jeep"];
-const BRAND_SERIES = {
-  "东风标致": ["4008(进口）", "4008", "5008", "408", "508", "新一代408"],
-  "东风雪铁龙": ["萨拉毕加索", "天逸 (C5)AIRCROSS", "经典爱丽舍", "C6", "C5", "凡尔赛C5 X"],
-  "Jeep": []
-};
-const SERIES_MODELS = {
-  "4008(进口）": [],
-  "4008": [],
-  "5008": [],
-  "408": [],
-  "508": [],
-  "新一代408": [],
-  "萨拉毕加索": [],
-  "天逸 (C5)AIRCROSS": [],
-  "经典爱丽舍": [],
-  "C6": [],
-  "C5": ["C5舒适型2.0L手动档", "11款C5舒适型2.0L 手动"],
-  "凡尔赛C5 X": ["凡尔赛C5X 25款 N2", "凡尔赛 C5X 旅不凡 24款 N2P++"]
-};
-const MODEL_INTERIOR_COLORS = {
-  "C5舒适型2.0L手动档": ["（V3000 XNFR）新内饰", "（V3000 6BFR）驼绒灰(天鹅绒)"],
-  "11款C5舒适型2.0L 手动": ["（V8FA2 6BFR）驼绒灰(天鹅绒)"]
-};
-const MODEL_EXTERIOR_COLORS = {
-  "C5舒适型2.0L手动档": ["（V8FA5 6BFD）浅色天鹅绒"],
-  "11款C5舒适型2.0L 手动": ["（V8FA5 6BFD）浅色天鹅绒"]
-};
-
 const SEED_VALUE_LIST_TREE = [
   { id: "vl_root", code: "root", name: "值列表", type: "root", parentId: null, refId: null, description: "值列表管理根节点", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
   { id: "vl_dim_matlib", code: "material_lib", name: "素材库筛选", type: "dimension", parentId: "vl_root", refId: null, description: "素材库筛选条件集合", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
@@ -203,20 +174,9 @@ function getTreeNodeById(id) {
 function getTreeNodeByCode(code) {
   return (db.valueListTree || []).find(n => n.code === code);
 }
-function getTreeNodeByName(name) {
-  return (db.valueListTree || []).find(n => n.name === name);
-}
 function getDimensionNodes(parentDimId) {
   const parentId = parentDimId || getTreeNodeByCode("material_lib")?.id;
   return (db.valueListTree || []).filter(n => n.parentId === parentId && n.type === "dimension" && n.status === "enabled")
-    .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-}
-function getCascadeChildren(dimCode, refIds) {
-  const dim = getTreeNodeByCode(dimCode);
-  if (!dim) return [];
-  const children = (db.valueListTree || []).filter(n => n.parentId === dim.id && n.status === "enabled");
-  if (!refIds || !refIds.length) return children;
-  return children.filter(n => !n.refId || refIds.includes(n.refId))
     .sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 }
 function buildFilterTree(dimCode, parentId = null) {
@@ -386,7 +346,6 @@ const seedTags = [
 ];
 
 const filterLabels = ["素材来源", "文件格式", "品牌", "车系", "车型", "内饰色", "外饰色", "权限范围", "业务标签", "AI标签", "素材状态", "上传时间", "素材失效日"];
-const configurableFilters = [...filterLabels, "宽高比", "文件大小"];
 
 const SESSION_USER_KEY = "dp-material-library-current-user";
 const SYSTEM_MENUS = [
@@ -402,6 +361,7 @@ const SYSTEM_MENUS = [
   { id: "roles", label: "角色管理", group: "系统管理" },
   { id: "organizations", label: "组织管理", group: "系统管理" },
   { id: "permissions", label: "权限管理", group: "系统管理" },
+  { id: "menus", label: "菜单管理", group: "系统管理" },
 ];
 const MANAGED_PAGES = SYSTEM_MENUS.map((menu) => menu.id);
 
@@ -436,6 +396,9 @@ const state = {
   valueListSearch: { keyword: "" },
   valueListSelectedNodeId: "",
   valueListExpandedIds: new Set(),
+  menuManageSelectedId: "",
+  menuManageExpandedIds: new Set(),
+  menuManageEditingId: "",
   theme: localStorage.getItem("dp-material-library-theme") || "light",
   zoomLevel: 100,
   panX: 0,
@@ -489,10 +452,6 @@ function getUserSessionInfo(userId) {
     department: organization?.name || "",
     permissions: mergeRolePermissions(roles),
   };
-}
-
-function getCurrentRole() {
-  return (db.roles || []).find((role) => role.id === currentUser.roleId) || null;
 }
 
 function getUserRoleIds(user = {}) {
@@ -631,6 +590,41 @@ function getDefaultUsers() {
   ];
 }
 
+function getDefaultMenus() {
+  const root = { id: "menu_root", code: "all", name: "所有菜单", category: "root", hidden: false, page: "", valid: true, order: 0, icon: "", description: "", parentId: null };
+  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const groupNodes = groups.map((group, index) => ({
+    id: `menu_group_${index + 1}`,
+    code: `group_${index + 1}`,
+    name: group,
+    category: "group",
+    hidden: false,
+    page: "",
+    valid: true,
+    order: index + 1,
+    icon: "",
+    description: "",
+    parentId: "menu_root",
+  }));
+  const itemNodes = SYSTEM_MENUS.map((menu, index) => {
+    const groupNode = groupNodes.find((group) => group.name === menu.group);
+    return {
+      id: `menu_${menu.id}`,
+      code: menu.id,
+      name: menu.label,
+      category: "page",
+      hidden: false,
+      page: menu.id,
+      valid: true,
+      order: index + 1,
+      icon: "",
+      description: "",
+      parentId: groupNode?.id || "menu_root",
+    };
+  });
+  return [root, ...groupNodes, ...itemNodes];
+}
+
 function ensureSystemData() {
   let changed = false;
   if (!Array.isArray(db.organizations) || !db.organizations.length) {
@@ -651,6 +645,10 @@ function ensureSystemData() {
   }
   if (!Array.isArray(db.valueListTree) || !db.valueListTree.length) {
     db.valueListTree = SEED_VALUE_LIST_TREE;
+    changed = true;
+  }
+  if (!Array.isArray(db.menus) || !db.menus.length) {
+    db.menus = getDefaultMenus();
     changed = true;
   }
   if (!db.orgPermissions || typeof db.orgPermissions !== "object" || Array.isArray(db.orgPermissions)) {
@@ -726,7 +724,7 @@ function bootstrap() {
 }
 
 function normalizePageState() {
-  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "valueLists", "users", "roles", "organizations", "permissions", "collect", "share", "recycle"];
+  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus", "collect", "share", "recycle"];
   if (!validPages.includes(state.page)) {
     state.page = "all";
     state.groupId = "all";
@@ -1221,6 +1219,18 @@ function renderFilterConfig() {
 }
 
 function bindEvents() {
+  const bindModalClose = (modalId, closeFn, options = {}) => {
+    const { backdrop = true } = options;
+    const idPrefix = modalId.replace(/Modal$/, "");
+    document.querySelector(`#${idPrefix}Cancel`)?.addEventListener("click", closeFn);
+    document.querySelector(`#${idPrefix}Close`)?.addEventListener("click", closeFn);
+    if (backdrop) {
+      document.querySelector(`#${modalId}`)?.addEventListener("click", (event) => {
+        if (event.target.id === modalId) closeFn();
+      });
+    }
+  };
+
   document.querySelector("#loginForm")?.addEventListener("submit", handleLoginSubmit);
 
   // Mobile sidebar toggle
@@ -1513,17 +1523,8 @@ function bindEvents() {
   document.querySelector("#approveSelected")?.addEventListener("click", approveSelectedAssets);
 
   // 权限模态框取消按钮
-  document.querySelector("#permissionRequestCancel")?.addEventListener("click", closePermissionRequestModal);
-  document.querySelector("#permissionRequestClose")?.addEventListener("click", closePermissionRequestModal);
-  document.querySelector("#permissionRequestModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "permissionRequestModal") closePermissionRequestModal();
-  });
-
-  document.querySelector("#permissionCancel")?.addEventListener("click", closePermissionModal);
-  document.querySelector("#permissionClose")?.addEventListener("click", closePermissionModal);
-  document.querySelector("#permissionModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "permissionModal") closePermissionModal();
-  });
+  bindModalClose("permissionRequestModal", closePermissionRequestModal);
+  bindModalClose("permissionModal", closePermissionModal);
 
   // 素材篮事件绑定
   document.querySelector("#basketClose")?.addEventListener("click", closeBasketDrawer);
@@ -1562,11 +1563,7 @@ function bindEvents() {
   });
 
   // 素材篮有效期模态框事件
-  document.querySelector("#basketValidityCancel")?.addEventListener("click", closeBasketValidityModal);
-  document.querySelector("#basketValidityClose")?.addEventListener("click", closeBasketValidityModal);
-  document.querySelector("#basketValidityModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "basketValidityModal") closeBasketValidityModal();
-  });
+  bindModalClose("basketValidityModal", closeBasketValidityModal);
   
   const basketValidityForm = document.querySelector("#basketValidityForm");
   basketValidityForm?.addEventListener("submit", (event) => {
@@ -1588,11 +1585,7 @@ function bindEvents() {
   });
 
   // 素材篮分享模态框事件
-  document.querySelector("#basketShareCancel")?.addEventListener("click", closeBasketShareModal);
-  document.querySelector("#basketShareClose")?.addEventListener("click", closeBasketShareModal);
-  document.querySelector("#basketShareModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "basketShareModal") closeBasketShareModal();
-  });
+  bindModalClose("basketShareModal", closeBasketShareModal);
   
   let createdBasketLink = "";
   const basketShareForm = document.querySelector("#basketShareForm");
@@ -1625,118 +1618,60 @@ function bindEvents() {
   });
 
   // 标签相关模态框事件
-  document.querySelector("#addTagCancel")?.addEventListener("click", closeAddTagModal);
-  document.querySelector("#addTagClose")?.addEventListener("click", closeAddTagModal);
-  document.querySelector("#addTagModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "addTagModal") closeAddTagModal();
-  });
+  bindModalClose("addTagModal", closeAddTagModal);
+  document.querySelector("#addTagType")?.addEventListener("change", toggleAddAiFields);
   document.querySelector("#addTagForm")?.addEventListener("submit", handleAddTagSubmit);
 
-  document.querySelector("#editTagCancel")?.addEventListener("click", closeEditTagModal);
-  document.querySelector("#editTagClose")?.addEventListener("click", closeEditTagModal);
-  document.querySelector("#editTagModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "editTagModal") closeEditTagModal();
-  });
+  bindModalClose("editTagModal", closeEditTagModal);
+  document.querySelector("#editTagType")?.addEventListener("change", toggleEditAiFields);
   document.querySelector("#editTagForm")?.addEventListener("submit", handleEditTagSubmit);
 
-  document.querySelector("#mergeTagCancel")?.addEventListener("click", closeMergeTagModal);
-  document.querySelector("#mergeTagClose")?.addEventListener("click", closeMergeTagModal);
-  document.querySelector("#mergeTagModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "mergeTagModal") closeMergeTagModal();
-  });
+  bindModalClose("mergeTagModal", closeMergeTagModal);
   document.querySelector("#mergeClearSelected")?.addEventListener("click", clearMergeTagSelection);
   document.querySelector("#mergeTagForm")?.addEventListener("submit", handleMergeTagSubmit);
 
   // 素材相关模态框事件
-  document.querySelector("#editAssetCancel")?.addEventListener("click", closeEditAssetModal);
-  document.querySelector("#editAssetClose")?.addEventListener("click", closeEditAssetModal);
-  document.querySelector("#editAssetModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "editAssetModal") closeEditAssetModal();
-  });
+  bindModalClose("editAssetModal", closeEditAssetModal);
   document.querySelector("#editAssetForm")?.addEventListener("submit", handleEditAssetSubmit);
 
-  document.querySelector("#shareAssetCancel")?.addEventListener("click", closeShareAssetModal);
-  document.querySelector("#shareAssetClose")?.addEventListener("click", closeShareAssetModal);
-  document.querySelector("#shareAssetModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "shareAssetModal") closeShareAssetModal();
-  });
+  bindModalClose("shareAssetModal", closeShareAssetModal);
   document.querySelector("#shareAssetForm")?.addEventListener("submit", handleShareAssetSubmit);
   document.querySelector("#shareAssetCopy")?.addEventListener("click", () => {
     if (shareAssetCreatedLink) copyText(shareAssetCreatedLink);
   });
 
   // 素材组相关模态框事件
-  document.querySelector("#addGroupCancel")?.addEventListener("click", closeAddGroupModal);
-  document.querySelector("#addGroupClose")?.addEventListener("click", closeAddGroupModal);
-  document.querySelector("#addGroupModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "addGroupModal") closeAddGroupModal();
-  });
+  bindModalClose("addGroupModal", closeAddGroupModal);
   document.querySelector("#addGroupForm")?.addEventListener("submit", handleAddGroupSubmit);
 
-  document.querySelector("#editGroupCancel")?.addEventListener("click", closeEditGroupModal);
-  document.querySelector("#editGroupClose")?.addEventListener("click", closeEditGroupModal);
-  document.querySelector("#editGroupModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "editGroupModal") closeEditGroupModal();
-  });
+  bindModalClose("editGroupModal", closeEditGroupModal);
   document.querySelector("#editGroupForm")?.addEventListener("submit", handleEditGroupSubmit);
 
-  document.querySelector("#moveGroupCancel")?.addEventListener("click", closeMoveGroupModal);
-  document.querySelector("#moveGroupClose")?.addEventListener("click", closeMoveGroupModal);
-  document.querySelector("#moveGroupModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "moveGroupModal") closeMoveGroupModal();
-  });
+  bindModalClose("moveGroupModal", closeMoveGroupModal);
   document.querySelector("#moveGroupForm")?.addEventListener("submit", handleMoveGroupSubmit);
 
-  document.querySelector("#addToGroupCancel")?.addEventListener("click", closeAddToGroupModal);
-  document.querySelector("#addToGroupClose")?.addEventListener("click", closeAddToGroupModal);
-  document.querySelector("#addToGroupModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "addToGroupModal") closeAddToGroupModal();
-  });
+  bindModalClose("addToGroupModal", closeAddToGroupModal);
   document.querySelector("#addToGroupForm")?.addEventListener("submit", handleAddToGroupSubmit);
 
   // 其他模态框事件
-  document.querySelector("#uploadSettingsCancel")?.addEventListener("click", () => {
+  bindModalClose("uploadSettingsModal", () => {
     document.querySelector("#uploadSettingsModal").classList.add("hidden");
-  });
-  document.querySelector("#uploadSettingsClose")?.addEventListener("click", () => {
-    document.querySelector("#uploadSettingsModal").classList.add("hidden");
-  });
+  }, { backdrop: false });
 
-  document.querySelector("#cloudImportCancel")?.addEventListener("click", () => {
+  bindModalClose("cloudImportModal", () => {
     document.querySelector("#cloudImportModal").classList.add("hidden");
-  });
-  document.querySelector("#cloudImportClose")?.addEventListener("click", () => {
-    document.querySelector("#cloudImportModal").classList.add("hidden");
-  });
+  }, { backdrop: false });
 
-  document.querySelector("#collectTaskCancel")?.addEventListener("click", closeCollectTaskModal);
-  document.querySelector("#collectTaskClose")?.addEventListener("click", closeCollectTaskModal);
-  document.querySelector("#collectTaskModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "collectTaskModal") closeCollectTaskModal();
-  });
+  bindModalClose("collectTaskModal", closeCollectTaskModal);
   document.querySelector("#collectTaskForm")?.addEventListener("submit", handleCollectTaskSubmit);
 
-  document.querySelector("#permissionCancel")?.addEventListener("click", closePermissionModal);
-  document.querySelector("#permissionClose")?.addEventListener("click", closePermissionModal);
-  document.querySelector("#permissionModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "permissionModal") closePermissionModal();
-  });
-
-  document.querySelector("#shareGroupCancel")?.addEventListener("click", closeShareGroupModal);
-  document.querySelector("#shareGroupClose")?.addEventListener("click", closeShareGroupModal);
-  document.querySelector("#shareGroupModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "shareGroupModal") closeShareGroupModal();
-  });
+  bindModalClose("shareGroupModal", closeShareGroupModal);
   document.querySelector("#shareGroupForm")?.addEventListener("submit", handleShareGroupSubmit);
   document.querySelector("#shareGroupCopy")?.addEventListener("click", () => {
     if (shareGroupCreatedLink) copyText(shareGroupCreatedLink);
   });
 
-  document.querySelector("#updateShareExpireCancel")?.addEventListener("click", closeUpdateShareExpireModal);
-  document.querySelector("#updateShareExpireClose")?.addEventListener("click", closeUpdateShareExpireModal);
-  document.querySelector("#updateShareExpireModal")?.addEventListener("click", (event) => {
-    if (event.target.id === "updateShareExpireModal") closeUpdateShareExpireModal();
-  });
+  bindModalClose("updateShareExpireModal", closeUpdateShareExpireModal);
   document.querySelector("#updateShareExpireForm")?.addEventListener("submit", handleUpdateShareExpireSubmit);
   document.querySelector("#updateShareExpireForever")?.addEventListener("change", (event) => {
     const checked = event.target.checked;
@@ -1744,12 +1679,9 @@ function bindEvents() {
     document.querySelector("#updateShareExpireTime").disabled = checked;
   });
 
-  document.querySelector("#inviteTaskCancel")?.addEventListener("click", () => {
+  bindModalClose("inviteTaskModal", () => {
     document.querySelector("#inviteTaskModal").classList.add("hidden");
-  });
-  document.querySelector("#inviteTaskClose")?.addEventListener("click", () => {
-    document.querySelector("#inviteTaskModal").classList.add("hidden");
-  });
+  }, { backdrop: false });
 
   // moreMenu 按钮事件
   els.moreMenu?.addEventListener("click", (event) => {

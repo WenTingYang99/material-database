@@ -249,6 +249,7 @@ function getPageBreadcrumb(page) {
     roles: "全部 › 更多功能 › 系统管理 › 角色管理",
     organizations: "全部 › 更多功能 › 系统管理 › 组织管理",
     permissions: "全部 › 更多功能 › 系统管理 › 权限管理",
+    menus: "全部 › 更多功能 › 系统管理 › 菜单管理",
   };
   return breadcrumbMap[page] || "全部";
 }

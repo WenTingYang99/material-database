@@ -295,6 +295,7 @@
             <button data-go="roles" type="button">角色管理</button>
             <button data-go="organizations" type="button">组织管理</button>
             <button data-go="permissions" type="button">权限管理</button>
+            <button data-go="menus" type="button">菜单管理</button>
           </div>
         </div>
         <button data-go="collect" type="button">收集素材</button>
@@ -384,7 +385,7 @@
           <button class="plain-icon" id="addTagClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
         </header>
         <form id="addTagForm">
-          <label>标签类型<select id="addTagType" name="tagType" onchange="if(typeof toggleAddAiFields==='function')toggleAddAiFields()">
+          <label>标签类型<select id="addTagType" name="tagType">
             <option value="1">业务标签</option>
             <option value="2">AI标签</option>
           </select></label>
@@ -408,7 +409,7 @@
         </header>
         <form id="editTagForm">
           <label>当前标签名称<strong id="editTagOldName"></strong></label>
-          <label>标签类型<select id="editTagType" name="tagType" onchange="if(typeof toggleEditAiFields==='function')toggleEditAiFields()">
+          <label>标签类型<select id="editTagType" name="tagType">
             <option value="1">业务标签</option>
             <option value="2">AI标签</option>
           </select></label>
@@ -657,31 +658,6 @@
           <div class="form-actions">
             <button id="collectTaskCancel" type="button">取消</button>
             <button class="primary" type="submit">创建任务</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="modal hidden" id="memberPermissionModal">
-      <div class="modal-card form-card">
-        <header>
-          <h2 id="memberPermissionTitle">调整协作权限</h2>
-          <button class="plain-icon" id="memberPermissionClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
-        </header>
-        <form id="memberPermissionForm">
-          <div class="request-summary">
-            <span>用户</span>
-            <strong id="memberPermissionUserName"></strong>
-          </div>
-          <label>权限范围<select id="memberPermissionSelect" name="permission">
-            <option>可编辑/删除</option>
-            <option>仅编辑信息</option>
-            <option>可下载原文件</option>
-            <option>仅预览</option>
-          </select></label>
-          <div class="form-actions">
-            <button id="memberPermissionCancel" type="button">取消</button>
-            <button class="primary" type="submit">保存权限</button>
           </div>
         </form>
       </div>

@@ -3099,6 +3099,148 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   border-bottom: 1px solid var(--line);
 }
 
+/* 菜单管理 */
+.menu-tree-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.menu-tree-toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: #26323f;
+  padding: 0 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.menu-tree-toolbar button.primary {
+  border-color: var(--teal);
+  background: var(--teal);
+  color: #fff;
+}
+
+.menu-tree-toolbar button.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.menu-tree-toolbar button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-form-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 24px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.menu-form-header {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  text-align: center;
+  color: var(--text);
+}
+
+.menu-form-card form {
+  display: grid;
+  gap: 16px;
+}
+
+.menu-form-card .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.menu-form-card label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: #5c6670;
+  font-weight: 600;
+}
+
+.menu-form-card label.required::before {
+  content: "*";
+  color: var(--danger);
+  margin-right: 2px;
+}
+
+.menu-form-card input,
+.menu-form-card select,
+.menu-form-card textarea {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  outline: 0;
+  background: #fff;
+  color: var(--text);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.menu-form-card textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.menu-form-card input[readonly],
+.menu-form-card select[disabled],
+.menu-form-card textarea[readonly] {
+  background: #f8fafc;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.menu-form-card .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.menu-form-card .form-actions button {
+  min-height: 36px;
+  padding: 0 24px;
+  border-radius: 6px;
+  border: 1px solid var(--teal);
+  background: var(--teal);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.menu-form-card .form-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.menu-item-invalid {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+@media (max-width: 860px) {
+  .menu-manage-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* 树形下拉组件 (refId 选择) */
 .tree-dropdown {
   position: relative;
@@ -4795,78 +4937,6 @@ body[data-theme="dark"] .sidebar-close {
   color: var(--muted);
 }
 
-/* Collaboration modal styles */
-.collab-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0 12px;
-}
-
-.collab-header button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text);
-}
-
-.collab-header button:hover {
-  background: var(--bg);
-}
-
-.member-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.member-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--bg);
-}
-
-.member-info strong {
-  display: block;
-  color: var(--text);
-}
-
-.member-info small {
-  color: var(--muted);
-}
-
-.member-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.member-actions button {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--muted);
-}
-
-.member-actions button:hover {
-  background: rgba(0, 0, 0, 0.08);
-  color: var(--text);
-}
-
-body[data-theme="dark"] .member-row {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: var(--line-dark);
-}
-
 .filter-tree-container {
   margin-top: 4px;
 }
@@ -4989,8 +5059,4 @@ body[data-theme="dark"] .tree-item.tree-category:hover {
 .filter-search-input:focus {
   outline: none;
   border-color: var(--teal);
-}
-
-body[data-theme="dark"] .member-actions button:hover {
-  background: rgba(255, 255, 255, 0.1);
 }

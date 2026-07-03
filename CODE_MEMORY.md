@@ -31,8 +31,8 @@
 - 默认素材组：`app-core.js:3` `defaultGroups`。
 - 默认素材：`app-core.js:13` `seedNames` 和 `app-core.js:39` `seedAssets`。
 - 默认标签：`app-core.js:80` `seedTags`。
-- 车型枚举：`app-core.js:28` `VEHICLE_MODELS`。
-- 筛选项配置：`app-core.js:123` `filterLabels`，`app-core.js:124` `configurableFilters`。
+- 车型/品牌/车系/颜色筛选数据：从 `app-core.js` 的 `SEED_VALUE_LIST_TREE` 动态读取；旧静态常量 `BRANDS / BRAND_SERIES / SERIES_MODELS / MODEL_INTERIOR_COLORS / MODEL_EXTERIOR_COLORS / VEHICLE_MODELS` 已清理。
+- 筛选项配置：`app-core.js` 的 `filterLabels` 控制默认可见筛选项；可配置筛选项由 `getConfigurableFilters()` 动态合并值列表维度和固定扩展项，旧 `configurableFilters` 常量已清理。
 - 全局状态：`app-core.js:127` `state`；用户管理页使用 `userManageFilters / userManageOrgId / selectedManageUserId` 控制组织树筛选、查询条件和当前选中用户；权限管理页额外使用 `permissionView / permissionMenuId / permissionSubjectType / permissionSubjectId` 控制“按菜单授权 / 按组织个人授权”双视图和左侧树当前选中节点。用户管理和权限相关树不记录全局折叠状态，每次打开页面或弹框默认展开；点击 `+/-` 只做当前 DOM 的临时展开收起。
 - 登录会话 key：`app-core.js:179` `SESSION_USER_KEY = "dp-material-library-current-user"`。
 - 系统菜单权限清单：`app-core.js:180` `SYSTEM_MENUS`，菜单权限按 `visible/editable` 控制。
@@ -50,7 +50,7 @@
 - URL 参数处理：`app-core.js:230` `applyHashState()`。
 - 主壳同步：`app-core.js:570` `renderShell()`。
 - 主渲染入口：`app-render.js:1` `render()`。
-- 全局事件绑定：`app-core.js:621` `bindEvents()`。
+- 全局事件绑定：`app-core.js:621` `bindEvents()`；2026-07-03 第二批代码审计优化后，重复的弹窗取消/关闭/遮罩关闭事件通过 `bindModalClose()` 统一绑定，原有无遮罩关闭的弹窗仍显式传 `{ backdrop: false }` 保持交互不变。
 
 ## 页面定位
 
@@ -61,9 +61,10 @@
 - 素材工具栏筛选/布局/排序：`index.html:94-116`，筛选 chip 在 `app-core.js:605`，排序事件在 `app-core.js:749` 附近。
 - 素材内容区：`index.html:128` `#contentPanel`，主要由 `app-render.js` 动态填充。
 - 更多功能页：`app-render.js:499` `renderManagePageV2()`。
-- 更多功能下拉菜单：`index.html:284` `#moreMenuContent`。包含用户动态、用户登录日志、标签管理等独立页面入口；系统管理作为分组展示，包含 `users / roles / organizations / permissions` 四个 `data-go` 入口。
+- 更多功能下拉菜单：`index.html:284` `#moreMenuContent`。包含用户动态、用户登录日志、标签管理等独立页面入口；系统管理作为分组展示，包含 `users / roles / organizations / permissions / menus` 五个 `data-go` 入口。
 - 更多功能子菜单页面：所有 `#moreMenuContent` 下的 `data-go` 子菜单都是独立页面状态，不再在内容区通过 tab/二级导航切换；这样后续菜单授权可按子菜单页面单独控制。
-- 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前四个子页为前端占位表格：用户管理、角色管理、组织管理、权限管理。
+- 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前五个子页为：用户管理、角色管理、组织管理、权限管理、菜单管理。
+- 菜单管理页：`app-render.js:1153` `renderMenuManagePage()`。左侧树展示 `db.menus`，右侧表单支持新增/修改/删除菜单节点。
 - 值列表管理页：`app-render.js:643` `renderValueListPage()`。单表格展示大类，点击"查看小类"弹框管理小类。详见下方"值列表管理"章节。
 - 登录页：`app-core.js:582` `ensureRuntimeElements()` 动态创建 `#loginPage`；提交在 `app-core.js:790` `handleLoginSubmit()`；退出在 `app-core.js:815` `logoutCurrentUser()`。
 - 用户登录日志页：页面状态 `loginLogs`；菜单入口在 `index.html` 的 `#moreMenuContent`；渲染在 `app-render.js` 的 `renderLoginLogPage()`；登录成功时 `handleLoginSubmit()` 写入 `db.loginLogs`。
@@ -88,8 +89,8 @@
 
 ## 筛选与排序
 
-- 默认筛选项：`app-core.js:123` `filterLabels`。
-- 可配置筛选项：`app-core.js:124` `configurableFilters`。
+- 默认筛选项：`app-core.js` `filterLabels`。
+- 可配置筛选项：`app-core.js` `getConfigurableFilters()`。
 - 筛选 chip 渲染：`app-core.js:605` `renderFilterChips()`。
 - 筛选配置弹窗：`app-core.js:613` `renderFilterConfig()`。
 - 浮层菜单防越界：`app-actions.js:289` 前后的 `positionFloatingMenu()`；素材菜单在 `app-actions.js:741` `showAssetMenu()`。
@@ -164,12 +165,11 @@
 - 标签汇总：`app-render.js:679` `getTagSummary()`。
 - 标签编码：由 `app-render.js:666` 附近的 `generateTagCode()` 自动生成；新增/编辑弹窗不允许用户输入编码，打开标签管理时 `normalizeStoredTagCodes()` 会修正空编码、中文编码或重复编码。
 - 标签表格：`app-render.js:864` `renderTagTableBody()`。
-- 业务标签卡片：`app-render.js:967` `renderBusinessTagList()`。
-- AI 标签卡片：`app-render.js:1007` `renderAITagList()`。
-- 系统标签卡片：`app-render.js:1035` `renderSystemTagList()`。
+- 标签树扁平化：2026-07-03 第二批代码审计优化后，业务标签树展开为表格行统一使用 `flattenTagTree()`，不再在初始渲染和业务标签 tab 点击中各写一份局部 `flattenTree`。
+- 旧标签卡片渲染函数 `renderBusinessTagList()` / `renderAITagList()` / `renderSystemTagList()` 已于 2026-07-03 清理；当前标签管理只保留表格渲染。
 - 标签事件：`app-render.js:1054` `bindTagEvents()`，`app-render.js:1059` `handleTagClick()`。
-- 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1097` `openAddTagModal()`；AI 字段显隐在 `app-render.js:1119` `toggleAddAiFields()`；提交在 `app-render.js:1127` `handleAddTagSubmit()`。
-- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；如果标签来自素材使用汇总但尚未进入 `db.tags`，`createTagRecordFromUsage()` 会先补齐标签库记录再打开弹窗；AI 来源只展示不允许编辑，人工新增 AI 标签固定为“业务预定义”，上传/重新识别补入的 AI 标签固定为“AI 自动识别”；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
+- 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1097` `openAddTagModal()`；AI 字段显隐在 `app-render.js:1119` `toggleAddAiFields()`，标签类型 change 事件由 `app-core.js` 的 `bindEvents()` 绑定；提交在 `app-render.js:1127` `handleAddTagSubmit()`。
+- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；如果标签来自素材使用汇总但尚未进入 `db.tags`，`createTagRecordFromUsage()` 会先补齐标签库记录再打开弹窗；AI 来源只展示不允许编辑，人工新增 AI 标签固定为“业务预定义”，上传/重新识别补入的 AI 标签固定为“AI 自动识别”；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`，标签类型 change 事件由 `app-core.js` 的 `bindEvents()` 绑定；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
 - AI 识别字段（aiRecognitionRow）：新增/编辑弹窗中共两处 checkbox，`index.html:379` 和 `index.html:408`；业务标签（tagType=1）不显示该字段，AI 标签（tagType=2）才显示，由各自的 `toggleXxxAiFields()` 控制。注意：`.checkbox-label` CSS（`styles.css:3067`）有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`，否则会被 CSS 覆盖。补充覆盖规则见 `styles.css:3081` `.checkbox-label.hidden`。
 - 合并标签：`index.html:416-431`，逻辑在 `app-render.js:1298` `openMergeTagModal()`。
 - 标签合并弹窗的源标签选择已从原生 `select multiple` 改为 checkbox 勾选列表；HTML 在 `index.html:425` 附近 `#mergeSourceTags`，打开弹窗由 `app-render.js` 的 `openMergeTagModal()` 动态生成勾选项，提交由 `handleMergeTagSubmit()` 读取已勾选项；`#mergeClearSelected` 通过 `clearMergeTagSelection()` 一键清除勾选。
@@ -255,7 +255,7 @@
 - `app-actions.js` `getFilterValues()` 使用 `buildFilterTree()` / `getAllLeafValues()` / `buildCascadeTree()`。
 - `buildCascadeTree(dimCode, parentFilter, parentDimCode)`：通用级联函数，根据上级筛选值过滤下级选项。
 - **已删除废弃常量**：`FILE_FORMAT_CATEGORIES`、`UPLOAD_FILE_FORMATS`、`UPLOAD_ACCEPT`、`COLLECT_TASK_FILE_TYPES`、`ASPECT_RATIOS`（2026-07-02 清理）
-- **种子数据**：model 字段从 `vl_dim_model` 子节点读取（`SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model")...`），不再使用 `VEHICLE_MODELS` 常量
+- **种子数据**：model 字段从 `vl_dim_model` 子节点读取（`SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model")...`），不再使用任何旧车型静态常量。
 
 ### 页面布局
 - 左侧树 + 右侧搜索表格（`styles.css` `.value-list-layout`：grid 260px+1fr）。
@@ -270,6 +270,7 @@
 - 保留旧弹框 `#valueListItemListModal` / `#valueListItemFormModal`（不再被新布局调用，保留代码兼容）。
 - 2026-07-02 修复：`renderValueListRefIdDropdown()` 和 `bindRefIdDropdownEvents()` 已覆盖为稳定版本；关联码打开时完整展示值列表树，编辑已有节点时按 `refId` 回填 `#valueListRefIdSearch` 和选中态，选择节点后同步更新隐藏字段 `#valueListRefId`。
 - 2026-07-02 追加：关联码已从只读触发框改为可输入搜索的树状下拉，HTML 在 `index.html` 的 `#valueListRefIdSearch` / `#valueListRefIdPanel`，支持按名称、编码、描述、属性1、属性2过滤；例如输入“东风”会保留匹配节点及其父级路径。样式在 `styles.css` 的 `.tree-dropdown-input`、`.tree-dropdown-trigger`、`.tree-dropdown-panel .tree-item`，输入和选中项保持普通表单字重，不额外加粗。
+- 2026-07-03 第二批代码审计优化：值列表后代节点收集统一为 `collectValueListDescendantIds(tree, rootId, options)`；查看旧小类弹窗默认排除 `status=deleted`，删除节点时传 `{ includeDeleted: true }`，保持原有两处逻辑差异。
 
 ### 事件绑定
 - 页面级：`bindValueListEvents()` 绑定树展开/选择、搜索、新增/修改/删除当前节点、行内操作。
@@ -298,9 +299,8 @@
 
 ## 当前仍需注意的历史痕迹
 
-- `index.html:366` 和 `index.html:395` 仍有内联 `onchange`，后续如果继续执行“禁止内联事件”原则，应迁移到 `addEventListener`。
-- `styles.css:3670` 以后还有协作弹窗样式残留；之前已移除协作弹窗 JS/旧弹窗逻辑，样式是否删除需单独确认页面无依赖。
-- `memberPermissionModal` HTML 仍存在于 `index.html:642-662`，但对应旧协作弹窗 JS 已清理；如果确认无业务入口，可作为后续无效 HTML 清理项。
+- 2026-07-03 第二批代码审计优化已将新增/编辑标签类型的内联 `onchange` 迁移到 `app-core.js` 的 `addEventListener("change", ...)`，`index.html` 当前不再保留这两处内联事件。
+- 2026-07-03 代码审计第一批优化已清理旧协作弹窗 `memberPermissionModal` 及 `styles.css` 中明确标注的 Collaboration modal 残留样式。
 
 ## 点检建议
 
