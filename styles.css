@@ -269,6 +269,34 @@ button {
   background: #f7fafc;
 }
 
+.nav-tree-node {
+  width: 100%;
+}
+
+.nav-group {
+  font-weight: 700;
+}
+
+.nav-page {
+  font-weight: 500;
+}
+
+.nav-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #b8c2cc;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.nav-tree-children {
+  width: 100%;
+}
+
 .group-head {
   position: relative;
   display: flex;

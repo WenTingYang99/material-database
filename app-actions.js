@@ -528,14 +528,6 @@ function getFilterValues(label) {
   return map[label] || [];
 }
 
-function showMoreMenu(anchor) {
-  const rect = anchor.getBoundingClientRect();
-  document.querySelector("#moreMenuContent")?.classList.remove("hidden");
-  document.querySelector("#appMenuContent")?.classList.add("hidden");
-  document.querySelector("#topIconMenuContent")?.classList.add("hidden");
-  positionFloatingMenu(els.moreMenu, rect, { alignRight: false });
-}
-
 function showAppMenu(anchor) {
   const rect = anchor.getBoundingClientRect();
   document.querySelector("#appMenuContent")?.classList.remove("hidden");

@@ -1,5 +1,24 @@
 # 代码记忆索引
 
+## 2026-07-06 左侧菜单树动态化
+
+- 左侧主导航由 `app-core.js` 的 `renderMainNav()` 递归读取 `db.menus` 渲染，不再把“素材管理 / 更多功能”等分组拍平成页面按钮。
+- 左侧菜单分组使用 `data-nav-toggle` 支持 `+/-` 展开收起，页面节点使用 `data-page` 进入对应页面；展开状态仅保存在当前运行时的 `state.navExpandedMenuIds`，刷新后重新默认展开可见分组。
+- 菜单可见性由 `valid !== false`、`hidden !== true` 和 `canViewMenu(page)` 共同控制；空分组不会展示。
+- 旧的左侧“更多功能”下拉入口、`data-go` 页面跳转分支和 `showMoreMenu()` 已清理，避免同一菜单保留两套入口。
+- 菜单管理不再保留“展示位置”配置；入口统一由菜单树决定，`layout` 仅用于区分素材页面和管理页面。
+
+## 2026-07-03 渲染入口稳定性调整
+
+- `app-render.js` 的 `renderManagePageV2()` 已改为按 `users / roles / organizations / permissions / activity / loginLogs / share / recycle / collect / valueLists / menus / validity` 显式入口分发。
+- 未知管理页现在显示空态 `暂无对应管理页面`，不再落入有效期管理兜底，避免动态菜单或新增页面误渲染成有效期页。
+
+## 2026-07-03 菜单动态化调整
+
+- 菜单入口展示不再依赖固定的 `menu_group_assets` / `menu_group_more` 判断；主导航读取 `db.menus` 树，所有可见菜单统一在左侧树中展示，通过 `layout` 决定素材页面或管理页面。
+- 菜单管理表单保留 `layout` 保存字段；已有本地菜单数据只在字段缺失时补默认值，不覆盖用户维护的名称、层级、顺序等配置。
+- 删除旧的 `getManagedPages()`、`applyMenuPermissions()`、`isMenuPage()` 特殊/重复逻辑，菜单渲染时直接按权限输出可见入口。
+
 更新时间：2026-06-30
 
 用途：后续改动前，先查本文件定位对应代码位置；如果这里不能定位，再回读完整相关文件，并把新定位补充到本文件。
@@ -35,7 +54,7 @@
 - 筛选项配置：`app-core.js` 的 `filterLabels` 控制默认可见筛选项；可配置筛选项由 `getConfigurableFilters()` 动态合并值列表维度和固定扩展项，旧 `configurableFilters` 常量已清理。
 - 全局状态：`app-core.js:127` `state`；用户管理页使用 `userManageFilters / userManageOrgId / selectedManageUserId` 控制组织树筛选、查询条件和当前选中用户；权限管理页额外使用 `permissionView / permissionMenuId / permissionSubjectType / permissionSubjectId` 控制“按菜单授权 / 按组织个人授权”双视图和左侧树当前选中节点。用户管理和权限相关树不记录全局折叠状态，每次打开页面或弹框默认展开；点击 `+/-` 只做当前 DOM 的临时展开收起。
 - 登录会话 key：`app-core.js:179` `SESSION_USER_KEY = "dp-material-library-current-user"`。
-- 系统菜单权限清单：`app-core.js:180` `SYSTEM_MENUS`，菜单权限按 `visible/editable` 控制。
+- 系统菜单权限清单：由 `db.menus` 动态驱动，菜单权限按 `visible/editable` 控制。`getManagedPages()` 函数从 `db.menus` 获取所有有效页面菜单（排除素材管理分组下的页面）。
 - 登录日志筛选状态：`state.loginLogFilters`，包含 `username/name/startDate/endDate`。
 - 当前用户：`app-core.js:223` `currentUser`，由登录会话和 `db.users` 动态生成，不再是固定常量。
 - DOM 缓存：`app-core.js:164` `els`。
@@ -61,8 +80,8 @@
 - 素材工具栏筛选/布局/排序：`index.html:94-116`，筛选 chip 在 `app-core.js:605`，排序事件在 `app-core.js:749` 附近。
 - 素材内容区：`index.html:128` `#contentPanel`，主要由 `app-render.js` 动态填充。
 - 更多功能页：`app-render.js:499` `renderManagePageV2()`。
-- 更多功能下拉菜单：`index.html:284` `#moreMenuContent`。包含用户动态、用户登录日志、标签管理等独立页面入口；系统管理作为分组展示，包含 `users / roles / organizations / permissions / menus` 五个 `data-go` 入口。
-- 更多功能子菜单页面：所有 `#moreMenuContent` 下的 `data-go` 子菜单都是独立页面状态，不再在内容区通过 tab/二级导航切换；这样后续菜单授权可按子菜单页面单独控制。
+- 左侧菜单树：`app-core.js` 的 `renderMainNav()` / `renderMainNavNodes()` 读取 `db.menus` 递归渲染；“素材管理”“更多功能”“系统管理”都是树节点，点击 `+/-` 展开收起，点击页面节点进入独立页面。
+- 更多功能子菜单页面：所有更多功能子菜单都通过左侧菜单树的 `data-page` 页面节点进入，不再使用 `#moreMenuContent` / `data-go` 下拉入口，也不在内容区通过 tab/二级导航切换。
 - 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前五个子页为：用户管理、角色管理、组织管理、权限管理、菜单管理。
 - 菜单管理页：`app-render.js:1153` `renderMenuManagePage()`。左侧树展示 `db.menus`，右侧表单支持新增/修改/删除菜单节点。
 - 值列表管理页：`app-render.js:643` `renderValueListPage()`。单表格展示大类，点击"查看小类"弹框管理小类。详见下方"值列表管理"章节。
@@ -210,13 +229,13 @@
 - 数据结构：`db.users` 保存登录用户名、密码、姓名、所属组织、所属角色、状态、最近登录；用户角色标准字段为 `roleIds`（数组，多角色），`roleId` 仅作为旧数据兼容和首个角色冗余字段；`db.organizations` 保存组织；`db.roles` 保存角色和 `permissions`；`db.orgPermissions` 保存组织/部门菜单授权；`db.userPermissions` 保存个人菜单授权。
 - 登录日志结构：`db.loginLogs` 保存 `{ username, name, loginAt, ip, entry }`；登录入口值包括“网页登录 / 飞书登录 / 企微登录”。纯前端版本暂用 `127.0.0.1` 作为 IP 占位，后续接服务端可替换真实来源 IP。
 - 默认账号：`admin / admin123`（超级管理员）、`kerry / kerry123`（素材运营）、`tagview / tag123`（标签只读）。
-- 默认数据补齐：`app-core.js` 的 `ensureSystemData()` 会初始化组织、角色、用户，并为每个角色、组织、用户补齐 `SYSTEM_MENUS` 中所有菜单的 `visible/editable` 权限。
+- 默认数据补齐：`app-core.js` 的 `ensureSystemData()` 会初始化组织、角色、用户，并为每个角色、组织、用户补齐 `db.menus` 中所有菜单的 `visible/editable` 权限。
 - 页面白名单：`app-core.js:286` `normalizePageState()` 的 `validPages`。
 - 主导航激活：`app-render.js:8` 的 `morePage` 数组，系统管理子页会高亮“更多功能”。
 - 标题映射：`app-render.js:19` `titleMap`。
 - 面包屑：`app-utils.js:234` `getPageBreadcrumb()`。
 - 权限判断：`app-core.js` 的 `getMenuPermission(menuId)` 会合并多个角色权限、组织权限、个人权限；任一来源有 `visible` 即可见，任一来源有 `editable` 即可编辑且默认可见。`getUserRoleIds()` 兼容读取 `roleIds` 和旧 `roleId`，`canViewMenu(menuId)` 控制菜单可见，`canEditMenu(menuId)` 控制页面操作。
-- 菜单过滤：`app-core.js` 的 `applyMenuPermissions()` 隐藏无可见权限的“更多功能”子菜单；点击 `data-go` 时也会二次校验。
+- 菜单过滤：`app-core.js` 的 `isVisibleNavMenu()` / `getVisibleNavMenuChildren()` 按 `valid`、`hidden` 和 `canViewMenu(page)` 过滤左侧菜单树；空分组不展示。
 - 渲染入口：`app-render.js:506` `renderManagePageV2()` 先判断系统管理页面并转到 `renderSystemManagePage()`。
 - 页面表格：`app-render.js` 的 `renderUserManagePage()` / `renderRoleManagePage()` / `renderOrganizationManagePage()` / `renderPermissionManagePage()` 分别渲染用户、角色、组织、权限。角色管理行内有“角色权限”按钮，调用角色授权弹窗。
 - 用户管理页：`renderUserManagePage()` 已改为左组织树、右人员信息布局；组织树由 `renderUserManageOrgTree()` 渲染，人员筛选由 `getUserManageFilteredUsers()` 处理，支持用户名、员工姓名、是否包含下级组织查询；选中用户后可修改、菜单授权或菜单权限查看，查看弹框为 `openUserPermissionViewModal()`。组织树有子节点时使用明确的 `+/-` 展开收起图标，不能用空方框样式；左侧组织树不显示人数数字，不保留外层框线。编辑用户时登录用户名只读不可改，所属角色为多选并保存到 `roleIds`。
@@ -230,8 +249,8 @@
 ## 值列表管理
 
 - 页面状态值：`valueLists`（已加入 `normalizePageState()` 的 `validPages`）。
-- 菜单入口：`index.html` 的 `#moreMenuContent` 中 `data-go="valueLists"`。
-- 菜单权限：`SYSTEM_MENUS` 包含 `valueLists`，受 RBAC 控制。
+- 菜单入口：由 `db.menus` 中 `page="valueLists"` 的页面节点驱动，在左侧菜单树中通过 `data-page="valueLists"` 进入。
+- 菜单权限：`db.menus` 包含 `valueLists`，受 RBAC 控制。
 - 渲染入口：`app-render.js` `renderValueListPage()`。
 
 ### 数据结构（统一树模型）
@@ -301,6 +320,8 @@
 
 - 2026-07-03 第二批代码审计优化已将新增/编辑标签类型的内联 `onchange` 迁移到 `app-core.js` 的 `addEventListener("change", ...)`，`index.html` 当前不再保留这两处内联事件。
 - 2026-07-03 代码审计第一批优化已清理旧协作弹窗 `memberPermissionModal` 及 `styles.css` 中明确标注的 Collaboration modal 残留样式。
+- 2026-07-03 bug 修复：`render()` 中标签页渲染分支必须先于 `getManagedPages()` 管理页分支判断，否则 `tags` 会被动态菜单识别为管理页并落入有效期管理兜底渲染。
+- 2026-07-03 bug 修复：`ensureSystemData()` 仅在 `db.menus` 不存在或为空时初始化 `getDefaultMenus()`，不再每次启动覆盖菜单管理保存的新增、修改、删除结果。
 
 ## 点检建议
 

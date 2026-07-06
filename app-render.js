@@ -1,3 +1,12 @@
+function getPageMenus() {
+  const menus = db.menus || [];
+  return menus.filter(m => m.category === "page" && m.valid !== false).map(m => ({
+    id: m.page,
+    label: m.name,
+    group: (menus.find(g => g.id === m.parentId) || {}).name || "其他"
+  }));
+}
+
 function render() {
   updateGroupCounts();
   renderGroups();
@@ -5,10 +14,11 @@ function render() {
   const showGroupsInput = document.querySelector("#showGroups");
   if (showGroupsInput) showGroupsInput.checked = state.showGroupDescendants;
   document.querySelectorAll(".nav-item").forEach((button) => {
-    const morePage = ["activity", "loginLogs", "share", "collect", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus"].includes(state.page);
-    button.classList.toggle("active", button.dataset.page === state.page || (morePage && button.dataset.page === "more"));
+    const toggleId = button.dataset.navToggle;
+    const groupActive = toggleId && getMenuDescendantPageMenus(toggleId).some((item) => item.page === state.page);
+    button.classList.toggle("active", button.dataset.page === state.page || groupActive);
   });
-  els.assetToolbar.classList.toggle("hidden", !["all", "pending", "created"].includes(state.page));
+  els.assetToolbar.classList.toggle("hidden", !isAssetPage(state.page));
   els.similarSearch.classList.toggle("hidden", !state.similar || state.page !== "all");
   if (state.similar && state.page === "all") {
     const similarAsset = findAsset(state.selectedAssetId);
@@ -16,31 +26,17 @@ function render() {
     if (similarImage && similarAsset) similarImage.src = similarAsset.src;
   }
 
-  const titleMap = {
-    all: getGroupName(state.groupId) || "全部素材",
-    pending: "待入库",
-    created: "我创建的组",
-    activity: "用户动态",
-    loginLogs: "用户登录日志",
-    tags: "标签管理",
-    collect: "收集素材管理",
-    share: "分享记录",
-    recycle: "回收站",
-    validity: "有效期管理",
-    valueLists: "值列表管理",
-    users: "用户管理",
-    roles: "角色管理",
-    organizations: "组织管理",
-    permissions: "权限管理",
-    menus: "菜单管理",
-  };
-  els.pageTitle.textContent = titleMap[state.page] || "全部素材";
+  const menuTitleMap = (db.menus || []).filter(m => m.category === "page").reduce((map, m) => {
+    map[m.page] = m.name;
+    return map;
+  }, { all: getGroupName(state.groupId) || "全部素材", pending: "待入库", created: "我创建的组" });
+  els.pageTitle.textContent = menuTitleMap[state.page] || "全部素材";
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
 
-  if (["activity", "loginLogs", "collect", "share", "recycle", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus"].includes(state.page)) renderManagePageV2();
-  else if (state.page === "tags") renderTagsPage();
-  else renderAssets();
+  if (isAssetPage(state.page)) renderAssets();
+  else if (isManagePage(state.page)) renderManagePageV2();
+  else els.contentPanel.innerHTML = renderEmpty("暂无对应页面");
   initProjectDatePickers();
 }
 
@@ -507,8 +503,19 @@ function bindAssetEvents() {
 }
 
 function renderManagePageV2() {
-  if (["users", "roles", "organizations", "permissions"].includes(state.page)) {
-    renderSystemManagePage();
+  const directRenderers = {
+    users: renderSystemManagePage,
+    roles: renderSystemManagePage,
+    organizations: renderSystemManagePage,
+    permissions: renderSystemManagePage,
+    tags: renderTagsPage,
+    loginLogs: renderLoginLogPage,
+    valueLists: renderValueListPage,
+    menus: renderMenuManagePage,
+  };
+  const directRenderer = directRenderers[state.page];
+  if (directRenderer) {
+    directRenderer();
     return;
   }
 
@@ -526,11 +533,6 @@ function renderManagePageV2() {
       </table></div>
     `);
     els.contentPanel.querySelectorAll("[data-open-activity]").forEach((button) => button.addEventListener("click", () => openViewer(button.dataset.openActivity)));
-    return;
-  }
-
-  if (state.page === "loginLogs") {
-    renderLoginLogPage();
     return;
   }
 
@@ -583,13 +585,8 @@ function renderManagePageV2() {
     return;
   }
 
-  if (state.page === "valueLists") {
-    renderValueListPage();
-    return;
-  }
-
-  if (state.page === "menus") {
-    renderMenuManagePage();
+  if (state.page !== "validity") {
+    els.contentPanel.innerHTML = renderEmpty("暂无对应管理页面");
     return;
   }
 
@@ -1184,6 +1181,7 @@ function renderMenuManagePage() {
   const formHidden = isNew ? "false" : String(editingNode?.hidden || false);
   const formPage = isNew ? "" : editingNode?.page || "";
   const formValid = isNew ? "true" : String(editingNode?.valid !== false);
+  const formLayout = isNew ? "" : editingNode?.layout || "";
   const formOrder = isNew ? "" : String(editingNode?.order || 0);
   const formIcon = isNew ? "" : editingNode?.icon || "";
   const formDesc = isNew ? "" : editingNode?.description || "";
@@ -1215,6 +1213,7 @@ function renderMenuManagePage() {
               <label class="required">功能分类
                 <select id="menuCategory" name="category" required ${!canEdit ? "disabled" : ""}>
                   <option value="page" ${formCategory === "page" ? "selected" : ""}>页面</option>
+                  <option value="group" ${formCategory === "group" ? "selected" : ""}>分组</option>
                   <option value="button" ${formCategory === "button" ? "selected" : ""}>按钮</option>
                   <option value="api" ${formCategory === "api" ? "selected" : ""}>接口</option>
                 </select>
@@ -1223,6 +1222,15 @@ function renderMenuManagePage() {
                 <select id="menuHidden" name="hidden" required ${!canEdit ? "disabled" : ""}>
                   <option value="false" ${formHidden === "false" ? "selected" : ""}>否</option>
                   <option value="true" ${formHidden === "true" ? "selected" : ""}>是</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label>页面布局
+                <select id="menuLayout" name="layout" ${!canEdit ? "disabled" : ""}>
+                  <option value="" ${formLayout === "" ? "selected" : ""}>继承父级</option>
+                  <option value="asset" ${formLayout === "asset" ? "selected" : ""}>素材页面</option>
+                  <option value="manage" ${formLayout === "manage" ? "selected" : ""}>管理页面</option>
                 </select>
               </label>
             </div>
@@ -1382,6 +1390,7 @@ function saveMenu(data) {
       hidden: data.hidden === "true",
       page: data.page || "",
       valid: data.valid === "true",
+      layout: data.layout || "",
       order: Number(data.order) || 0,
       icon: data.icon || "",
       description: data.description || "",
@@ -1402,6 +1411,7 @@ function saveMenu(data) {
     menu.hidden = data.hidden === "true";
     menu.page = data.page || "";
     menu.valid = data.valid === "true";
+    menu.layout = data.layout || "";
     menu.order = Number(data.order) || 0;
     menu.icon = data.icon || "";
     menu.description = data.description || "";
@@ -1410,6 +1420,7 @@ function saveMenu(data) {
 
   saveDb();
   renderMenuManagePage();
+  renderShell();
 }
 
 function deleteMenu(menuId) {
@@ -1439,6 +1450,7 @@ function deleteMenu(menuId) {
       state.menuManageSelectedId = menu.parentId || "";
       state.menuManageEditingId = menu.parentId || "";
       renderMenuManagePage();
+      renderShell();
     }
   });
 }
@@ -1543,7 +1555,9 @@ function renderSystemManagePage() {
     organizations: renderOrganizationManagePage,
     permissions: renderPermissionManagePage,
   };
-  (renderers[state.page] || renderUserManagePage)();
+  const renderer = renderers[state.page];
+  if (renderer) renderer();
+  else els.contentPanel.innerHTML = renderEmpty("暂无对应管理页面");
 }
 
 function renderSystemToolbar(title, actionLabel, action) {
@@ -1693,10 +1707,11 @@ function getUserManageFilteredUsers() {
 }
 
 function renderRoleManagePage() {
+  const pageMenus = getPageMenus();
   const rows = (db.roles || []).map((role) => {
     const members = (db.users || []).filter((user) => getUserRoleIds(user).includes(role.id)).length;
-    const visibleCount = SYSTEM_MENUS.filter((menu) => role.permissions?.[menu.id]?.visible).length;
-    const editCount = SYSTEM_MENUS.filter((menu) => role.permissions?.[menu.id]?.editable).length;
+    const visibleCount = pageMenus.filter((menu) => role.permissions?.[menu.id]?.visible).length;
+    const editCount = pageMenus.filter((menu) => role.permissions?.[menu.id]?.editable).length;
     return `<tr>
       <td><strong>${escapeHtml(role.name)}</strong><small>${escapeHtml(role.description || "-")}</small></td>
       <td>${members}</td>
@@ -1740,8 +1755,9 @@ function renderOrganizationManagePage() {
 }
 
 function renderPermissionManagePage() {
+  const pageMenus = getPageMenus();
   const view = state.permissionView || "menu";
-  const selectedMenu = SYSTEM_MENUS.find((menu) => menu.id === state.permissionMenuId) || SYSTEM_MENUS[0];
+  const selectedMenu = pageMenus.find((menu) => menu.id === state.permissionMenuId) || pageMenus[0];
   const subjectType = state.permissionSubjectType || "organization";
   const subject = getPermissionSubject(subjectType, state.permissionSubjectId);
   const body = view === "subject"
@@ -1793,9 +1809,10 @@ function renderPermissionSubjectView(subjectType, subject) {
 }
 
 function renderMenuPermissionTree() {
-  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const pageMenus = getPageMenus();
+  const groups = [...new Set(pageMenus.map((menu) => menu.group))];
   return groups.map((group) => {
-    const nodes = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => `
+    const nodes = pageMenus.filter((menu) => menu.group === group).map((menu) => `
       <button class="permission-tree-node ${state.permissionMenuId === menu.id ? "active" : ""}" data-select-permission-menu="${escapeAttr(menu.id)}" type="button">
         <span class="tree-toggle placeholder"></span><span>${escapeHtml(menu.label)}</span>
       </button>
@@ -1868,9 +1885,10 @@ function renderPermissionGrantRow(type, target, menuId) {
 }
 
 function renderSubjectPermissionDetail(subjectType, subject) {
+  const pageMenus = getPageMenus();
   const permissions = getSubjectPermissions(subjectType, subject.id);
-  const visibleCount = SYSTEM_MENUS.filter((menu) => permissions[menu.id]?.visible || permissions[menu.id]?.editable).length;
-  const editableCount = SYSTEM_MENUS.filter((menu) => permissions[menu.id]?.editable).length;
+  const visibleCount = pageMenus.filter((menu) => permissions[menu.id]?.visible || permissions[menu.id]?.editable).length;
+  const editableCount = pageMenus.filter((menu) => permissions[menu.id]?.editable).length;
   const subtitle = subjectType === "user" ? `${subject.username} / 个人授权` : "组织授权";
   return `
     <div class="permission-detail-header">
@@ -1889,8 +1907,9 @@ function renderSubjectPermissionDetail(subjectType, subject) {
 }
 
 function renderSubjectGrantRows(subjectType, subjectId) {
+  const pageMenus = getPageMenus();
   const permissions = getSubjectPermissions(subjectType, subjectId);
-  return SYSTEM_MENUS.map((menu) => {
+  return pageMenus.map((menu) => {
     const permission = permissions[menu.id] || {};
     if (!permission.visible && !permission.editable) return "";
     return `<tr>
@@ -1922,9 +1941,10 @@ function getUserMenuPermissionSources(user, menuId) {
 }
 
 function renderUserPermissionViewTree(user) {
-  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const pageMenus = getPageMenus();
+  const groups = [...new Set(pageMenus.map((menu) => menu.group))];
   return groups.map((group) => {
-    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+    const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const result = getUserMenuPermissionSources(user, menu.id);
       return `<div class="permission-edit-node permission-view-node depth-1">
         <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
@@ -2055,11 +2075,12 @@ function renderMenuPermissionEditTree(menuId) {
 }
 
 function renderSubjectPermissionEditTree(subjectType, subjectId) {
+  const pageMenus = getPageMenus();
   const permissions = getSubjectPermissions(subjectType, subjectId);
-  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const groups = [...new Set(pageMenus.map((menu) => menu.group))];
   return groups.map((group) => {
     const key = `subject:${subjectType}:${subjectId}:group:${group}`;
-    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+    const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const permission = permissions[menu.id] || {};
       return `<div class="permission-edit-node depth-1" data-permission-row data-target-type="${escapeAttr(subjectType)}" data-target-id="${escapeAttr(subjectId)}" data-menu-id="${escapeAttr(menu.id)}">
         <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
@@ -2076,7 +2097,8 @@ function renderSubjectPermissionEditTree(subjectType, subjectId) {
 
 function openMenuPermissionModal(menuId) {
   if (!canEditMenu("permissions")) return showToast("当前账号没有权限管理编辑权限");
-  const menu = SYSTEM_MENUS.find((item) => item.id === menuId);
+  const pageMenus = getPageMenus();
+  const menu = pageMenus.find((item) => item.id === menuId);
   if (!menu) return;
   openFormModal(`编辑权限 - ${menu.label}`, `
     <div class="permission-edit-scroll permission-edit-tree">${renderMenuPermissionEditTree(menu.id)}</div>
@@ -2265,10 +2287,11 @@ function openPermissionManageModal(roleId) {
   if (!canEditMenu("permissions")) return showToast("当前账号没有权限管理编辑权限");
   const role = (db.roles || []).find((item) => item.id === roleId);
   if (!role) return;
-  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
+  const pageMenus = getPageMenus();
+  const groups = [...new Set(pageMenus.map((menu) => menu.group))];
   const rows = groups.map((group) => {
     const key = `role:${role.id}:group:${group}`;
-    const menuRows = SYSTEM_MENUS.filter((menu) => menu.group === group).map((menu) => {
+    const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const permission = role.permissions?.[menu.id] || {};
       return `<div class="permission-edit-node depth-1" data-role-permission-row>
         <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
@@ -2287,7 +2310,7 @@ function openPermissionManageModal(roleId) {
   `, (form) => {
     const data = Object.fromEntries(new FormData(form));
     role.permissions = role.permissions || {};
-    SYSTEM_MENUS.forEach((menu) => {
+    pageMenus.forEach((menu) => {
       role.permissions[menu.id] = {
         visible: !!data[`${menu.id}_visible`] || !!data[`${menu.id}_editable`],
         editable: !!data[`${menu.id}_editable`],

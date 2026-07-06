@@ -37,12 +37,7 @@
 
       <aside class="sidebar" id="sidebar">
         <button class="sidebar-close" id="sidebarClose" type="button" aria-label="关闭侧边栏"><span data-icon="x"></span></button>
-        <nav class="main-nav" id="mainNav">
-          <button class="nav-item" data-page="all" type="button"><span>▦</span><span>全部素材</span><span></span></button>
-          <button class="nav-item" data-page="pending" type="button"><span>▣</span><span>待入库</span><span></span></button>
-          <button class="nav-item" data-page="created" type="button"><span>♙</span><span>我创建的组</span><span></span></button>
-          <button class="nav-item" data-page="more" type="button"><span>...</span><span>更多功能</span><span>›</span></button>
-        </nav>
+        <nav class="main-nav" id="mainNav"></nav>
         <div class="group-head">
           <strong><span data-icon="folder"></span> 全部素材组</strong>
           <div class="group-head-actions">
@@ -283,24 +278,6 @@
 
     <div class="menu-pop hidden" id="moreMenu">
       <div id="moreMenuContent">
-        <button data-go="activity" type="button">用户动态</button>
-        <button data-go="loginLogs" type="button">用户登录日志</button>
-        <button data-go="tags" type="button">标签管理</button>
-        <button data-go="valueLists" type="button">值列表管理</button>
-        <button data-go="validity" type="button">有效期管理</button>
-        <div class="menu-section">
-          <div class="menu-section-title">系统管理</div>
-          <div class="menu-sub">
-            <button data-go="users" type="button">用户管理</button>
-            <button data-go="roles" type="button">角色管理</button>
-            <button data-go="organizations" type="button">组织管理</button>
-            <button data-go="permissions" type="button">权限管理</button>
-            <button data-go="menus" type="button">菜单管理</button>
-          </div>
-        </div>
-        <button data-go="collect" type="button">收集素材</button>
-        <button data-go="share" type="button">分享记录</button>
-        <button data-go="recycle" type="button">回收站</button>
       </div>
       <div id="appMenuContent" class="hidden">
         <button data-app-action="home" type="button">素材库首页</button>

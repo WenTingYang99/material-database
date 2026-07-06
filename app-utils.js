@@ -234,24 +234,21 @@ function getGroupBreadcrumb(id) {
 
 function getPageBreadcrumb(page) {
   if (page === "all") return getGroupBreadcrumb(state.groupId);
-  const breadcrumbMap = {
-    pending: "全部 › 待入库",
-    created: "全部 › 我创建的组",
-    activity: "全部 › 更多功能 › 用户动态",
-    loginLogs: "全部 › 更多功能 › 用户登录日志",
-    tags: "全部 › 更多功能 › 标签管理",
-    validity: "全部 › 更多功能 › 有效期管理",
-    collect: "全部 › 更多功能 › 收集素材管理",
-    share: "全部 › 更多功能 › 分享记录",
-    recycle: "全部 › 更多功能 › 回收站",
-    valueLists: "全部 › 更多功能 › 值列表管理",
-    users: "全部 › 更多功能 › 系统管理 › 用户管理",
-    roles: "全部 › 更多功能 › 系统管理 › 角色管理",
-    organizations: "全部 › 更多功能 › 系统管理 › 组织管理",
-    permissions: "全部 › 更多功能 › 系统管理 › 权限管理",
-    menus: "全部 › 更多功能 › 系统管理 › 菜单管理",
-  };
-  return breadcrumbMap[page] || "全部";
+  
+  const menus = db.menus || [];
+  const menu = menus.find(m => m.page === page && m.category === "page");
+  if (!menu) return "全部";
+  
+  const path = [];
+  let current = menu;
+  while (current) {
+    if (current.category !== "root") {
+      path.unshift(current.name);
+    }
+    current = menus.find(m => m.id === current.parentId);
+  }
+  
+  return "全部 › " + path.join(" › ");
 }
 
 function getFormat(file) {

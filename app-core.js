@@ -348,23 +348,6 @@ const seedTags = [
 const filterLabels = ["素材来源", "文件格式", "品牌", "车系", "车型", "内饰色", "外饰色", "权限范围", "业务标签", "AI标签", "素材状态", "上传时间", "素材失效日"];
 
 const SESSION_USER_KEY = "dp-material-library-current-user";
-const SYSTEM_MENUS = [
-  { id: "activity", label: "用户动态", group: "更多功能" },
-  { id: "loginLogs", label: "用户登录日志", group: "更多功能" },
-  { id: "tags", label: "标签管理", group: "更多功能" },
-  { id: "validity", label: "有效期管理", group: "更多功能" },
-  { id: "collect", label: "收集素材", group: "更多功能" },
-  { id: "share", label: "分享记录", group: "更多功能" },
-  { id: "recycle", label: "回收站", group: "更多功能" },
-  { id: "valueLists", label: "值列表管理", group: "更多功能" },
-  { id: "users", label: "用户管理", group: "系统管理" },
-  { id: "roles", label: "角色管理", group: "系统管理" },
-  { id: "organizations", label: "组织管理", group: "系统管理" },
-  { id: "permissions", label: "权限管理", group: "系统管理" },
-  { id: "menus", label: "菜单管理", group: "系统管理" },
-];
-const MANAGED_PAGES = SYSTEM_MENUS.map((menu) => menu.id);
-
 let db = loadDb();
 ensureSystemData();
 const state = {
@@ -399,6 +382,8 @@ const state = {
   menuManageSelectedId: "",
   menuManageExpandedIds: new Set(),
   menuManageEditingId: "",
+  navExpandedMenuIds: new Set(),
+  navTreeInitialized: false,
   theme: localStorage.getItem("dp-material-library-theme") || "light",
   zoomLevel: 100,
   panX: 0,
@@ -417,6 +402,85 @@ function isAdmin() {
 
 function canManageAsset(asset) {
   return isAdmin() || asset?.owner === currentUser.name;
+}
+
+function getRootMenu() {
+  return (db.menus || []).find((menu) => menu.parentId === null) || null;
+}
+
+function getMenuChildren(parentId, { includeInvalid = false } = {}) {
+  return (db.menus || [])
+    .filter((menu) => menu.parentId === parentId && (includeInvalid || menu.valid !== false))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function getMenuByPage(page) {
+  return (db.menus || []).find((menu) => menu.category === "page" && menu.page === page && menu.valid !== false) || null;
+}
+
+function getMenuBranch(menuOrId) {
+  const menus = db.menus || [];
+  const root = getRootMenu();
+  let current = typeof menuOrId === "string" ? menus.find((menu) => menu.id === menuOrId) : menuOrId;
+  let branch = current || null;
+  while (current && current.parentId && current.parentId !== root?.id) {
+    current = menus.find((menu) => menu.id === current.parentId);
+    if (current) branch = current;
+  }
+  return branch;
+}
+
+function getMenuLayout(menuOrPage) {
+  const menu = typeof menuOrPage === "string" ? getMenuByPage(menuOrPage) : menuOrPage;
+  if (!menu) return "";
+  return menu.layout || getMenuBranch(menu)?.layout || "manage";
+}
+
+function getAllMenuPages() {
+  return (db.menus || [])
+    .filter((menu) => menu.category === "page" && menu.valid !== false && menu.page)
+    .map((menu) => menu.page);
+}
+
+function isAssetPage(page) {
+  return getMenuLayout(page) === "asset";
+}
+
+function isManagePage(page) {
+  return getMenuLayout(page) === "manage";
+}
+
+function getMenuDescendantPageMenus(parentId) {
+  const result = [];
+  getMenuChildren(parentId).forEach((menu) => {
+    if (menu.category === "page" && menu.page) result.push(menu);
+    if (menu.category !== "page") result.push(...getMenuDescendantPageMenus(menu.id));
+  });
+  return result;
+}
+
+function isVisibleNavMenu(menu) {
+  if (!menu || menu.valid === false || menu.hidden === true) return false;
+  if (menu.category === "page") return Boolean(menu.page && canViewMenu(menu.page));
+  return getMenuChildren(menu.id).some(isVisibleNavMenu);
+}
+
+function getVisibleNavMenuChildren(parentId) {
+  return getMenuChildren(parentId).filter(isVisibleNavMenu);
+}
+
+function expandNavAncestorsByPage(page) {
+  if (!state.navExpandedMenuIds) state.navExpandedMenuIds = new Set();
+  const menus = db.menus || [];
+  let current = getMenuByPage(page);
+  while (current?.parentId) {
+    current = menus.find((menu) => menu.id === current.parentId);
+    if (current?.id) state.navExpandedMenuIds.add(current.id);
+  }
+}
+
+function getFirstVisibleMenuPage() {
+  return getAllMenuPages().find((page) => canViewMenu(page)) || "";
 }
 
 function getAnonymousUser() {
@@ -468,8 +532,9 @@ function getCurrentRoles() {
 function mergeRolePermissions(roles = []) {
   const merged = createMenuPermissions(false, false);
   roles.forEach((role) => {
-    SYSTEM_MENUS.forEach((menu) => {
+    getPermissionMenuItems().forEach((menu) => {
       const permission = role.permissions?.[menu.id] || {};
+      if (!merged[menu.id]) merged[menu.id] = { visible: false, editable: false };
       if (permission.editable) merged[menu.id].editable = true;
       if (permission.visible || permission.editable) merged[menu.id].visible = true;
     });
@@ -499,8 +564,9 @@ function canEditMenu(menuId) {
 }
 
 function ensurePageAllowed() {
-  if (MANAGED_PAGES.includes(state.page) && !canViewMenu(state.page)) {
-    state.page = "all";
+  const menu = getMenuByPage(state.page);
+  if (menu && isLoggedIn() && !canViewMenu(state.page)) {
+    state.page = getFirstVisibleMenuPage() || "all";
     state.groupId = "all";
     showToast("当前账号无权访问该菜单");
   }
@@ -547,15 +613,22 @@ const els = {
   sidebarClose: document.querySelector("#sidebarClose"),
 };
 
+function getPermissionMenuItems() {
+  const menus = Array.isArray(db?.menus) && db.menus.length ? db.menus : getDefaultMenus();
+  return menus
+    .filter((menu) => menu.category === "page" && menu.page && menu.valid !== false)
+    .map((menu) => ({ id: menu.page, label: menu.name }));
+}
+
 function createMenuPermissions(visible = true, editable = true) {
-  return SYSTEM_MENUS.reduce((map, menu) => {
+  return getPermissionMenuItems().reduce((map, menu) => {
     map[menu.id] = { visible: !!visible || !!editable, editable: !!editable };
     return map;
   }, {});
 }
 
 function normalizeMenuPermissions(permissions = {}, defaultVisible = false, defaultEditable = false) {
-  return SYSTEM_MENUS.reduce((map, menu) => {
+  return getPermissionMenuItems().reduce((map, menu) => {
     const permission = permissions?.[menu.id] || {};
     const editable = !!permission.editable || !!defaultEditable;
     map[menu.id] = {
@@ -591,38 +664,28 @@ function getDefaultUsers() {
 }
 
 function getDefaultMenus() {
-  const root = { id: "menu_root", code: "all", name: "所有菜单", category: "root", hidden: false, page: "", valid: true, order: 0, icon: "", description: "", parentId: null };
-  const groups = [...new Set(SYSTEM_MENUS.map((menu) => menu.group))];
-  const groupNodes = groups.map((group, index) => ({
-    id: `menu_group_${index + 1}`,
-    code: `group_${index + 1}`,
-    name: group,
-    category: "group",
-    hidden: false,
-    page: "",
-    valid: true,
-    order: index + 1,
-    icon: "",
-    description: "",
-    parentId: "menu_root",
-  }));
-  const itemNodes = SYSTEM_MENUS.map((menu, index) => {
-    const groupNode = groupNodes.find((group) => group.name === menu.group);
-    return {
-      id: `menu_${menu.id}`,
-      code: menu.id,
-      name: menu.label,
-      category: "page",
-      hidden: false,
-      page: menu.id,
-      valid: true,
-      order: index + 1,
-      icon: "",
-      description: "",
-      parentId: groupNode?.id || "menu_root",
-    };
-  });
-  return [root, ...groupNodes, ...itemNodes];
+  return [
+    { id: "menu_root", code: "root", name: "所有菜单", category: "root", hidden: false, page: "", valid: true, order: 0, icon: "", description: "", parentId: null, layout: "" },
+    { id: "menu_group_assets", code: "assets", name: "素材管理", category: "group", hidden: false, page: "", valid: true, order: 1, icon: "", description: "", parentId: "menu_root", layout: "asset" },
+    { id: "menu_all", code: "all", name: "全部素材", category: "page", hidden: false, page: "all", valid: true, order: 1, icon: "▦", description: "", parentId: "menu_group_assets", layout: "asset" },
+    { id: "menu_pending", code: "pending", name: "待入库", category: "page", hidden: false, page: "pending", valid: true, order: 2, icon: "▣", description: "", parentId: "menu_group_assets", layout: "asset" },
+    { id: "menu_created", code: "created", name: "我创建的组", category: "page", hidden: false, page: "created", valid: true, order: 3, icon: "♙", description: "", parentId: "menu_group_assets", layout: "asset" },
+    { id: "menu_group_more", code: "more", name: "更多功能", category: "group", hidden: false, page: "", valid: true, order: 2, icon: "", description: "", parentId: "menu_root", layout: "manage" },
+    { id: "menu_activity", code: "activity", name: "用户动态", category: "page", hidden: false, page: "activity", valid: true, order: 1, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_loginLogs", code: "loginLogs", name: "用户登录日志", category: "page", hidden: false, page: "loginLogs", valid: true, order: 2, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_tags", code: "tags", name: "标签管理", category: "page", hidden: false, page: "tags", valid: true, order: 3, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_valueLists", code: "valueLists", name: "值列表管理", category: "page", hidden: false, page: "valueLists", valid: true, order: 4, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_validity", code: "validity", name: "有效期管理", category: "page", hidden: false, page: "validity", valid: true, order: 5, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_group_sys", code: "sys", name: "系统管理", category: "group", hidden: false, page: "", valid: true, order: 6, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_users", code: "users", name: "用户管理", category: "page", hidden: false, page: "users", valid: true, order: 1, icon: "", description: "", parentId: "menu_group_sys", layout: "manage" },
+    { id: "menu_roles", code: "roles", name: "角色管理", category: "page", hidden: false, page: "roles", valid: true, order: 2, icon: "", description: "", parentId: "menu_group_sys", layout: "manage" },
+    { id: "menu_organizations", code: "organizations", name: "组织管理", category: "page", hidden: false, page: "organizations", valid: true, order: 3, icon: "", description: "", parentId: "menu_group_sys", layout: "manage" },
+    { id: "menu_permissions", code: "permissions", name: "权限管理", category: "page", hidden: false, page: "permissions", valid: true, order: 4, icon: "", description: "", parentId: "menu_group_sys", layout: "manage" },
+    { id: "menu_menus", code: "menus", name: "菜单管理", category: "page", hidden: false, page: "menus", valid: true, order: 5, icon: "", description: "", parentId: "menu_group_sys", layout: "manage" },
+    { id: "menu_collect", code: "collect", name: "收集素材", category: "page", hidden: false, page: "collect", valid: true, order: 7, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_share", code: "share", name: "分享记录", category: "page", hidden: false, page: "share", valid: true, order: 8, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+    { id: "menu_recycle", code: "recycle", name: "回收站", category: "page", hidden: false, page: "recycle", valid: true, order: 9, icon: "", description: "", parentId: "menu_group_more", layout: "manage" },
+  ];
 }
 
 function ensureSystemData() {
@@ -631,6 +694,24 @@ function ensureSystemData() {
     db.organizations = getDefaultOrganizations();
     changed = true;
   }
+  if (!Array.isArray(db.menus) || !db.menus.length) {
+    db.menus = getDefaultMenus();
+    changed = true;
+  }
+  const defaultMenuMap = getDefaultMenus().reduce((map, menu) => {
+    map[menu.id] = menu;
+    return map;
+  }, {});
+  (db.menus || []).forEach((menu) => {
+    const defaultMenu = defaultMenuMap[menu.id];
+    if (!defaultMenu) return;
+    ["layout", "icon"].forEach((field) => {
+      if (menu[field] === undefined) {
+        menu[field] = defaultMenu[field] || "";
+        changed = true;
+      }
+    });
+  });
   if (!Array.isArray(db.roles) || !db.roles.length) {
     db.roles = getDefaultRoles();
     changed = true;
@@ -645,10 +726,6 @@ function ensureSystemData() {
   }
   if (!Array.isArray(db.valueListTree) || !db.valueListTree.length) {
     db.valueListTree = SEED_VALUE_LIST_TREE;
-    changed = true;
-  }
-  if (!Array.isArray(db.menus) || !db.menus.length) {
-    db.menus = getDefaultMenus();
     changed = true;
   }
   if (!db.orgPermissions || typeof db.orgPermissions !== "object" || Array.isArray(db.orgPermissions)) {
@@ -724,7 +801,7 @@ function bootstrap() {
 }
 
 function normalizePageState() {
-  const validPages = ["all", "pending", "created", "more", "activity", "loginLogs", "tags", "validity", "valueLists", "users", "roles", "organizations", "permissions", "menus", "collect", "share", "recycle"];
+  const validPages = getAllMenuPages();
   if (!validPages.includes(state.page)) {
     state.page = "all";
     state.groupId = "all";
@@ -1182,23 +1259,51 @@ function renderShell() {
   }
   document.querySelector("#themeToggle").textContent = state.theme === "dark" ? "浅" : "深";
   updateBasketCount();
-  applyMenuPermissions();
-
-  // mainNav 和 sortDropdown 已改为 HTML 静态定义，无需动态渲染
+  renderMainNav();
 
   renderFilterChips();
   renderFilterConfig();
 }
 
-function applyMenuPermissions() {
-  document.querySelectorAll("#moreMenuContent [data-go]").forEach((button) => {
-    const page = button.dataset.go;
-    button.classList.toggle("hidden", MANAGED_PAGES.includes(page) && !canViewMenu(page));
-  });
-  document.querySelectorAll("#moreMenuContent .menu-section").forEach((section) => {
-    const visibleChild = [...section.querySelectorAll("[data-go]")].some((button) => !button.classList.contains("hidden"));
-    section.classList.toggle("hidden", !visibleChild);
-  });
+function renderMainNav() {
+  const root = getRootMenu();
+  const mainNav = document.querySelector("#mainNav");
+  if (!mainNav) return;
+
+  if (root && !state.navTreeInitialized) {
+    const expandAllGroups = (parentId) => {
+      getVisibleNavMenuChildren(parentId).forEach((menu) => {
+        if (menu.category !== "page") {
+          state.navExpandedMenuIds.add(menu.id);
+          expandAllGroups(menu.id);
+        }
+      });
+    };
+    expandAllGroups(root.id);
+    expandNavAncestorsByPage(state.page);
+    state.navTreeInitialized = true;
+  }
+
+  mainNav.innerHTML = root ? renderMainNavNodes(root.id, 0) : "";
+}
+
+function renderMainNavNodes(parentId, depth) {
+  return getVisibleNavMenuChildren(parentId).map((menu) => {
+    const indent = depth * 16;
+    if (menu.category === "page") {
+      const isActive = state.page === menu.page;
+      const icon = menu.icon || "•";
+      return `<button class="nav-item nav-page ${isActive ? "active" : ""}" data-page="${escapeAttr(menu.page)}" style="padding-left: ${16 + indent}px" type="button"><span>${escapeHtml(icon)}</span><span>${escapeHtml(menu.name)}</span><span></span></button>`;
+    }
+
+    const isExpanded = state.navExpandedMenuIds?.has(menu.id);
+    const isActive = getMenuDescendantPageMenus(menu.id).some((item) => item.page === state.page);
+    const childrenHtml = isExpanded ? renderMainNavNodes(menu.id, depth + 1) : "";
+    return `<div class="nav-tree-node">
+      <button class="nav-item nav-group ${isActive ? "active" : ""}" data-nav-toggle="${escapeAttr(menu.id)}" style="padding-left: ${16 + indent}px" type="button"><span class="nav-expand">${isExpanded ? "-" : "+"}</span><span>${escapeHtml(menu.name)}</span><span></span></button>
+      ${childrenHtml ? `<div class="nav-tree-children">${childrenHtml}</div>` : ""}
+    </div>`;
+  }).join("");
 }
 
 function renderFilterChips() {
@@ -1255,19 +1360,26 @@ function bindEvents() {
   }
 
   document.addEventListener("click", (event) => {
-    if (!event.target.closest(".menu-pop") && !event.target.closest("[data-more]") && !event.target.closest("[data-filter]") && !event.target.closest("[data-page='more']") && !event.target.closest("[data-group-menu]") && !event.target.closest(".app-grid")) hideMenus();
+    if (!event.target.closest(".menu-pop") && !event.target.closest("[data-more]") && !event.target.closest("[data-filter]") && !event.target.closest("[data-group-menu]") && !event.target.closest(".app-grid")) hideMenus();
     if (!event.target.closest(".sort-menu")) document.querySelectorAll(".sort-menu").forEach((item) => item.classList.remove("open"));
   });
 
   els.mainNav.addEventListener("click", (event) => {
+    const toggleButton = event.target.closest("[data-nav-toggle]");
+    if (toggleButton) {
+      event.stopPropagation();
+      const id = toggleButton.dataset.navToggle;
+      if (!state.navExpandedMenuIds) state.navExpandedMenuIds = new Set();
+      if (state.navExpandedMenuIds.has(id)) state.navExpandedMenuIds.delete(id);
+      else state.navExpandedMenuIds.add(id);
+      renderMainNav();
+      return;
+    }
     const button = event.target.closest("[data-page]");
     if (!button) return;
-    if (button.dataset.page === "more") {
-      event.stopPropagation();
-      return showMoreMenu(button);
-    }
     state.page = button.dataset.page;
     state.groupId = "all";
+    expandNavAncestorsByPage(state.page);
     render();
   });
 
@@ -1685,19 +1797,6 @@ function bindEvents() {
 
   // moreMenu 按钮事件
   els.moreMenu?.addEventListener("click", (event) => {
-    const goButton = event.target.closest("[data-go]");
-    if (goButton) {
-      if (MANAGED_PAGES.includes(goButton.dataset.go) && !canViewMenu(goButton.dataset.go)) {
-        showToast("当前账号无权访问该菜单");
-        hideMenus();
-        return;
-      }
-      state.page = goButton.dataset.go;
-      hideMenus();
-      render();
-      return;
-    }
-    
     const actionButton = event.target.closest("[data-app-action]");
     if (actionButton) {
       const action = actionButton.dataset.appAction;
