@@ -105,7 +105,6 @@ async function createAssetFromFile(file, options = {}) {
     model: detectVehicleModel(file.name),
     customTags: options.customTags || [],
     aiTags: tags,
-    color: info.color || "未识别",
     groupId: options.groupId || (state.groupId === "all" ? "test" : state.groupId),
     owner: currentUser.name,
     department: currentUser.department,
@@ -195,7 +194,7 @@ function rerunSelectedRecognition() {
   if (!state.selectedIds.size) return;
   db.assets.forEach((asset) => {
     if (state.selectedIds.has(asset.id)) {
-      asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, color: asset.color });
+      asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, interiorColors: asset.interiorColors, exteriorColors: asset.exteriorColors });
       ensureRecognizedAiTagsInLibrary(asset.aiTags);
       asset.updatedAt = nowText();
       asset.logs.unshift(`AI重新识别标签：${asset.aiTags.join("、")}`);
@@ -219,49 +218,20 @@ function getMediaInfo(file, src) {
   if (file.type.startsWith("image/")) {
     return new Promise((resolve) => {
       const img = new Image();
-      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight, color: getDominantColorName(img) });
-      img.onerror = () => resolve({ width: 0, height: 0, color: "未识别" });
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve({ width: 0, height: 0 });
       img.src = src;
     });
   }
   if (file.type.startsWith("video/")) {
     return new Promise((resolve) => {
       const video = document.createElement("video");
-      video.onloadedmetadata = () => resolve({ width: video.videoWidth, height: video.videoHeight, color: "未识别" });
-      video.onerror = () => resolve({ width: 0, height: 0, color: "未识别" });
+      video.onloadedmetadata = () => resolve({ width: video.videoWidth, height: video.videoHeight });
+      video.onerror = () => resolve({ width: 0, height: 0 });
       video.src = src;
     });
   }
-  return Promise.resolve({ width: 0, height: 0, color: "未识别" });
-}
-
-function getDominantColorName(img) {
-  const canvas = document.createElement("canvas");
-  const size = 20;
-  canvas.width = size;
-  canvas.height = size;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(img, 0, 0, size, size);
-  const data = ctx.getImageData(0, 0, size, size).data;
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
-  for (let i = 0; i < data.length; i += 16) {
-    r += data[i];
-    g += data[i + 1];
-    b += data[i + 2];
-    count += 1;
-  }
-  r /= count;
-  g /= count;
-  b /= count;
-  if (r > 170 && g > 170 && b > 170) return "浅色";
-  if (r > g * 1.25 && r > b * 1.25) return "红色";
-  if (b > r * 1.15 && b > g * 1.05) return "蓝色";
-  if (g > r * 1.1 && g > b * 1.1) return "绿色";
-  if (r > 145 && g > 120 && b < 100) return "黄色";
-  return "综合色";
+  return Promise.resolve({ width: 0, height: 0 });
 }
 
 function recognizeTags(file, info) {
@@ -278,7 +248,8 @@ function recognizeTags(file, info) {
   if (/(poster|海报|banner|kv|主视觉)/i.test(text)) tags.add("海报");
   if (/(event|campaign|活动|车展|618)/i.test(text)) tags.add("活动");
   if (info.width && info.height) tags.add(info.width > info.height ? "横版" : "竖版");
-  if (info.color && info.color !== "未识别") tags.add(info.color);
+  if (info.interiorColors && info.interiorColors.length) tags.add(...info.interiorColors);
+  if (info.exteriorColors && info.exteriorColors.length) tags.add(...info.exteriorColors);
   if (!tags.size) tags.add("待标注");
   return [...tags];
 }
@@ -518,7 +489,6 @@ function getFilterValues(label) {
     "AI标签": getTagSummary().aiTagTree.map(t => ({ ...t, selectable: true })),
     "素材状态": buildFlatTree(getAllLeafValues("asset_status").map(n => n.name)),
     "素材失效日": buildFlatTree(["永久有效", "30天内", "90天内"]),
-    "颜色": buildFlatTree(active.map((asset) => asset.color).filter(Boolean)),
     "时长": buildFlatTree(["图片", "短视频", "长视频"]),
     "创建时间": buildFlatTree(["今天", "近7天", "近30天"]),
     "宽高比": buildFlatTree(getAllLeafValues("aspect_ratio").map(n => n.name)),
@@ -964,8 +934,8 @@ function renderViewer() {
   renderViewerFooter(asset);
   els.detailTabs.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.tab === state.detailTab));
   const content = {
-    overview: `<div class="detail-section"><div class="field editable-field" data-overview-edit="asset"><span>素材名称</span><b>${escapeHtml(asset.name)}</b><small>点击编辑</small></div></div><div class="detail-section"><div class="section-title"><h3>AI标签</h3><button id="retagFromOverview" type="button">AI重新打标</button></div><div class="tag-list">${(asset.aiTags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") || "<em>暂无AI标签</em>"}</div></div><div class="detail-section"><div class="section-title"><h3>素材信息</h3><button data-overview-edit="asset" type="button">编辑信息</button></div><div class="field-grid"><button class="field interactive" data-overview-edit="asset" type="button"><span>品牌</span>${escapeHtml(asset.brand || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车型</span>${escapeHtml(asset.model || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>颜色</span>${escapeHtml(asset.color || "-")}</button></div></div>`,
-    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${asset.updatedAt}</div><div class="field"><span>上传时间</span>${asset.createdAt}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>自定义标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart ? formatDateTimeDisplay(asset.validStart) : "-")}</div><div class="field"><span>素材失效日期</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div><div class="field"><span>颜色</span>${escapeHtml(asset.color || "无")}</div></div>`,
+    overview: `<div class="detail-section"><div class="field editable-field" data-overview-edit="asset"><span>素材名称</span><b>${escapeHtml(asset.name)}</b><small>点击编辑</small></div></div><div class="detail-section"><div class="section-title"><h3>AI标签</h3><button id="retagFromOverview" type="button">AI重新打标</button></div><div class="tag-list">${(asset.aiTags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") || "<em>暂无AI标签</em>"}</div></div><div class="detail-section"><div class="section-title"><h3>素材信息</h3><button data-overview-edit="asset" type="button">编辑信息</button></div><div class="field-grid"><button class="field interactive" data-overview-edit="asset" type="button"><span>品牌</span>${escapeHtml(asset.brand || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车系</span>${escapeHtml(asset.series || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车型</span>${escapeHtml(asset.model || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>内饰色</span>${escapeHtml((asset.interiorColors || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>外饰色</span>${escapeHtml((asset.exteriorColors || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "-")}</button></div></div>`,
+    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${asset.updatedAt}</div><div class="field"><span>上传时间</span>${asset.createdAt}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>品牌</span>${escapeHtml(asset.brand || "无")}</div><div class="field"><span>车系</span>${escapeHtml(asset.series || "无")}</div><div class="field"><span>车型</span>${escapeHtml(asset.model || "无")}</div><div class="field"><span>内饰色</span>${escapeHtml((asset.interiorColors || []).join("、") || "无")}</div><div class="field"><span>外饰色</span>${escapeHtml((asset.exteriorColors || []).join("、") || "无")}</div><div class="field"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart ? formatDateTimeDisplay(asset.validStart) : "-")}</div><div class="field"><span>素材失效日期</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div></div>`,
     comment: `<div class="comment-box"><textarea id="commentText" placeholder="写一条评论"></textarea><button id="addComment" class="primary" type="button">发布</button></div>${(asset.comments || []).map((item) => `<div class="info-card"><b>${escapeHtml(item.user || currentUser.name)}</b><small>${item.time || ""}</small><p>${escapeHtml(item.text || item)}</p></div>`).join("") || renderEmpty("暂无评论")}`,
     log: `<div class="timeline">${(asset.logs || []).map((text, index) => `<div class="log-item"><span>${index ? "2026-05-26 17:4" + index : nowText()}</span><p>"${escapeHtml(text)}"</p><small>操作人: ${escapeHtml(currentUser.name)}</small></div>`).join("")}</div>`,
   }[state.detailTab];
@@ -1116,7 +1086,7 @@ function openEditAssetModal(id) {
   const asset = findAsset(id);
   if (!asset) return;
   editAssetId = id;
-  
+
   document.querySelector("#editAssetName").value = escapeAttr(asset.name);
   document.querySelector("#editAssetDesc").value = escapeHtml(asset.desc || "");
   document.querySelector("#editAssetCustomTags").value = escapeAttr((asset.customTags || []).join(", "));
@@ -1127,29 +1097,170 @@ function openEditAssetModal(id) {
   const validUntilParts = splitDateTimeText(asset.validUntilDate || asset.validUntil || "");
   document.querySelector("#editAssetValidUntilDate").value = escapeAttr(validUntilParts.date);
   document.querySelector("#editAssetValidUntilTime").value = escapeAttr(validUntilParts.time || "23:59");
-  
-  const vehicleModels = getVehicleModels();
-  document.querySelector("#editAssetModel").innerHTML = vehicleModels.map((model) => `<option value="${model}">${model}</option>`).join("");
-  document.querySelector("#editAssetModel").value = asset.model || vehicleModels[0];
+
+  document.querySelector("#editAssetSeries").value = asset.series || "";
+  document.querySelector("#editAssetModel").value = asset.model || "";
+  document.querySelector("#editAssetInteriorColors").value = Array.isArray(asset.interiorColors) ? (asset.interiorColors[0] || "") : (asset.interiorColors || "");
+  document.querySelector("#editAssetExteriorColors").value = Array.isArray(asset.exteriorColors) ? (asset.exteriorColors[0] || "") : (asset.exteriorColors || "");
   document.querySelector("#editAssetPermission").value = asset.permission;
-  
+
+  setupAssetEditCascades();
+
   document.querySelector("#editAssetModal").classList.remove("hidden");
+}
+
+function setupAssetEditCascades() {
+  const brandInput = document.querySelector("#editAssetBrand");
+  const seriesInput = document.querySelector("#editAssetSeries");
+  const modelInput = document.querySelector("#editAssetModel");
+  const allBrands = getAllLeafValues("brand");
+  const allSeries = getAllLeafValues("series");
+  const allModels = getAllLeafValues("model");
+  const allInteriorColors = getAllLeafValues("interior_color");
+  const allExteriorColors = getAllLeafValues("exterior_color");
+
+  const renderSeriesOptions = () => {
+    const brand = brandInput.value.trim();
+    let filteredSeries = allSeries;
+    if (brand) {
+      const brandNode = allBrands.find((node) => node.name === brand);
+      if (brandNode) filteredSeries = allSeries.filter((node) => node.refId === brandNode.id);
+    }
+    setupAssetEditDropdown("editAssetSeries", filteredSeries.map((node) => node.name), {
+      onPick: renderModelOptions,
+      onInput: renderModelOptions,
+    });
+    renderModelOptions();
+  };
+
+  const renderModelOptions = () => {
+    const series = seriesInput.value.trim();
+    let filteredModels = allModels;
+    if (series) {
+      const seriesNode = allSeries.find((node) => node.name === series);
+      if (seriesNode) filteredModels = allModels.filter((node) => node.refId === seriesNode.id);
+    }
+    setupAssetEditDropdown("editAssetModel", filteredModels.map((node) => node.name), {
+      onPick: renderColorOptions,
+      onInput: renderColorOptions,
+    });
+    renderColorOptions();
+  };
+
+  const renderColorOptions = () => {
+    const model = modelInput.value.trim();
+    let filteredInterior = allInteriorColors;
+    let filteredExterior = allExteriorColors;
+    if (model) {
+      const modelNode = allModels.find((node) => node.name === model);
+      if (modelNode) {
+        filteredInterior = allInteriorColors.filter((node) => node.refId === modelNode.id);
+        filteredExterior = allExteriorColors.filter((node) => node.refId === modelNode.id);
+      }
+    }
+    setupAssetEditDropdown("editAssetInteriorColors", filteredInterior.map((node) => node.name));
+    setupAssetEditDropdown("editAssetExteriorColors", filteredExterior.map((node) => node.name));
+  };
+
+  setupAssetEditDropdown("editAssetCustomTags", getTagSummary().businessTags.map((tag) => tag.tagName || tag.name).filter(Boolean), { multiple: true });
+  setupAssetEditDropdown("editAssetBrand", allBrands.map((node) => node.name), {
+    onPick: renderSeriesOptions,
+    onInput: renderSeriesOptions,
+  });
+  renderSeriesOptions();
+}
+
+function closeAssetEditDropdowns(exceptPanel) {
+  document.querySelectorAll(".asset-edit-combo-panel").forEach((panel) => {
+    if (panel !== exceptPanel) panel.classList.add("hidden");
+  });
+}
+
+function getAssetEditCurrentToken(value) {
+  return String(value || "").split(/[,，]/).pop().trim().toLowerCase();
+}
+
+function getSingleAssetEditValue(value) {
+  return splitTags(value)[0] || "";
+}
+
+function setupAssetEditDropdown(inputId, options, config = {}) {
+  const input = document.querySelector(`#${inputId}`);
+  const panel = document.querySelector(`#${inputId}Panel`);
+  const toggle = document.querySelector(`[data-asset-edit-toggle="${inputId}"]`);
+  if (!input || !panel) return;
+  const uniqueOptions = [...new Set((options || []).filter(Boolean))];
+  const multiple = Boolean(config.multiple);
+
+  const renderOptions = (query = "", forceAll = false) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    const visibleOptions = forceAll || !normalizedQuery
+      ? uniqueOptions
+      : uniqueOptions.filter((option) => option.toLowerCase().includes(normalizedQuery));
+    panel.innerHTML = visibleOptions.length
+      ? visibleOptions.map((option) => `<button type="button" data-asset-edit-option="${escapeAttr(option)}">${escapeHtml(option)}</button>`).join("")
+      : `<div class="asset-edit-combo-empty">暂无可选项</div>`;
+    closeAssetEditDropdowns(panel);
+    panel.classList.remove("hidden");
+  };
+
+  input.onfocus = () => renderOptions("", true);
+  input.oninput = () => {
+    renderOptions(multiple ? getAssetEditCurrentToken(input.value) : input.value, false);
+    if (typeof config.onInput === "function") config.onInput(input.value);
+  };
+  if (toggle) {
+    toggle.onclick = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      renderOptions("", true);
+      input.focus();
+    };
+  }
+  panel.onclick = (event) => {
+    const optionButton = event.target.closest("[data-asset-edit-option]");
+    if (!optionButton) return;
+    const value = optionButton.dataset.assetEditOption || "";
+    if (multiple) {
+      const current = splitTags(input.value);
+      if (!current.includes(value)) current.push(value);
+      input.value = current.join(", ");
+      renderOptions("", true);
+    } else {
+      input.value = value;
+      panel.classList.add("hidden");
+    }
+    if (typeof config.onPick === "function") config.onPick(value);
+    if (multiple) input.focus();
+  };
+
+  if (!setupAssetEditDropdown.boundDocumentClick) {
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".asset-edit-combo")) closeAssetEditDropdowns();
+    });
+    setupAssetEditDropdown.boundDocumentClick = true;
+  }
 }
 
 function handleEditAssetSubmit(event) {
   event.preventDefault();
   const asset = findAsset(editAssetId);
   if (!asset) return;
-  
+
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   const validUntil = data.validUntilDate ? joinDateTime(data.validUntilDate, data.validUntilTime || "23:59") : calculateExpireTime("永久有效");
+  const interiorColor = getSingleAssetEditValue(data.interiorColors);
+  const exteriorColor = getSingleAssetEditValue(data.exteriorColors);
   Object.assign(asset, {
     name: data.name.trim(),
     desc: data.desc.trim(),
     customTags: splitTags(data.customTags),
     brand: data.brand.trim(),
+    series: data.series.trim(),
     model: data.model.trim(),
+    interiorColors: interiorColor ? [interiorColor] : [],
+    exteriorColors: exteriorColor ? [exteriorColor] : [],
     validStart: data.validStartDate ? joinDateTime(data.validStartDate, data.validStartTime || "00:00") : "",
     validUntil: validUntil,
     validUntilDate: validUntil,

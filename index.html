@@ -440,9 +440,48 @@
         <form id="editAssetForm">
           <label>素材名称<input id="editAssetName" name="name" required /></label>
           <label>描述<textarea id="editAssetDesc" name="desc"></textarea></label>
-          <label>自定义标签（用逗号分隔）<input id="editAssetCustomTags" name="customTags" /></label>
-          <label>品牌<input id="editAssetBrand" name="brand" /></label>
-          <label>车型<select id="editAssetModel" name="model"></select></label>
+          <label>业务标签
+            <div class="asset-edit-combo">
+              <input id="editAssetCustomTags" name="customTags" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetCustomTags" aria-label="展开业务标签候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetCustomTagsPanel"></div>
+            </div>
+          </label>
+          <label>品牌
+            <div class="asset-edit-combo">
+              <input id="editAssetBrand" name="brand" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetBrand" aria-label="展开品牌候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetBrandPanel"></div>
+            </div>
+          </label>
+          <label>车系
+            <div class="asset-edit-combo">
+              <input id="editAssetSeries" name="series" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetSeries" aria-label="展开车系候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetSeriesPanel"></div>
+            </div>
+          </label>
+          <label>车型
+            <div class="asset-edit-combo">
+              <input id="editAssetModel" name="model" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetModel" aria-label="展开车型候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetModelPanel"></div>
+            </div>
+          </label>
+          <label>内饰色
+            <div class="asset-edit-combo">
+              <input id="editAssetInteriorColors" name="interiorColors" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetInteriorColors" aria-label="展开内饰色候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetInteriorColorsPanel"></div>
+            </div>
+          </label>
+          <label>外饰色
+            <div class="asset-edit-combo">
+              <input id="editAssetExteriorColors" name="exteriorColors" autocomplete="off" />
+              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetExteriorColors" aria-label="展开外饰色候选">▾</button>
+              <div class="asset-edit-combo-panel hidden" id="editAssetExteriorColorsPanel"></div>
+            </div>
+          </label>
           <label>素材生效时间
             <div class="date-time-row">
               <input id="editAssetValidStartDate" name="validStartDate" type="date" readonly inputmode="none" />

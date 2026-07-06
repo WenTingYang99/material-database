@@ -394,3 +394,19 @@
   3. 修改业务标签初始数据，添加父级关系
   4. 修改标签添加/编辑弹窗中父级标签的标题为通用名称
 - 效果：业务标签现在支持多层级展示，与AI标签一致
+## 2026-07-06 app-core/app-actions 格式报错排查
+
+- `app-core.js`：重点排查 HTML 实体残留，确认 `=>`、`<`、`>`、`&&` 没有被写成 `=&gt;`、`&lt;`、`&gt;`、`&amp;&amp;`。
+- `app-actions.js`：曾出现中文字符串损坏导致语法错误，后续禁止使用 PowerShell `Set-Content` 整文件重写，继续使用 `apply_patch` 做局部补丁。
+- 素材编辑弹框 JS 已与当前 HTML 字段保持一致：品牌、车系、车型、内饰色、外饰色由值列表动态回填，并保存到 `asset.series / asset.interiorColors / asset.exteriorColors`。
+- 本次验证：主要 JS 文件均已通过 `node --check`，`app-core.js` 与 `app-actions.js` 未检出 HTML 实体操作符残留。
+## 2026-07-06 素材编辑候选下拉修复
+
+- 素材编辑弹框不再使用原生 `datalist` 展示品牌、车系、车型、内饰色、外饰色和业务标签候选；原生 `datalist` 会按当前输入值过滤，导致已有值为“东风雪铁龙”时只能看到一个候选。
+- `index.html` 中素材编辑字段改为 `.asset-edit-combo` 结构，输入框仍保留原 `name`，保存字段和表单提交结构不变。
+- `app-actions.js` 的 `setupAssetEditDropdown()` 统一管理候选下拉：聚焦或点击箭头展示完整候选，输入时过滤；品牌/车系/车型继续按值列表 `refId` 级联，业务标签候选来自 `getTagSummary().businessTags`。
+- `styles.css` 仅新增 `.asset-edit-combo*` 样式，限制在素材编辑弹框候选面板使用。
+## 2026-07-06 素材编辑候选下拉细节修复
+
+- 内饰色、外饰色在素材编辑弹框中是单选字段，不使用 `multiple: true`；保存时仍写入 `asset.interiorColors / asset.exteriorColors` 数组，但数组最多保留一个值以兼容既有展示逻辑。
+- `.asset-edit-combo-panel` 背景不能使用未定义的 `--panel` 变量；已改为 `var(--surface, #fff)` 并提高 z-index，避免下拉面板透明或被表单字段文字压住。

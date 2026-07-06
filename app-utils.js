@@ -52,10 +52,14 @@ function calculateSimilarity(base, target, mode) {
     if (base.format === target.format) score += 5;
     if (base.type === target.type) score += 5;
   } else if (mode === "color") {
-    // 颜色相似度
-    if (base.color === target.color) score += 50;
+    const baseInterior = base.interiorColors || [];
+    const targetInterior = target.interiorColors || [];
+    const baseExterior = base.exteriorColors || [];
+    const targetExterior = target.exteriorColors || [];
+    const commonInterior = baseInterior.filter((c) => targetInterior.includes(c));
+    const commonExterior = baseExterior.filter((c) => targetExterior.includes(c));
+    score += (commonInterior.length + commonExterior.length) * 25;
 
-    // 尺寸比例相似度
     const baseRatio = base.width && base.height ? base.width / base.height : 0;
     const targetRatio = target.width && target.height ? target.width / target.height : 0;
     if (baseRatio && targetRatio) {
@@ -65,7 +69,6 @@ function calculateSimilarity(base, target, mode) {
       else if (ratioDiff < 0.5) score += 10;
     }
 
-    // 文件类型相同加分
     if (base.format === target.format) score += 10;
   }
 
@@ -106,7 +109,6 @@ function matchFilter(asset, label, value) {
     "权限范围": [asset.permission],
     "业务标签": asset.customTags || [],
     "AI标签": asset.aiTags || [],
-    "颜色": [asset.color],
     "时长": [asset.type],
     "创建时间": [asset.createdAt],
   }[label] || [];

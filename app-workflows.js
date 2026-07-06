@@ -415,7 +415,7 @@ function closeFormModal() {
 function rerunRecognition(id) {
   const asset = findAsset(id);
   if (!asset) return;
-  asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, color: asset.color });
+  asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, interiorColors: asset.interiorColors, exteriorColors: asset.exteriorColors });
   asset.updatedAt = nowText();
   asset.logs.unshift(`系统重新识别标签：${asset.aiTags.join("、")}`);
   saveDb();
