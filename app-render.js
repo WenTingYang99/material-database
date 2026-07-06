@@ -252,27 +252,24 @@ function toggleGroupCollapse(groupId) {
 }
 
 function renderActions() {
-  // 隐藏所有页面操作按钮区域
   document.querySelectorAll(".page-actions-inner").forEach((el) => el.classList.add("hidden"));
 
-  if (state.page === "all") {
-    document.querySelector('.page-actions-inner[data-page-type="all"]')?.classList.remove("hidden");
-  } else if (state.page === "pending") {
-    document.querySelector('.page-actions-inner[data-page-type="pending"]')?.classList.remove("hidden");
-  } else if (state.page === "tags") {
-    if (canEditMenu("tags")) document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden");
-  } else if (state.page === "collect") {
-    document.querySelector('.page-actions-inner[data-page-type="collect"]')?.classList.remove("hidden");
-  } else if (state.page === "recycle") {
-    document.querySelector('.page-actions-inner[data-page-type="recycle"]')?.classList.remove("hidden");
-  }
-  // 其他页面不显示操作按钮
+  const actionRenderers = {
+    all: () => { document.querySelector('.page-actions-inner[data-page-type="all"]')?.classList.remove("hidden"); },
+    pending: () => { document.querySelector('.page-actions-inner[data-page-type="pending"]')?.classList.remove("hidden"); },
+    tags: () => { if (canEditMenu("tags")) document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden"); },
+    collect: () => { document.querySelector('.page-actions-inner[data-page-type="collect"]')?.classList.remove("hidden"); },
+    recycle: () => { document.querySelector('.page-actions-inner[data-page-type="recycle"]')?.classList.remove("hidden"); },
+  };
+  const actionRenderer = actionRenderers[state.page];
+  if (actionRenderer) actionRenderer();
 }
 
 function renderAssets() {
-  const filtered = state.page === "pending"
-    ? db.assets.filter((asset) => asset.status === "pending")
-    : getFilteredAssets();
+  const filterStrategies = {
+    pending: () => db.assets.filter((asset) => asset.status === "pending"),
+  };
+  const filtered = (filterStrategies[state.page] || getFilteredAssets)();
   const body = state.view === "list" ? renderMetadataList(filtered) : renderCompactAssets(filtered);
   els.contentPanel.innerHTML = `<p class="count-line">共 ${filtered.length} 项</p>${body || renderEmpty("暂无素材")}`;
   els.viewSwitch.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
@@ -512,84 +509,83 @@ function renderManagePageV2() {
     loginLogs: renderLoginLogPage,
     valueLists: renderValueListPage,
     menus: renderMenuManagePage,
+    activity: renderActivityPage,
+    share: renderSharePage,
+    recycle: renderRecyclePage,
+    collect: renderCollectPage,
+    validity: renderValidityPage,
   };
   const directRenderer = directRenderers[state.page];
   if (directRenderer) {
     directRenderer();
     return;
   }
+  els.contentPanel.innerHTML = renderEmpty("暂无对应管理页面");
+}
 
-  if (state.page === "activity") {
-    const rows = collectActivityRows();
-    els.contentPanel.innerHTML = renderManageShell("用户动态", `共 ${rows.length} 条动态`, `
-      <div class="asset-toolbar inline-toolbar">
-        <label>用户<input placeholder="输入用户名搜索" /></label>
-        <label>动作<input placeholder="上传 / 下载 / 分享 / 编辑" /></label>
-      </div>
-      <div class="table-scroll"><table class="records-table manage-table">
-        <colgroup><col style="width:150px"><col style="width:90px"><col style="width:260px"><col style="width:260px"><col style="width:180px"><col style="width:96px"></colgroup>
-        <thead><tr><th>时间</th><th>用户</th><th>动态内容</th><th>关联素材</th><th>素材组</th><th>操作</th></tr></thead>
-        <tbody>${rows.map((row) => `<tr><td>${row.time}</td><td>${escapeHtml(currentUser.name)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
-      </table></div>
-    `);
-    els.contentPanel.querySelectorAll("[data-open-activity]").forEach((button) => button.addEventListener("click", () => openViewer(button.dataset.openActivity)));
-    return;
-  }
+function renderActivityPage() {
+  const rows = collectActivityRows();
+  els.contentPanel.innerHTML = renderManageShell(`
+    <div class="asset-toolbar inline-toolbar">
+      <label>用户<input placeholder="输入用户名搜索" /></label>
+      <label>动作<input placeholder="上传 / 下载 / 分享 / 编辑 / 评论 " /></label>
+    </div>
+    <div class="table-scroll"><table class="records-table manage-table">
+      <colgroup><col style="width:150px"><col style="width:90px"><col style="width:260px"><col style="width:260px"><col style="width:180px"><col style="width:96px"></colgroup>
+      <thead><tr><th>时间</th><th>用户</th><th>动态内容</th><th>关联素材</th><th>素材组</th><th>操作</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr><td>${row.time}</td><td>${escapeHtml(currentUser.name)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
+    </table></div>
+  `);
+  els.contentPanel.querySelectorAll("[data-open-activity]").forEach((button) => button.addEventListener("click", () => openViewer(button.dataset.openActivity)));
+}
 
-  if (state.page === "share") {
-    els.contentPanel.innerHTML = renderManageShell("分享记录", `共 ${db.shares.length} 条分享记录`, `
-      <div class="asset-toolbar inline-toolbar">
-        <label>素材组<input id="shareGroupQuery" placeholder="输入素材组名称搜索" /></label>
-        <label>有效期<select><option>全部</option><option>永久有效</option><option>生效中</option><option>已过期</option></select></label>
-      </div>
-      <div class="table-scroll"><table class="records-table manage-table">
-        <colgroup><col style="width:180px"><col style="width:90px"><col style="width:200px"><col style="width:78px"><col style="width:78px"><col style="width:78px"><col style="width:150px"><col style="width:120px"><col style="width:90px"><col style="width:180px"></colgroup>
-        <thead><tr><th>素材组</th><th>分享人</th><th>链接权限</th><th>访问</th><th>浏览</th><th>下载</th><th>分享时间</th><th>过期时间</th><th>状态</th><th>操作</th></tr></thead>
-        <tbody>${db.shares.map((item, index) => {
-          const expired = isShareExpired(item.expiresAt);
-          return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(item.user)}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${item.sharedAt}</td><td>${item.expiresAt}</td><td><span class="status-dot ${expired ? "off" : "ok"}"></span>${expired ? "已过期" : "生效中"}</td><td><button class="link-button" data-copy-share="${index}" type="button">复制链接</button><button class="link-button" data-update-expire="${index}" type="button">更新时间</button></td></tr>`;
-        }).join("")}</tbody>
-      </table></div>
-    `);
-    els.contentPanel.querySelectorAll("[data-copy-share]").forEach((button) => button.addEventListener("click", () => {
-      const share = db.shares[Number(button.dataset.copyShare)];
-      copyText(share?.link || getShareLink(share?.targetType || "group", share?.targetId || "all", share?.code || "legacy"));
-    }));
-    els.contentPanel.querySelectorAll("[data-update-expire]").forEach((button) => button.addEventListener("click", () => {
-      openUpdateShareExpireModal(Number(button.dataset.updateExpire));
-    }));
-    return;
-  }
+function renderSharePage() {
+  els.contentPanel.innerHTML = renderManageShell(`
+    <div class="asset-toolbar inline-toolbar">
+      <label>素材组<input id="shareGroupQuery" placeholder="输入素材组名称搜索" /></label>
+      <label>有效期<select><option>全部</option><option>永久有效</option><option>生效中</option><option>已过期</option></select></label>
+    </div>
+    <div class="table-scroll"><table class="records-table manage-table">
+      <colgroup><col style="width:180px"><col style="width:90px"><col style="width:200px"><col style="width:78px"><col style="width:78px"><col style="width:78px"><col style="width:150px"><col style="width:120px"><col style="width:90px"><col style="width:180px"></colgroup>
+      <thead><tr><th>素材组</th><th>分享人</th><th>链接权限</th><th>访问</th><th>浏览</th><th>下载</th><th>分享时间</th><th>过期时间</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${db.shares.map((item, index) => {
+        const expired = isShareExpired(item.expiresAt);
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(item.user)}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${item.sharedAt}</td><td>${item.expiresAt}</td><td><span class="status-dot ${expired ? "off" : "ok"}"></span>${expired ? "已过期" : "生效中"}</td><td><button class="link-button" data-copy-share="${index}" type="button">复制链接</button><button class="link-button" data-update-expire="${index}" type="button">更新时间</button></td></tr>`;
+      }).join("")}</tbody>
+    </table></div>
+  `);
+  els.contentPanel.querySelectorAll("[data-copy-share]").forEach((button) => button.addEventListener("click", () => {
+    const share = db.shares[Number(button.dataset.copyShare)];
+    copyText(share?.link || getShareLink(share?.targetType || "group", share?.targetId || "all", share?.code || "legacy"));
+  }));
+  els.contentPanel.querySelectorAll("[data-update-expire]").forEach((button) => button.addEventListener("click", () => {
+    openUpdateShareExpireModal(Number(button.dataset.updateExpire));
+  }));
+}
 
-  if (state.page === "recycle") {
-    const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted"));
-    els.contentPanel.innerHTML = renderManageShell("回收站", `共 ${deletedAssets.length} 项`, `
-      <div class="manage-list-wrap">
-        ${deletedAssets.length ? renderList(deletedAssets) : renderEmpty("暂无素材")}
-      </div>
-    `);
-    bindAssetEvents();
-    return;
-  }
+function renderRecyclePage() {
+  const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted"));
+  els.contentPanel.innerHTML = renderManageShell(`
+    <div class="manage-list-wrap">
+      ${deletedAssets.length ? renderList(deletedAssets) : renderEmpty("暂无素材")}
+    </div>
+  `);
+  bindAssetEvents();
+}
 
-  if (state.page === "collect") {
-  els.contentPanel.innerHTML = renderManageShell("收集素材管理", `共 ${db.collectTasks.length} 条收集任务`, `
-      <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
-      <div class="table-scroll"><table class="records-table manage-table">
-        <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:110px"></colgroup>
-        <thead><tr><th>主题</th><th>存放素材组</th><th>状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
-        <tbody>${db.collectTasks.map((task, index) => `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td><button class="link-button" data-open-collect="${index}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button></td></tr>`).join("")}</tbody>
-      </table></div>
-    `);
-    els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(Number(button.dataset.openCollect))));
-    return;
-  }
+function renderCollectPage() {
+  els.contentPanel.innerHTML = renderManageShell(`
+    <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
+    <div class="table-scroll"><table class="records-table manage-table">
+      <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:110px"></colgroup>
+      <thead><tr><th>主题</th><th>存放素材组</th><th>状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
+      <tbody>${db.collectTasks.map((task, index) => `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td><button class="link-button" data-open-collect="${index}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button></td></tr>`).join("")}</tbody>
+    </table></div>
+  `);
+  els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(Number(button.dataset.openCollect))));
+}
 
-  if (state.page !== "validity") {
-    els.contentPanel.innerHTML = renderEmpty("暂无对应管理页面");
-    return;
-  }
-
+function renderValidityPage() {
   const now = new Date();
   const assets = db.assets.filter((asset) => {
     if (asset.status === "deleted") return false;
@@ -605,7 +601,7 @@ function renderManagePageV2() {
       default: return true;
     }
   }).slice(0, 12);
-  els.contentPanel.innerHTML = renderManageShell("有效期管理", `共 ${assets.length} 条有效期记录`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="asset-toolbar inline-toolbar">
       <label>素材名称<input placeholder="输入素材名称搜索" /></label>
       <label>有效期<select id="validityFilter"><option>全部</option><option>生效中</option><option>即将过期</option><option>30天内</option><option>90天内</option><option>已过期</option></select></label>
@@ -633,11 +629,10 @@ function renderManagePageV2() {
   }));
 }
 
-function renderManageShell(title, subtitle, body) {
+function renderManageShell(body) {
   return `
     <div class="manage-layout">
       <section class="manage-main">
-        <div class="manage-head"><h1>${title} <small>${subtitle}</small></h1></div>
         ${body}
       </section>
     </div>`;
@@ -1189,7 +1184,7 @@ function renderMenuManagePage() {
   const treeHtml = renderMenuTreeNodes(menus, null, 0);
   const pageOptions = renderMenuPageOptions();
 
-  els.contentPanel.innerHTML = renderManageShell("菜单管理", `共 ${menus.length} 个菜单`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="value-list-layout menu-manage-layout">
       <aside class="value-list-tree-panel">
         <div class="menu-tree-toolbar">
@@ -1485,7 +1480,7 @@ function initValueListModalEvents() {
 function renderLoginLogPage() {
   const filters = state.loginLogFilters || { username: "", name: "", startDate: "", endDate: "" };
   const rows = getFilteredLoginLogs(filters);
-  els.contentPanel.innerHTML = renderManageShell("用户登录日志", `共 ${rows.length} 条登录记录`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="asset-toolbar inline-toolbar login-log-toolbar">
       <label>用户名<input id="loginLogUsername" value="${escapeAttr(filters.username)}" placeholder="输入登录用户名" /></label>
       <label>姓名<input id="loginLogName" value="${escapeAttr(filters.name)}" placeholder="输入姓名" /></label>
@@ -1628,7 +1623,7 @@ function renderUserManagePage() {
       <td><span class="status-dot ${user.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(user.status)}</td>
       <td>${escapeHtml(user.lastLogin || "-")}</td>
     </tr>`).join("");
-  els.contentPanel.innerHTML = renderManageShell("用户管理", `共 ${filteredUsers.length} 个用户`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="user-manage-layout">
       <aside class="user-org-panel">
         <div class="user-org-search">
@@ -1724,7 +1719,7 @@ function renderRoleManagePage() {
       </td>
     </tr>`;
   }).join("");
-  els.contentPanel.innerHTML = renderManageShell("角色管理", `共 ${(db.roles || []).length} 个角色`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     ${renderSystemToolbar("角色体系", "新增角色", "add-role")}
     <div class="table-scroll"><table class="records-table manage-table">
       <thead><tr><th>角色</th><th>成员数</th><th>菜单授权</th><th>状态</th><th>操作</th></tr></thead>
@@ -1745,7 +1740,7 @@ function renderOrganizationManagePage() {
       <td>${canEditMenu("organizations") ? `<button class="link-button" data-edit-org="${escapeAttr(org.id)}" type="button">编辑</button>` : "-"}</td>
     </tr>`;
   }).join("");
-  els.contentPanel.innerHTML = renderManageShell("组织管理", `共 ${(db.organizations || []).length} 个组织`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     ${renderSystemToolbar("组织体系", "新增组织", "add-org")}
     <div class="table-scroll"><table class="records-table manage-table">
       <thead><tr><th>组织</th><th>上级组织</th><th>成员数</th><th>负责人</th><th>状态</th><th>操作</th></tr></thead>
@@ -1763,7 +1758,7 @@ function renderPermissionManagePage() {
   const body = view === "subject"
     ? renderPermissionSubjectView(subjectType, subject)
     : renderPermissionMenuView(selectedMenu);
-  els.contentPanel.innerHTML = renderManageShell("权限管理", "按菜单或按组织个人配置可读、可写权限", `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="permission-view-switch">
       <button class="${view === "menu" ? "active" : ""}" data-permission-view="menu" type="button">按菜单授权</button>
       <button class="${view === "subject" ? "active" : ""}" data-permission-view="subject" type="button">按组织个人授权</button>
@@ -2581,7 +2576,7 @@ function renderTagsPage() {
   }
   const canEditTags = canEditMenu("tags");
   const { businessTags, aiTags } = getTagSummary();
-  els.contentPanel.innerHTML = renderManageShell("标签管理", `业务标签 ${businessTags.length} 个 · AI标签 ${aiTags.length} 个`, `
+  els.contentPanel.innerHTML = renderManageShell(`
     <div class="tabs">
       <button class="active" id="tagTabBusiness" type="button">业务标签</button>
       <button id="tagTabAI" type="button">AI标签</button>
