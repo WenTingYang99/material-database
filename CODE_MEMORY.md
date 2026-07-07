@@ -1,5 +1,21 @@
 # 代码记忆索引
 
+## 2026-07-07 统一日期/时间格式
+
+- 目的：将项目内所有时间输出统一为 `YYYY/MM/DD HH:mm`（使用 `/` 分隔），减少解析/显示不一致问题。
+- 涉及文件：`app-utils.js`、`app-core.js`（主要修改点），查验并修正了 `app-render.js` / `app-actions.js` 中的硬编码范围值和日志演示字符串。
+- 主要改动：
+  - `app-utils.js`：
+    - `todayText()` 改为返回 `YYYY/MM/DD`。
+    - `parseDateTimeText()` 输出的 `date` 字段改为 `YYYY/MM/DD`，保持对 `-`、`/`、`.` 的输入兼容但统一输出为 `/`。
+    - 相关衍生函数（`normalizeDateText`、`normalizeDateTimeText`、`splitDateTimeText`、`joinDateTime`、`dateTimeTextToTimestamp` 等）继承新格式。
+  - `app-core.js`：
+    - `getExpireDate()`、`calculateExpireTime()` 的返回值由 `YYYY-MM-DD 23:59` 改为 `YYYY/MM/DD 23:59`。
+    - 种子数据（`seedAssets`、`seedTags`）、`collectTasks`、`shares` 中的所有示例时间戳统一为使用 `/` 的格式。
+    - 修正了若干样本条目中残留的 `-` 格式时间戳。
+- 兼容性说明：解析函数仍接受多种分隔符作为输入，故变更只影响输出与存储的标准化，不影响现有用户输入解析逻辑。
+- 后续建议：在 UI 说明或文档中标注时间输入/展示格式为 `YYYY/MM/DD HH:mm`，并在需要与后端对接时确认双方时间字符串约定。
+
 ## 2026-07-06 左侧菜单树动态化
 
 - 左侧主导航由 `app-core.js` 的 `renderMainNav()` 递归读取 `db.menus` 渲染，不再把“素材管理 / 更多功能”等分组拍平成页面按钮。

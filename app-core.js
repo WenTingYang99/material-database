@@ -257,7 +257,7 @@ function getExpireDate(daysFromNow) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day} 23:59`;
+  return `${year}/${month}/${day} 23:59`;
 }
 
 const seedAssets = seedNames.map((name, index) => {
@@ -287,7 +287,7 @@ const seedAssets = seedNames.map((name, index) => {
     permission: "企业内部 - 可下载",
     validUntil: expireDate,
     validUntilDate: expireDate,
-    validStart: "2026-05-26 00:00",
+    validStart: "2026/05/26 00:00",
     status: "active",
     share: index % 2,
     download: index % 3,
@@ -306,45 +306,45 @@ const seedAssets = seedNames.map((name, index) => {
 const seedTags = [
   // ===== 业务标签 (tagType=1, 支持多层级) =====
 
-  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "杨文婷", createdAt: "2026-01-01 09:00:00", updatedAt: "2026-05-01 10:00:00" },
-  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "杨文婷", createdAt: "2026-02-20 10:15:00", updatedAt: "2026-05-18 16:30:00" },
-  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "Kerry", createdAt: "2026-04-01 08:00:00", updatedAt: "2026-05-22 11:00:00" },
-  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "杨文婷", createdAt: "2026-01-10 14:00:00", updatedAt: "2026-04-15 09:00:00" },
-  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "Kerry", createdAt: "2026-05-01 10:00:00", updatedAt: "2026-06-01 08:00:00" },
-  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "杨文婷", createdAt: "2026-04-20 09:00:00", updatedAt: "2026-05-10 14:00:00" },
-  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "Kerry", createdAt: "2026-03-01 11:00:00", updatedAt: "2026-05-25 16:00:00" },
-  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "杨文婷", createdAt: "2026-02-15 10:00:00", updatedAt: "2026-04-30 09:00:00" },
-  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "Kerry", createdAt: "2026-04-10 15:00:00", updatedAt: "2026-05-15 10:00:00" },
-  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "杨文婷", createdAt: "2026-01-20 09:00:00", updatedAt: "2026-03-10 11:00:00" },
+  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "杨文婷", createdAt: "2026/01/01 09:00:00", updatedAt: "2026/05/01 10:00:00" },
+  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "杨文婷", createdAt: "2026/02/20 10:15:00", updatedAt: "2026/05/18 16:30:00" },
+  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "Kerry", createdAt: "2026/04/01 08:00:00", updatedAt: "2026/05/22 11:00:00" },
+  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "杨文婷", createdAt: "2026/01/10 14:00:00", updatedAt: "2026/04/15 09:00:00" },
+  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "Kerry", createdAt: "2026/05/01 10:00:00", updatedAt: "2026/06/01 08:00:00" },
+  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "杨文婷", createdAt: "2026/04/20 09:00:00", updatedAt: "2026/05/10 14:00:00" },
+  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "Kerry", createdAt: "2026/03/01 11:00:00", updatedAt: "2026/05/25 16:00:00" },
+  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "杨文婷", createdAt: "2026/02/15 10:00:00", updatedAt: "2026/04/30 09:00:00" },
+  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "Kerry", createdAt: "2026/04/10 15:00:00", updatedAt: "2026/05/15 10:00:00" },
+  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "杨文婷", createdAt: "2026/01/20 09:00:00", updatedAt: "2026/03/10 11:00:00" },
 
   // ===== AI标签 (tagType=2, 支持父级层级) =====
   // -- 顶层 AI 父标签 --
-  { id: "tag-ai-001", tagName: "汽车", tagCode: "auto_car", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "汽车品类顶级标签，AI自动识别", createdBy: "系统", createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00" },
-  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "Kerry", createdAt: "2026-03-10 14:00:00", updatedAt: "2026-04-01 10:00:00" },
-  { id: "tag-ai-003", tagName: "户外场景", tagCode: "outdoor", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "户外场景识别分类", createdBy: "系统", createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00" },
-  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "Kerry", createdAt: "2026-04-05 09:00:00", updatedAt: "2026-05-01 11:00:00" },
+  { id: "tag-ai-001", tagName: "汽车", tagCode: "auto_car", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "汽车品类顶级标签，AI自动识别", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
+  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "Kerry", createdAt: "2026/03/10 14:00:00", updatedAt: "2026/04/01 10:00:00" },
+  { id: "tag-ai-003", tagName: "户外场景", tagCode: "outdoor", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "户外场景识别分类", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 <PASSWORD>:<PASSWORD>" },
+  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "Kerry", createdAt: "2026/04/05 <PASSWORD>:<PASSWORD>", updatedAt: "2<PASSWORD>-<PASSWORD> <PASSWORD>:<PASSWORD>" },
 
   // -- 画面质感 子标签 --
-  { id: "tag-ai-011", tagName: "胶片颗粒感", tagCode: "film_grain", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "具有胶片颗粒质感的画面风格", createdBy: "系统", createdAt: "2026-03-15 08:00:00", updatedAt: "2026-03-15 08:00:00" },
-  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "Kerry", createdAt: "2026-04-01 15:00:00", updatedAt: "2026-04-01 15:00:00" },
-  { id: "tag-ai-013", tagName: "柔光朦胧", tagCode: "soft_dreamy", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "柔光、朦胧或雾化效果的画面", createdBy: "系统", createdAt: "2026-04-20 10:00:00", updatedAt: "2026-04-20 10:00:00" },
+  { id: "tag-ai-011", tagName: "胶片颗粒感", tagCode: "film_grain", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "具有胶片颗粒质感的画面风格", createdBy: "系统", createdAt: "2026/03/15 08:00:00", updatedAt: "2026/03/15 08:00:00" },
+  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "Kerry", createdAt: "2026/04/01 15:00:00", updatedAt: "2026/04/01 15:00:00" },
+  { id: "tag-ai-013", tagName: "柔光朦胧", tagCode: "soft_dreamy", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "柔光、朦胧或雾化效果的画面", createdBy: "系统", createdAt: "2026/04/20 10:00:00", updatedAt: "2026/04/20 10:00:00" },
 
   // -- 户外场景 子标签 --
-  { id: "tag-ai-021", tagName: "城市街道", tagCode: "city_street", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "城市道路、街景背景", createdBy: "系统", createdAt: "2026-02-01 12:00:00", updatedAt: "2026-02-01 12:00:00" },
-  { id: "tag-ai-022", tagName: "自然风光", tagCode: "nature", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "山川、湖泊、森林等自然景观", createdBy: "系统", createdAt: "2026-02-01 12:00:00", updatedAt: "2026-02-01 12:00:00" },
-  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "Kerry", createdAt: "2026-05-10 08:00:00", updatedAt: "2026-05-10 08:00:00" },
+  { id: "tag-ai-021", tagName: "城市街道", tagCode: "city_street", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "城市道路、街景背景", createdBy: "系统", createdAt: "2026/02/01 12:00:00", updatedAt: "2026/02/01 12:00:00" },
+  { id: "tag-ai-022", tagName: "自然风光", tagCode: "nature", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "山川、湖泊、森林等自然景观", createdBy: "系统", createdAt: "2026/02/01 12:00:00", updatedAt: "2026/02/01 12:00:00" },
+  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "Kerry", createdAt: "2026/05/10 08:00:00", updatedAt: "2026/05/10 08:00:00" },
 
   // -- 产品特写 子标签 --
-  { id: "tag-ai-031", tagName: "内饰展示", tagCode: "interior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "车内饰细节展示", createdBy: "系统", createdAt: "2026-03-01 08:00:00", updatedAt: "2026-03-01 08:00:00" },
-  { id: "tag-ai-032", tagName: "外观展示", tagCode: "exterior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "车外观整体及局部展示", createdBy: "系统", createdAt: "2026-03-01 08:00:00", updatedAt: "2026-03-01 08:00:00" },
-  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "Kerry", createdAt: "2026-05-12 10:00:00", updatedAt: "2026-05-12 10:00:00" },
+  { id: "tag-ai-031", tagName: "内饰展示", tagCode: "interior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "车内饰细节展示", createdBy: "系统", createdAt: "2026/03/01 08:00:00", updatedAt: "2026/03/01 08:00:00" },
+  { id: "tag-ai-032", tagName: "外观展示", tagCode: "exterior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "车外观整体及局部展示", createdBy: "系统", createdAt: "2026/03/01 08:00:00", updatedAt: "2026/03/01 08:00:00" },
+  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "Kerry", createdAt: "2026/05/12 10:00:00", updatedAt: "2026/05/12 10:00:00" },
 
   // -- 其他 AI 标签（无子标签的独立标签） --
-  { id: "tag-ai-040", tagName: "人物", tagCode: "people", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "画面中包含人物", createdBy: "系统", createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00" },
-  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "Kerry", createdAt: "2026-04-08 09:00:00", updatedAt: "2026-04-08 09:00:00" },
-  { id: "tag-ai-042", tagName: "活动", tagCode: "event", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "活动现场拍摄的素材", createdBy: "系统", createdAt: "2026-02-01 00:00:00", updatedAt: "2026-02-01 00:00:00" },
-  { id: "tag-ai-043", tagName: "横版", tagCode: "landscape", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "横版画幅素材", createdBy: "系统", createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00" },
-  { id: "tag-ai-044", tagName: "竖版", tagCode: "portrait", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "竖版画幅素材", createdBy: "系统", createdAt: "2026-01-01 00:00:00", updatedAt: "2026-01-01 00:00:00" },
+  { id: "tag-ai-040", tagName: "人物", tagCode: "people", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "画面中包含人物", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
+  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "Kerry", createdAt: "2026/04/08 09:00:00", updatedAt: "2026/04/08 09:00:00" },
+  { id: "tag-ai-042", tagName: "活动", tagCode: "event", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "活动现场拍摄的素材", createdBy: "系统", createdAt: "2026/02/01 00:00:00", updatedAt: "2026/02/01 00:00:00" },
+  { id: "tag-ai-043", tagName: "横版", tagCode: "landscape", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "横版画幅素材", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
+  { id: "tag-ai-044", tagName: "竖版", tagCode: "portrait", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "竖版画幅素材", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
 ];
 
 const filterLabels = ["素材来源", "文件格式", "品牌", "车系", "车型", "内饰色", "外饰色", "权限范围", "业务标签", "AI标签", "素材状态", "上传时间", "素材失效日"];
@@ -845,7 +845,7 @@ function calculateExpireTime(relativeExpires) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day} 23:59`;
+    return `${year}/${month}/${day} 23:59`;
   }
   const match = relativeExpires.match(/(\d+)/);
   if (!match) {
@@ -854,7 +854,7 @@ function calculateExpireTime(relativeExpires) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day} 23:59`;
+    return `${year}/${month}/${day} 23:59`;
   }
   const days = parseInt(match[1], 10);
   const date = new Date();
@@ -862,14 +862,14 @@ function calculateExpireTime(relativeExpires) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day} 23:59`;
+  return `${year}/${month}/${day} 23:59`;
 }
 
 function isShareExpired(expiresAt) {
   if (expiresAt === "永久有效" || expiresAt === "已关闭") return false;
-  const now = new Date();
-  const expireDate = new Date(expiresAt.replace(/-/g, "/"));
-  return now > expireDate;
+  const now = Date.now();
+  const expireTimestamp = dateTimeTextToTimestamp(expiresAt || "");
+  return expireTimestamp > 0 ? now > expireTimestamp : false;
 }
 
 function migrateShareExpiresAt() {
@@ -976,12 +976,12 @@ function loadDb() {
   }
   return { groups: defaultGroups, assets: seedAssets, tags: seedTags,
     collectTasks: [
-      { theme: "上海车展活动素材", group: "上海车展活动素材", status: "已失效", code: "apym", creator: "杨文婷", createdAt: "2026-06-09 20:15", expiresAt: "2026-06-09 20:25" },
-      { theme: "小红书", group: "小红书平台素材", status: "已失效", code: "oq9v", creator: "杨文婷", createdAt: "2026-05-25 08:58", expiresAt: "2026-06-01 08:58" },
-      { theme: "凡尔赛 618车展", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026-05-22 17:15", expiresAt: "2026-08-20 17:15" },
+      { theme: "上海车展活动素材", group: "上海车展活动素材", status: "已失效", code: "apym", creator: "杨文婷", createdAt: "2026/06/09 20:15", expiresAt: "2026/06/09 20:25" },
+      { theme: "小红书", group: "小红书平台素材", status: "已失效", code: "oq9v", creator: "杨文婷", createdAt: "2026/05/25 08:58", expiresAt: "2026/06/01 08:58" },
+      { theme: "凡尔赛 618车展", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026/05/22 17:15", expiresAt: "2026/08/20 17:15" },
     ],
     shares: [
-      { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026.03.31 18:06:55", expiresAt: "2026-04-07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "" },
+      { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026/03/31 18:06:55", expiresAt: "2026/04/07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "" },
     ],
   };
 }

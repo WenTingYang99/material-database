@@ -294,30 +294,35 @@ function nowText() {
 function todayText() {
   const date = new Date();
   const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+}
+
+function parseDateTimeText(value = "", defaultTime = "00:00") {
+  const text = String(value || "").trim();
+  const dateMatch = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (!dateMatch) return null;
+  const [, year, month, day] = dateMatch;
+  const date = `${year.padStart(4, "0")}/${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`;
+  const timeMatch = text.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+  const time = timeMatch ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}${timeMatch[3] ? `:${String(timeMatch[3]).padStart(2, "0")}` : ""}` : defaultTime;
+  return { date, time };
 }
 
 function normalizeDateText(value = "") {
-  const text = String(value || "").trim();
-  const match = text.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (!match) return todayText();
-  const [, year, month, day] = match;
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const parsed = parseDateTimeText(value);
+  return parsed ? parsed.date : todayText();
 }
 
 function normalizeDateTimeText(value = "", defaultTime = "23:59") {
-  const date = normalizeDateText(value);
-  const timeMatch = String(value || "").match(/(\d{1,2}):(\d{1,2})/);
-  const time = timeMatch ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}` : defaultTime;
-  return joinDateTime(date, time);
+  const parsed = parseDateTimeText(value, defaultTime);
+  if (!parsed) return joinDateTime(todayText(), defaultTime);
+  return joinDateTime(parsed.date, parsed.time);
 }
 
 function splitDateTimeText(value = "") {
-  const text = String(value || "");
-  const date = normalizeDateText(text);
-  const timeMatch = text.match(/(\d{1,2}):(\d{1,2})/);
-  const time = timeMatch ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}` : "23:59";
-  return { date, time };
+  const parsed = parseDateTimeText(value, "23:59");
+  if (!parsed) return { date: todayText(), time: "23:59" };
+  return parsed;
 }
 
 function joinDateTime(date, time = "23:59") {
@@ -336,8 +341,10 @@ function formatDateTimeDisplay(value = "") {
 }
 
 function dateTimeTextToTimestamp(value = "") {
-  const normalized = String(value || "").replace(/\./g, "-").replace(/-/g, "/");
-  const timestamp = Date.parse(normalized);
+  const parsed = parseDateTimeText(value, "00:00");
+  if (!parsed) return 0;
+  const iso = `${parsed.date}T${parsed.time}`;
+  const timestamp = Date.parse(iso);
   return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 

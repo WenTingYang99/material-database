@@ -42,10 +42,10 @@ function render() {
 
 function initProjectDatePickers(root = document) {
   const scope = root instanceof Element ? root : document;
-  window.initDatePicker(scope.querySelectorAll('input[type="date"]'), { minDate: "2020-01-01", maxDate: "2036-12-31" });
+  window.initDatePicker(scope.querySelectorAll('input[type="date"]'), { minDate: "2020/01/01", maxDate: "2036/12/31" });
   window.initDatePicker(scope.querySelectorAll('input[type="time"]'), { minTime: "00:00", maxTime: "23:59" });
-  window.initDatePicker(scope.querySelectorAll("#uploadDateFilter"), { minDate: "2020-01-01", maxDate: "today" });
-  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036-12-31" });
+  window.initDatePicker(scope.querySelectorAll("#uploadDateFilter"), { minDate: "2020/01/01", maxDate: "today" });
+  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036/12/31" });
   window.initDatePicker(scope.querySelectorAll("#basketValidityTime, #editAssetValidStartTime, #editAssetValidUntilTime, [name='validUntilTime'], [name='validStartTime'], .inline-time"), { minTime: "00:00", maxTime: "23:59" });
 }
 
