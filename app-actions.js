@@ -764,7 +764,7 @@ function createGroupShare(groupId) {
   const group = db.groups.find((item) => item.id === groupId);
   const code = Math.random().toString(36).slice(2, 8);
   const link = getShareLink("group", groupId, code);
-  db.shares.unshift({ group: group.name, user: currentUser.name, access: "分享给互联网用户（无需登录）", visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: "永久有效", targetType: "group", targetId: groupId, code, link });
+  db.shares.unshift({ group: group.name, user: currentUser.name, access: "分享给互联网用户（无需登录）", visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: "永久有效", targetType: "group", targetId: groupId, code, link, requirePassword: false, password: "" });
   saveDb();
   state.page = "share";
   render();

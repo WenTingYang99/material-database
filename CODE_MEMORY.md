@@ -410,3 +410,16 @@
 
 - 内饰色、外饰色在素材编辑弹框中是单选字段，不使用 `multiple: true`；保存时仍写入 `asset.interiorColors / asset.exteriorColors` 数组，但数组最多保留一个值以兼容既有展示逻辑。
 - `.asset-edit-combo-panel` 背景不能使用未定义的 `--panel` 变量；已改为 `var(--surface, #fff)` 并提高 z-index，避免下拉面板透明或被表单字段文字压住。
+
+## 2026-07-07 分享记录操作调整
+- 分享记录页的操作列不再拆成“复制链接 / 更新时间”两个按钮，统一为“管理分享”入口。
+- “管理分享”复用收集素材“管理邀请”的弹框结构与样式：左侧二维码，右侧说明、权限、链接，下方可维护分享状态和失效时间。
+- 分享记录仍使用原有 `db.shares` 数据结构；保存时仅更新 `expiresAt`。状态选择“已过期”会写入当前时间，状态为“生效中”且失效时间留空时表示“永久有效”。
+- 已删除旧的 `updateShareExpireModal` 静态弹框、绑定事件和 `openUpdateShareExpireModal / handleUpdateShareExpireSubmit / closeUpdateShareExpireModal` 等专用逻辑，避免同一功能两套实现。
+
+## 2026-07-07 分享访问密码与分享页下载
+- `db.shares` 新增 `requirePassword` 和 `password` 字段；`migrateShareExpiresAt()` 会通过 `normalizeShareSecurity()` 给老分享补默认值，老数据默认不需要访问密码。
+- 创建素材篮分享、素材组分享、单素材分享时均可设置“需要访问密码”和访问密码；勾选但留空时由 `buildShareSecurity()` 自动生成密码。
+- 分享记录“管理分享”弹框可后续开启/关闭访问密码并修改密码，仍复用 `tplShareRecordConfigForm`。
+- 外部分享页 `renderSharePortal()` 增加密码校验页；校验通过后使用 sessionStorage 记录当前分享的临时通过状态，避免同一标签页重复输入。
+- 外部分享页增加素材勾选、批量下载和一键全部下载；素材筛选统一走 `getSharePortalAssets()`，下载统一走 `downloadShareAssets()`，避免 asset/group/basket 三种分享重复写筛选和下载逻辑。

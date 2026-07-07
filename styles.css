@@ -3993,6 +3993,35 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   color: rgba(255, 255, 255, 0.72);
 }
 
+.share-download-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.share-download-toolbar span {
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 700;
+}
+
+.share-download-toolbar button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.share-download-toolbar button.primary {
+  border-color: var(--teal);
+  background: var(--teal);
+}
+
 .share-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
@@ -4005,6 +4034,20 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   border: 1px solid var(--line-dark);
   border-radius: 8px;
   background: #fff;
+}
+
+.share-card-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px 0;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.share-card-check input {
+  width: 16px;
+  height: 16px;
 }
 
 .share-card .thumb {

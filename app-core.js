@@ -888,8 +888,30 @@ function migrateShareExpiresAt() {
       share.expiresAt = calculateExpireTime(share.expiresAt);
       changed = true;
     }
+    const originalRequirePassword = share.requirePassword;
+    const originalPassword = share.password;
+    normalizeShareSecurity(share);
+    if (share.requirePassword !== originalRequirePassword || share.password !== originalPassword) changed = true;
   });
   if (changed) saveDb();
+}
+
+function normalizeShareSecurity(share) {
+  if (!share) return share;
+  if (share.requirePassword === undefined) {
+    share.requirePassword = Boolean(share.requiresPassword);
+  }
+  share.requirePassword = Boolean(share.requirePassword);
+  share.password = typeof share.password === "string" ? share.password : "";
+  if (!share.requirePassword) share.password = "";
+  return share;
+}
+
+function buildShareSecurity(data = {}) {
+  const requirePassword = data.requirePassword === "on";
+  const inputPassword = String(data.password || "").trim();
+  const password = requirePassword ? inputPassword || Math.random().toString(36).slice(2, 8) : "";
+  return { requirePassword, password };
 }
 
 function migrateAssetMetadata() {
@@ -959,7 +981,7 @@ function loadDb() {
       { theme: "凡尔赛 618车展", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026-05-22 17:15", expiresAt: "2026-08-20 17:15" },
     ],
     shares: [
-      { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026.03.31 18:06:55", expiresAt: "2026-04-07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "" },
+      { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026.03.31 18:06:55", expiresAt: "2026-04-07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "" },
     ],
   };
 }
@@ -1075,23 +1097,71 @@ function renderSharePortal(token) {
     document.body.innerHTML = `<main class="collector-page"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>分享链接无效</h1><p>请确认链接是否完整，或联系素材库管理员重新分享。</p></section></main>`;
     return;
   }
+  normalizeShareSecurity(share);
   share.visits += 1;
   saveDb();
-  const assets = targetType === "asset"
-    ? db.assets.filter((asset) => asset.id === targetId)
-    : targetType === "basket"
-      ? db.assets.filter((asset) => targetId.split(",").includes(asset.id))
-    : db.assets.filter((asset) => targetId === "all" ? asset.status !== "deleted" : asset.groupId === targetId);
+  if (share.requirePassword && share.password && sessionStorage.getItem(getSharePasswordKey(share)) !== share.password) {
+    renderSharePasswordGate(token, share);
+    return;
+  }
+  renderSharePortalContent(token, share);
+}
+
+function getSharePasswordKey(share) {
+  return `dp-share-password:${share.targetType}:${share.targetId}:${share.code}`;
+}
+
+function getSharePortalAssets(targetType, targetId) {
+  if (targetType === "asset") return db.assets.filter((asset) => asset.id === targetId);
+  if (targetType === "basket") return db.assets.filter((asset) => targetId.split(",").includes(asset.id));
+  return db.assets.filter((asset) => targetId === "all" ? asset.status !== "deleted" : asset.groupId === targetId);
+}
+
+function renderSharePasswordGate(token, share) {
+  document.body.innerHTML = `
+    <main class="collector-page">
+      <section class="collector-card share-password-card">
+        <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
+        <h1>${escapeHtml(share.group || "分享素材")}</h1>
+        <p>该分享已开启访问密码，请输入密码后查看素材。</p>
+        <form id="sharePasswordForm">
+          <label>访问密码<input name="password" type="password" autocomplete="current-password" required /></label>
+          <div class="collector-actions"><button type="submit">进入分享页</button></div>
+        </form>
+        <div class="collector-result hidden" id="sharePasswordError">访问密码不正确，请重新输入。</div>
+      </section>
+    </main>`;
+  document.querySelector("#sharePasswordForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const password = new FormData(event.currentTarget).get("password");
+    if (password !== share.password) {
+      document.querySelector("#sharePasswordError")?.classList.remove("hidden");
+      return;
+    }
+    sessionStorage.setItem(getSharePasswordKey(share), share.password);
+    renderSharePortalContent(token, share);
+  });
+}
+
+function renderSharePortalContent(token, share) {
+  const [targetType, targetId] = token.split(":");
+  const assets = getSharePortalAssets(targetType, targetId);
   document.body.innerHTML = `
     <main class="share-page">
       <header class="share-hero">
         <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
         <h1>${escapeHtml(share.group || "分享素材")}</h1>
-        <p>${escapeHtml(share.access)} · 有效期：${escapeHtml(share.expiresAt)}</p>
+        <p>${escapeHtml(share.access)} · ${share.requirePassword ? "需要访问密码" : "无需访问密码"} · 有效期：${escapeHtml(share.expiresAt)}</p>
+        <div class="share-download-toolbar">
+          <span id="shareSelectedCount">已选择 0 项</span>
+          <button id="shareBatchDownload" type="button">批量下载</button>
+          <button class="primary" id="shareDownloadAll" type="button">一键全部下载</button>
+        </div>
       </header>
       <section class="share-grid">
         ${assets.map((asset) => `
-          <article class="share-card">
+          <article class="share-card" data-share-asset="${escapeAttr(asset.id)}">
+            <label class="share-card-check"><input class="share-asset-check" type="checkbox" value="${escapeAttr(asset.id)}" /> 选择</label>
             <div class="thumb">${asset.mime?.startsWith("image/") ? `<img src="${escapeAttr(asset.src)}" alt="${escapeAttr(asset.name)}" />` : `<div class="file-tile"><b>${escapeHtml(asset.format)}</b></div>`}</div>
             <h2>${escapeHtml(asset.name)}</h2>
             <p>${escapeHtml(asset.format)} · ${formatBytes(asset.sizeBytes)}</p>
@@ -1099,6 +1169,49 @@ function renderSharePortal(token) {
           </article>`).join("") || renderEmpty("暂无可分享素材")}
       </section>
     </main>`;
+  bindSharePortalDownloads(share, assets);
+}
+
+function downloadShareAssets(share, assets) {
+  if (!assets.length) return showToast("请先选择需要下载的素材");
+  assets.forEach((asset, index) => {
+    setTimeout(() => {
+      const link = document.createElement("a");
+      link.href = asset.src;
+      link.download = `${asset.name}.${String(asset.format || "file").toLowerCase()}`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }, index * 300);
+    asset.download = (asset.download || 0) + 1;
+  });
+  share.downloads = (share.downloads || 0) + assets.length;
+  saveDb();
+  showToast(`正在下载 ${assets.length} 个素材...`);
+}
+
+function bindSharePortalDownloads(share, assets) {
+  const selectedCount = document.querySelector("#shareSelectedCount");
+  const getSelectedAssets = () => {
+    const ids = [...document.querySelectorAll(".share-asset-check:checked")].map((input) => input.value);
+    return assets.filter((asset) => ids.includes(asset.id));
+  };
+  const updateSelectedCount = () => {
+    const count = getSelectedAssets().length;
+    if (selectedCount) selectedCount.textContent = `已选择 ${count} 项`;
+  };
+  document.querySelectorAll(".share-asset-check").forEach((input) => input.addEventListener("change", updateSelectedCount));
+  document.querySelector("#shareBatchDownload")?.addEventListener("click", () => downloadShareAssets(share, getSelectedAssets()));
+  document.querySelector("#shareDownloadAll")?.addEventListener("click", () => downloadShareAssets(share, assets));
+  document.querySelectorAll(".share-card a[download]").forEach((link) => {
+    link.addEventListener("click", () => {
+      const asset = assets.find((item) => item.id === link.closest(".share-card")?.dataset.shareAsset);
+      if (!asset) return;
+      asset.download = (asset.download || 0) + 1;
+      share.downloads = (share.downloads || 0) + 1;
+      saveDb();
+    });
+  });
 }
 
 function ensureRuntimeElements() {
@@ -1713,8 +1826,9 @@ function bindEvents() {
     const code = Math.random().toString(36).slice(2, 8);
     const link = getShareLink("basket", targetId, code);
     const shareName = data.shareName.trim() || `素材篮 ${assets.length} 项`;
+    const security = buildShareSecurity(data);
     
-    db.shares.unshift({ group: shareName, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: calculateExpireTime(data.expiresAt), targetType: "basket", targetId, code, link });
+    db.shares.unshift({ group: shareName, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: calculateExpireTime(data.expiresAt), targetType: "basket", targetId, code, link, ...security });
     assets.forEach((asset) => {
       asset.share += 1;
       asset.logs.unshift(`${currentUser.name} 通过素材篮分享了素材`);
@@ -1723,6 +1837,7 @@ function bindEvents() {
     render();
     createdBasketLink = link;
     document.querySelector("#basketShareLink").value = link;
+    document.querySelector("#basketSharePassword").value = security.password;
     document.querySelector("#basketShareCopy").disabled = false;
     showToast("素材篮分享记录已创建，链接已生成");
   });
@@ -1783,14 +1898,6 @@ function bindEvents() {
   document.querySelector("#shareGroupForm")?.addEventListener("submit", handleShareGroupSubmit);
   document.querySelector("#shareGroupCopy")?.addEventListener("click", () => {
     if (shareGroupCreatedLink) copyText(shareGroupCreatedLink);
-  });
-
-  bindModalClose("updateShareExpireModal", closeUpdateShareExpireModal);
-  document.querySelector("#updateShareExpireForm")?.addEventListener("submit", handleUpdateShareExpireSubmit);
-  document.querySelector("#updateShareExpireForever")?.addEventListener("change", (event) => {
-    const checked = event.target.checked;
-    document.querySelector("#updateShareExpireDate").disabled = checked;
-    document.querySelector("#updateShareExpireTime").disabled = checked;
   });
 
   bindModalClose("inviteTaskModal", () => {

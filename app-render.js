@@ -45,7 +45,7 @@ function initProjectDatePickers(root = document) {
   window.initDatePicker(scope.querySelectorAll('input[type="date"]'), { minDate: "2020-01-01", maxDate: "2036-12-31" });
   window.initDatePicker(scope.querySelectorAll('input[type="time"]'), { minTime: "00:00", maxTime: "23:59" });
   window.initDatePicker(scope.querySelectorAll("#uploadDateFilter"), { minDate: "2020-01-01", maxDate: "today" });
-  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, #updateShareExpireDate, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036-12-31" });
+  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036-12-31" });
   window.initDatePicker(scope.querySelectorAll("#basketValidityTime, #editAssetValidStartTime, #editAssetValidUntilTime, [name='validUntilTime'], [name='validStartTime'], .inline-time"), { minTime: "00:00", maxTime: "23:59" });
 }
 
@@ -550,16 +550,12 @@ function renderSharePage() {
       <thead><tr><th>素材组</th><th>分享人</th><th>链接权限</th><th>访问</th><th>浏览</th><th>下载</th><th>分享时间</th><th>过期时间</th><th>状态</th><th>操作</th></tr></thead>
       <tbody>${db.shares.map((item, index) => {
         const expired = isShareExpired(item.expiresAt);
-        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(item.user)}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${item.sharedAt}</td><td>${item.expiresAt}</td><td><span class="status-dot ${expired ? "off" : "ok"}"></span>${expired ? "已过期" : "生效中"}</td><td><button class="link-button" data-copy-share="${index}" type="button">复制链接</button><button class="link-button" data-update-expire="${index}" type="button">更新时间</button></td></tr>`;
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(item.user)}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${item.sharedAt}</td><td>${item.expiresAt}</td><td><span class="status-dot ${expired ? "off" : "ok"}"></span>${expired ? "已过期" : "生效中"}</td><td><button class="link-button" data-open-share-record="${index}" type="button">管理分享</button></td></tr>`;
       }).join("")}</tbody>
     </table></div>
   `);
-  els.contentPanel.querySelectorAll("[data-copy-share]").forEach((button) => button.addEventListener("click", () => {
-    const share = db.shares[Number(button.dataset.copyShare)];
-    copyText(share?.link || getShareLink(share?.targetType || "group", share?.targetId || "all", share?.code || "legacy"));
-  }));
-  els.contentPanel.querySelectorAll("[data-update-expire]").forEach((button) => button.addEventListener("click", () => {
-    openUpdateShareExpireModal(Number(button.dataset.updateExpire));
+  els.contentPanel.querySelectorAll("[data-open-share-record]").forEach((button) => button.addEventListener("click", () => {
+    openShareRecordConfigModal(Number(button.dataset.openShareRecord));
   }));
 }
 

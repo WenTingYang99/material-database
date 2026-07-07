@@ -55,6 +55,8 @@ function openBasketShareModal() {
   document.querySelector("#basketShareCount").textContent = `${assets.length} 项素材`;
   document.querySelector("#basketShareLink").value = "";
   document.querySelector("#basketShareCopy").disabled = true;
+  document.querySelector("#basketShareRequirePassword").checked = false;
+  document.querySelector("#basketSharePassword").value = "";
   document.querySelector("#basketShareModal").classList.remove("hidden");
 }
 
@@ -63,67 +65,6 @@ function closeBasketShareModal() {
 }
 
 let shareGroupCreatedLink = "";
-let updatingShareIndex = -1;
-
-function openUpdateShareExpireModal(index) {
-  updatingShareIndex = index;
-  const share = db.shares[index];
-  if (!share) return;
-  
-  document.querySelector("#updateShareExpireName").textContent = escapeHtml(share.group);
-  document.querySelector("#updateShareExpireCurrent").textContent = share.expiresAt;
-  
-  const dateInput = document.querySelector("#updateShareExpireDate");
-  const timeInput = document.querySelector("#updateShareExpireTime");
-  const foreverCheckbox = document.querySelector("#updateShareExpireForever");
-  
-  if (share.expiresAt === "永久有效") {
-    foreverCheckbox.checked = true;
-    dateInput.disabled = true;
-    timeInput.disabled = true;
-    dateInput.value = "";
-    timeInput.value = "";
-  } else {
-    foreverCheckbox.checked = false;
-    dateInput.disabled = false;
-    timeInput.disabled = false;
-    const match = share.expiresAt.match(/(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/);
-    if (match) {
-      dateInput.value = `${match[1]}-${match[2]}-${match[3]}`;
-      timeInput.value = `${match[4]}:${match[5]}`;
-    } else {
-      const now = new Date();
-      dateInput.value = now.toISOString().split("T")[0];
-      timeInput.value = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    }
-  }
-  
-  document.querySelector("#updateShareExpireModal").classList.remove("hidden");
-}
-
-function handleUpdateShareExpireSubmit(event) {
-  event.preventDefault();
-  if (updatingShareIndex < 0) return;
-  
-  const form = event.target;
-  const data = Object.fromEntries(new FormData(form));
-  const share = db.shares[updatingShareIndex];
-  
-  if (data.expireForever === "on") {
-    share.expiresAt = "永久有效";
-  } else {
-    share.expiresAt = `${data.expireDate} ${data.expireTime}`;
-  }
-  saveDb();
-  closeUpdateShareExpireModal();
-  render();
-  showToast("分享过期时间已更新");
-}
-
-function closeUpdateShareExpireModal() {
-  document.querySelector("#updateShareExpireModal").classList.add("hidden");
-  updatingShareIndex = -1;
-}
 
 function openShareCurrentModal() {
   const groupName = getGroupName(state.groupId);
@@ -134,6 +75,8 @@ function openShareCurrentModal() {
   document.querySelector("#shareGroupCopy").disabled = true;
   document.querySelector("#shareGroupAccess").value = "企业内部成员可访问";
   document.querySelector("#shareGroupExpiresAt").value = "7天";
+  document.querySelector("#shareGroupRequirePassword").checked = false;
+  document.querySelector("#shareGroupPassword").value = "";
   
   document.querySelector("#shareGroupModal").classList.remove("hidden");
 }
@@ -148,17 +91,56 @@ function handleShareGroupSubmit(event) {
   const link = getShareLink("group", state.groupId, code);
   const groupName = getGroupName(state.groupId);
   const expiresAt = calculateExpireTime(data.expiresAt);
+  const security = buildShareSecurity(data);
   
-  db.shares.unshift({ group: groupName, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt, targetType: "group", targetId: state.groupId, code, link });
+  db.shares.unshift({ group: groupName, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt, targetType: "group", targetId: state.groupId, code, link, ...security });
   saveDb();
   shareGroupCreatedLink = link;
   document.querySelector("#shareGroupLink").value = link;
+  document.querySelector("#shareGroupPassword").value = security.password;
   document.querySelector("#shareGroupCopy").disabled = false;
   showToast("分享记录已创建，链接已生成");
 }
 
 function closeShareGroupModal() {
   document.querySelector("#shareGroupModal").classList.add("hidden");
+}
+
+function openShareRecordConfigModal(index) {
+  const share = db.shares[index];
+  if (!share) return;
+  normalizeShareSecurity(share);
+  const link = share.link || getShareLink(share.targetType || "group", share.targetId || "all", share.code || "legacy");
+  const expiresAtParts = share.expiresAt === "永久有效" ? { date: "", time: "" } : splitDateTimeText(share.expiresAt);
+  const html = renderHtmlTemplate("tplShareRecordConfigForm", {
+    QR_URL: escapeAttr(getQrImageUrl(link)),
+    GROUP: escapeHtml(share.group),
+    ACCESS: escapeAttr(share.access),
+    LINK: escapeAttr(link),
+    EXPIRE_DATE: escapeAttr(expiresAtParts.date),
+    EXPIRE_TIME: escapeAttr(expiresAtParts.time),
+    PASSWORD_CHECKED: share.requirePassword ? "checked" : "",
+    PASSWORD: escapeAttr(share.password || ""),
+    REQUIRED_ATTR: "",
+  });
+  openFormModal("分享记录操作", html, (form) => {
+    const data = Object.fromEntries(new FormData(form));
+    if (data.status === "已过期") {
+      share.expiresAt = nowText();
+    } else {
+      share.expiresAt = formDateTimeValue(data, "expiresAt") || "永久有效";
+    }
+    const security = buildShareSecurity(data);
+    Object.assign(share, security);
+    saveDb();
+    closeFormModal();
+    render();
+    showToast(security.requirePassword && !String(data.password || "").trim() ? `分享记录已保存，访问密码：${security.password}` : "分享记录已保存");
+  });
+  const statusSelect = document.querySelector("#formModal")?.querySelector("[name='status']");
+  if (statusSelect) statusSelect.value = isShareExpired(share.expiresAt) ? "已过期" : "生效中";
+  document.querySelector("#copyShareRecordLink")?.addEventListener("click", () => copyText(link));
+  document.querySelector("#openShareRecordLink")?.addEventListener("click", () => window.open(link, "_blank"));
 }
 
 let shareAssetCreatedLink = "";
@@ -175,6 +157,8 @@ function openShareAssetModal(id) {
   document.querySelector("#shareAssetCopy").disabled = true;
   document.querySelector("#shareAssetAccess").value = "企业内部成员可访问";
   document.querySelector("#shareAssetExpiresAt").value = "7天";
+  document.querySelector("#shareAssetRequirePassword").checked = false;
+  document.querySelector("#shareAssetPassword").value = "";
   
   document.querySelector("#shareAssetModal").classList.remove("hidden");
 }
@@ -189,8 +173,9 @@ function handleShareAssetSubmit(event) {
   const link = getShareLink("asset", shareAssetId, code);
   const asset = findAsset(shareAssetId);
   const expiresAt = calculateExpireTime(data.expiresAt);
+  const security = buildShareSecurity(data);
   
-  db.shares.unshift({ group: asset.name, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt, targetType: "asset", targetId: shareAssetId, code, link });
+  db.shares.unshift({ group: asset.name, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt, targetType: "asset", targetId: shareAssetId, code, link, ...security });
   asset.share += 1;
   asset.logs.unshift(`${currentUser.name} 分享了素材`);
   saveDb();
@@ -198,6 +183,7 @@ function handleShareAssetSubmit(event) {
   if (!els.viewer.classList.contains("hidden")) renderViewer();
   shareAssetCreatedLink = link;
   document.querySelector("#shareAssetLink").value = link;
+  document.querySelector("#shareAssetPassword").value = security.password;
   document.querySelector("#shareAssetCopy").disabled = false;
   showToast("分享链接已生成");
 }

@@ -334,6 +334,10 @@
               <option>仅指定成员可访问</option>
             </select>
           </label>
+          <label class="checkbox-label"><input id="basketShareRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
+          <label>访问密码
+            <input id="basketSharePassword" name="password" placeholder="可填写访问密码，留空则自动生成" />
+          </label>
           <label>有效期
             <select id="basketShareExpiresAt" name="expiresAt">
               <option>7天</option>
@@ -522,6 +526,8 @@
             <option>互联网用户无需登录可访问</option>
             <option>指定成员可访问</option>
           </select></label>
+          <label class="checkbox-label"><input id="shareAssetRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
+          <label>访问密码<input id="shareAssetPassword" name="password" placeholder="可填写访问密码，留空则自动生成" /></label>
           <label>有效期<select id="shareAssetExpiresAt" name="expiresAt">
             <option>7天</option>
             <option>30天</option>
@@ -695,6 +701,8 @@
             <option>互联网用户无需登录可访问</option>
             <option>指定成员可访问</option>
           </select></label>
+          <label class="checkbox-label"><input id="shareGroupRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
+          <label>访问密码<input id="shareGroupPassword" name="password" placeholder="可填写访问密码，留空则自动生成" /></label>
           <label>有效期<select id="shareGroupExpiresAt" name="expiresAt">
             <option>7天</option>
             <option>30天</option>
@@ -706,37 +714,6 @@
             <button id="shareGroupCancel" type="button">取消</button>
             <button id="shareGroupCopy" type="button" disabled>复制链接</button>
             <button class="primary" type="submit">创建分享</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="modal hidden" id="updateShareExpireModal">
-      <div class="modal-card form-card">
-        <header>
-          <h2>更新分享过期时间</h2>
-          <button class="plain-icon" id="updateShareExpireClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
-        </header>
-        <form id="updateShareExpireForm">
-          <div class="request-summary">
-            <span>分享对象</span>
-            <strong id="updateShareExpireName"></strong>
-          </div>
-          <label>当前过期时间</label>
-          <div id="updateShareExpireCurrent" style="margin-bottom: 16px; color: #6b7280; font-size: 14px;"></div>
-          <label>新的过期时间
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <input id="updateShareExpireDate" name="expireDate" type="date" required readonly inputmode="none" />
-              <input id="updateShareExpireTime" name="expireTime" type="time" required readonly inputmode="none" />
-            </div>
-          </label>
-          <label style="margin-top: 8px;">
-            <input id="updateShareExpireForever" name="expireForever" type="checkbox" />
-            <span style="margin-left: 8px;">永久有效</span>
-          </label>
-          <div class="form-actions">
-            <button id="updateShareExpireCancel" type="button">取消</button>
-            <button class="primary" type="submit">确认更新</button>
           </div>
         </form>
       </div>
@@ -946,6 +923,28 @@
         </div>
       </label>
       <div class="form-actions"><button type="button" data-cancel>关闭</button><button id="copyCollectLink" type="button">复制链接</button><button id="openCollectLink" type="button">打开上传页</button><button id="simulateCollectUpload" type="button">本页测试上传</button><button class="primary" type="submit">保存</button></div>
+    </template>
+
+    <template id="tplShareRecordConfigForm">
+      <div class="collect-config">
+        <div class="qr-card real-qr"><img src="{{QR_URL}}" alt="分享二维码" /></div>
+        <div class="collect-meta">
+          <b>{{GROUP}}</b>
+          <p>别人可通过二维码或链接打开分享页，按链接权限访问素材。</p>
+          <label>链接权限<input readonly value="{{ACCESS}}" /></label>
+          <label>分享链接<input readonly value="{{LINK}}" /></label>
+        </div>
+      </div>
+      <label>分享状态<select name="status"><option>生效中</option><option>已过期</option></select></label>
+      <label class="checkbox-label"><input name="requirePassword" type="checkbox" {{PASSWORD_CHECKED}} /> 需要访问密码</label>
+      <label>访问密码<input name="password" value="{{PASSWORD}}" placeholder="可填写访问密码，留空则自动生成" /></label>
+      <label>失效时间
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+        </div>
+      </label>
+      <div class="form-actions"><button type="button" data-cancel>关闭</button><button id="copyShareRecordLink" type="button">复制链接</button><button id="openShareRecordLink" type="button">打开分享页</button><button class="primary" type="submit">保存</button></div>
     </template>
 
     <template id="tplCollectorUploadForm">
