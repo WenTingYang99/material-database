@@ -1,6 +1,10 @@
 function getFilteredAssets() {
-  let pool = db.assets.filter((asset) => state.page === "recycle" ? asset.status === "deleted" : asset.status !== "deleted");
-  if (state.page === "pending") pool = pool.filter((asset) => asset.status === "pending");
+  let pool = db.assets.filter((asset) => {
+    const status = typeof asset.status === "number" ? asset.status : (asset.status === "deleted" ? -1 : asset.status === "pending" ? 2 : 8);
+    if (state.page === "recycle") return status === -1;
+    if (state.page === "pending") return status === 2;
+    return status === 8;
+  });
   if (state.page === "created") pool = pool.filter((asset) => asset.owner === currentUser.name);
   if (state.groupId !== "all" && state.page === "all") {
     const groupIds = state.showGroupDescendants ? getGroupDescendantIds(state.groupId) : [state.groupId];

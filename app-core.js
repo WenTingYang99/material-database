@@ -28,6 +28,18 @@ const seedNames = [
 const SEED_VALUE_LIST_TREE = [
   { id: "vl_root", code: "root", name: "值列表", type: "root", parentId: null, refId: null, description: "值列表管理根节点", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
   { id: "vl_dim_matlib", code: "material_lib", name: "素材库筛选", type: "dimension", parentId: "vl_root", refId: null, description: "素材库筛选条件集合", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
+  { id: "vl_dim_matmanage", code: "material_manage", name: "素材管理", type: "dimension", parentId: "vl_root", refId: null, description: "素材管理相关维度", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_dim_manage_status", code: "manage_status", name: "素材状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材状态枚举值", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ms1", code: "ms_pending", name: "待提交", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "素材刚刚上传还没有进入素材库", attr1: "1", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ms2", code: "ms_pending_audit", name: "待审核", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容已提交，等待机审", attr1: "2", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ms3", code: "ms_machine_auditing", name: "机审中", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容正在进行机审", attr1: "3", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ms4", code: "ms_machine_pass", name: "机审通过", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "机审结果为通过，可进入待人审状态", attr1: "4", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ms5", code: "ms_machine_reject", name: "机审拒绝", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "机审结果为拒绝，内容被拦截", attr1: "5", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ms6", code: "ms_human_pending", name: "待人审", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "机审结果为待人工审核，进入人审队列", attr1: "6", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ms7", code: "ms_human_auditing", name: "人审中", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容正在进行人工审核", attr1: "7", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ms8", code: "ms_human_pass", name: "人审通过", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "人审结果为通过，可进入待发布状态", attr1: "8", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ms9", code: "ms_human_reject", name: "人审拒绝", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "人审结果为拒绝，内容被驳回", attr1: "9", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ms10", code: "ms_not_in_library", name: "未入库", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容生成环节的内容，用户还未选择让其进入素材库", attr1: "10", attr2: "", status: "enabled", sortOrder: 10 },
   { id: "vl_dim_brand", code: "brand", name: "品牌", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "车辆品牌列表", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_b1", code: "peugeot", name: "东风标致", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_b2", code: "citroen", name: "东风雪铁龙", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
@@ -284,11 +296,16 @@ const seedAssets = seedNames.map((name, index) => {
     groupId: index < 2 ? "test" : index < 5 ? "redbook" : "all",
     owner: "Kerry",
     department: "采购",
+    creator: "Kerry",
+    lastUpdate: "Kerry",
+    asset_source: "internal",
+    collect_id: "collect-seed",
+    collect_link: "",
     permission: "企业内部 - 可下载",
     validUntil: expireDate,
     validUntilDate: expireDate,
     validStart: "2026/05/26 00:00",
-    status: "active",
+    status: 8,
     share: index % 2,
     download: index % 3,
     view: [0, 3, 3, 2, 0, 24, 9, 11, 8, 6, 5, 5][index],
@@ -302,6 +319,12 @@ const seedAssets = seedNames.map((name, index) => {
     ],
   });
 });
+
+seedAssets.push(
+  { id: "test-pending-1", name: "待审核测试图片1", src: "assets/asset-01.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 485919, width: 3000, height: 2000, desc: "待审核测试素材", brand: "东风标致", series: "4008", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 2, uploadDate: "2026/05/26 10:00", share: 0, download: 0, view: 0, createdAt: "2026/05/26 10:00", updatedAt: "2026/05/26 10:00", version: "1", logs: ["Kerry 上传了素材"] },
+  { id: "test-pending-2", name: "待审核测试图片2", src: "assets/asset-02.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 160420, width: 3000, height: 2000, desc: "待审核测试素材", brand: "东风雪铁龙", series: "天逸 (C5)AIRCROSS", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 2, uploadDate: "2026/05/26 10:05", share: 0, download: 0, view: 0, createdAt: "2026/05/26 10:05", updatedAt: "2026/05/26 10:05", version: "1", logs: ["Kerry 上传了素材"] },
+  { id: "test-machine-pass-1", name: "机审通过测试图片", src: "assets/asset-03.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 101468, width: 3000, height: 2000, desc: "机审通过测试素材", brand: "东风标致", series: "4008", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 4, uploadDate: "2026/05/26 11:00", share: 0, download: 0, view: 0, createdAt: "2026/05/26 11:00", updatedAt: "2026/05/26 11:00", version: "1", logs: ["Kerry 上传了素材", "机审通过 - 2026/05/26 11:00"] }
+);
 
 const seedTags = [
   // ===== 业务标签 (tagType=1, 支持多层级) =====
@@ -780,6 +803,7 @@ function bootstrap() {
   migrateVehicleModels();
   migrateAssetMetadata();
   migrateShareExpiresAt();
+  migrateCollectTaskSecurity();
   renderShell();
   initValueListModalEvents();
   const collectCode = new URLSearchParams(window.location.search).get("collect");
@@ -914,6 +938,24 @@ function buildShareSecurity(data = {}) {
   return { requirePassword, password };
 }
 
+function normalizeCollectTaskSecurity(task) {
+  if (!task) return task;
+  task.password = typeof task.password === "string" && task.password ? task.password : String(task.code || "");
+  task.requirePassword = true;
+  return task;
+}
+
+function migrateCollectTaskSecurity() {
+  let changed = false;
+  (db.collectTasks || []).forEach((task) => {
+    const originalRequirePassword = task.requirePassword;
+    const originalPassword = task.password;
+    normalizeCollectTaskSecurity(task);
+    if (task.requirePassword !== originalRequirePassword || task.password !== originalPassword) changed = true;
+  });
+  if (changed) saveDb();
+}
+
 function migrateAssetMetadata() {
   let changed = false;
   db.assets.forEach((asset) => {
@@ -976,9 +1018,10 @@ function loadDb() {
   }
   return { groups: defaultGroups, assets: seedAssets, tags: seedTags,
     collectTasks: [
-      { theme: "上海车展活动素材", group: "上海车展活动素材", status: "已失效", code: "apym", creator: "杨文婷", createdAt: "2026/06/09 20:15", expiresAt: "2026/06/09 20:25" },
-      { theme: "小红书", group: "小红书平台素材", status: "已失效", code: "oq9v", creator: "杨文婷", createdAt: "2026/05/25 08:58", expiresAt: "2026/06/01 08:58" },
-      { theme: "凡尔赛 618车展", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026/05/22 17:15", expiresAt: "2026/08/20 17:15" },
+      { id: "collect-1", theme: "上海车展活动素材", desc: "", group: "上海车展活动素材", status: "已失效", code: "apym", creator: "杨文婷", createdAt: "2026/06/09 20:15", expiresAt: "2026/06/09 20:25", requirePassword: false, password: "", types: [], link: "" },
+      { id: "collect-2", theme: "小红书", desc: "", group: "小红书平台素材", status: "已失效", code: "oq9v", creator: "杨文婷", createdAt: "2026/05/25 08:58", expiresAt: "2026/06/01 08:58", requirePassword: false, password: "", types: [], link: "" },
+      { id: "collect-3", theme: "凡尔赛 618车展", desc: "", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026/05/22 17:15", expiresAt: "2026/08/20 17:15", requirePassword: false, password: "", types: [], link: "" },
+      { id: "collect-seed", theme: "系统初始化素材", desc: "系统初始化时导入的素材", group: "测试素材组", status: "已完成", code: "seed", creator: "Kerry", createdAt: "2026/05/26 00:00", expiresAt: "2027/05/26 00:00", requirePassword: false, password: "", types: [], link: "" },
     ],
     shares: [
       { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026/03/31 18:06:55", expiresAt: "2026/04/07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "" },
@@ -1038,55 +1081,289 @@ function renderCollectorPortal(code) {
     document.body.innerHTML = `<main class="collector-page"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>收集链接无效</h1><p>请确认访问密码或联系素材库管理员重新发送链接。</p></section></main>`;
     return;
   }
+  normalizeCollectTaskSecurity(task);
+  if (task.requirePassword && task.password && sessionStorage.getItem(getCollectPasswordKey(task)) !== task.password) {
+    renderCollectorPasswordGate(code, task);
+    return;
+  }
+  renderCollectorPortalContent(code, task);
+}
+
+function getCollectPasswordKey(task) {
+  return `dp-collect-password:${task.code}`;
+}
+
+function renderCollectorPasswordGate(code, task) {
   document.body.innerHTML = `
-    <main class="collector-page">
-      <section class="collector-card">
+    <main class="collector-page collector-page--centered">
+      <section class="collector-card share-password-card">
         <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
         <h1>${escapeHtml(task.theme)}</h1>
-        <p>请上传本次收集任务需要的图片、视频或文档。提交后素材会进入「待入库」，由管理员审核入库。</p>
-        <div class="collector-target"><span>存放素材组</span><strong>${escapeHtml(task.group)}</strong><span>访问密码</span><strong>${escapeHtml(task.code)}</strong></div>
-        <form id="collectorForm">
-          <label>提交人<input name="author" placeholder="姓名 / 部门 / 联系方式" required /></label>
-          <label>素材说明<textarea name="note" placeholder="补充用途、活动、车型、版权说明等"></textarea></label>
-          <label>业务标签<input name="businessTags" placeholder="例如：618活动、经销商，多个标签用逗号分隔" /></label>
-          <label>选择文件<input name="files" type="file" multiple required accept="${getAllUploadAccept()}" /></label>
-          <label>素材失效时间
-            <div class="date-time-row">
-              <input name="validUntilDate" type="date" readonly inputmode="none" />
-              <input name="validUntilTime" type="time" readonly inputmode="none" />
-            </div>
-          </label>
-          <div class="collector-actions"><button type="submit">上传到待入库</button><a href="${escapeAttr(getCollectLink(code))}">刷新页面</a></div>
+        <p>该收集任务已开启访问密码，请输入密码后上传素材。</p>
+        <form id="collectPasswordForm">
+          <label>访问密码<input name="password" type="password" autocomplete="current-password" required /></label>
+          <div class="collector-actions"><button type="submit">进入上传页</button></div>
         </form>
-        <div class="collector-result hidden" id="collectorResult"></div>
+        <div class="collector-result hidden" id="collectPasswordError">访问密码不正确，请重新输入。</div>
       </section>
     </main>`;
+  document.querySelector("#collectPasswordForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const password = new FormData(event.currentTarget).get("password");
+    if (password !== task.password) {
+      document.querySelector("#collectPasswordError")?.classList.remove("hidden");
+      return;
+    }
+    sessionStorage.setItem(getCollectPasswordKey(task), task.password);
+    renderCollectorPortalContent(code, task);
+  });
+}
+
+function renderCollectorPortalContent(code, task) {
+  const businessTags = getTagSummary().businessTags;
+  const tagOptions = businessTags.map((tag) => `<option value="${escapeAttr(tag.tagName || tag.name)}">${escapeHtml(tag.tagName || tag.name)}</option>`).join("");
+  document.body.innerHTML = `
+    <main class="collector-page">
+      <section class="collector-hero">
+        <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
+        <h1>${escapeHtml(task.theme)}</h1>
+        <p>请上传本次收集任务需要的图片、视频或文档。提交后素材会进入「待入库」，待审核入库。</p>
+        <div class="collector-info-bar">
+          <span>截止日期：<strong>${escapeHtml(task.expiresAt)}</strong></span>
+          ${task.requirePassword ? `<span>需要访问密码</span>` : `<span>无需访问密码</span>`}
+        </div>
+      </section>
+      <section class="collector-content">
+        <form id="collectorForm">
+          <div class="collector-form-section">
+            <h2>提交人信息</h2>
+            <div class="collector-form-row">
+              <label><span class="required">*</span>提交人姓名<input name="author" placeholder="请输入姓名" required /></label>
+              <label><span class="required">*</span>公司/部门<input name="department" placeholder="请输入公司或部门" required /></label>
+            </div>
+            <div class="collector-form-row">
+              <label><span class="required">*</span>联系方式<input name="phone" placeholder="请输入手机号" required /></label>
+              <label><span class="required">*</span>邮箱<input name="email" placeholder="请输入邮箱" required /></label>
+            </div>
+          </div>
+          <div class="collector-form-section">
+            <h2>素材信息</h2>
+            <label>素材说明<textarea name="note" rows="3" placeholder="补充用途、活动、车型、版权说明等"></textarea></label>
+            <div class="collector-form-row">
+              <label>业务标签
+                <div class="collector-tag-select">
+                  <select name="businessTags" multiple size="4">${tagOptions}</select>
+                  <div class="collector-tag-add">
+                    <input name="newBusinessTag" type="text" placeholder="输入新标签名称" />
+                    <button type="button" id="addNewTagBtn">+ 添加</button>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+          <div class="collector-form-section">
+            <h2>素材上传</h2>
+            <div class="collector-upload-area" id="collectorUploadArea">
+              <input id="collectorFileInput" type="file" multiple accept="${getAllUploadAccept()}" />
+              <div class="collector-upload-btn">
+                <span data-icon="upload"></span>
+                <span>选择文件</span>
+              </div>
+              <p>支持图片、视频、文档等格式，可多选</p>
+            </div>
+          </div>
+          <div class="collector-form-section" id="collectorStagedSection" style="display:none;">
+            <h2>暂存列表</h2>
+            <div id="collectorStagedList" class="collector-staged-list"></div>
+          </div>
+          <div class="collector-form-actions">
+            <button type="button" id="collectorResetBtn">重置</button>
+            <button type="button" id="collectorStashBtn">暂存</button>
+            <button type="submit" class="primary">提交到待入库</button>
+          </div>
+        </form>
+      </section>
+      <div class="collector-result hidden" id="collectorResult"></div>
+    </main>`;
+  
+  const stagedFiles = [];
+  
+  function validateCollectorForm() {
+    const form = document.querySelector("#collectorForm");
+    const data = Object.fromEntries(new FormData(form));
+    if (!data.author?.trim()) {
+      showToast("请填写提交人姓名");
+      form.querySelector("[name='author']").focus();
+      return false;
+    }
+    if (!data.department?.trim()) {
+      showToast("请填写公司/部门");
+      form.querySelector("[name='department']").focus();
+      return false;
+    }
+    if (!data.phone?.trim()) {
+      showToast("请填写联系方式");
+      form.querySelector("[name='phone']").focus();
+      return false;
+    }
+    if (!data.email?.trim()) {
+      showToast("请填写邮箱");
+      form.querySelector("[name='email']").focus();
+      return false;
+    }
+    return true;
+  }
+  
+  document.querySelector("#collectorFileInput").addEventListener("change", (event) => {
+    const files = [...event.target.files];
+    if (!files.length) return;
+    const validFiles = files.filter(isAllowedUploadFile);
+    const rejectedCount = files.length - validFiles.length;
+    if (rejectedCount) showToast(`已跳过 ${rejectedCount} 个不支持的文件格式`);
+    validFiles.forEach((file) => {
+      stagedFiles.push({
+        file,
+        id: `staged-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        previewUrl: URL.createObjectURL(file),
+      });
+    });
+    renderStagedList();
+    event.target.value = "";
+  });
+  
+  document.querySelector("#addNewTagBtn").addEventListener("click", () => {
+    const newTagInput = document.querySelector("[name='newBusinessTag']");
+    const newTagName = newTagInput.value.trim();
+    if (!newTagName) return;
+    const select = document.querySelector("[name='businessTags']");
+    const existingOptions = [...select.options].map(opt => opt.value);
+    if (existingOptions.includes(newTagName)) {
+      showToast("该标签已存在");
+      return;
+    }
+    const option = document.createElement("option");
+    option.value = newTagName;
+    option.textContent = newTagName;
+    option.selected = true;
+    select.appendChild(option);
+    newTagInput.value = "";
+    showToast("标签已添加");
+  });
+  
+  document.querySelector("#collectorResetBtn").addEventListener("click", () => {
+    clearStagedFiles();
+    stagedFiles.length = 0;
+    document.querySelector("#collectorForm").reset();
+    renderStagedList();
+  });
+  
+  document.querySelector("#collectorStashBtn").addEventListener("click", () => {
+    if (!validateCollectorForm()) return;
+    if (!stagedFiles.length) {
+      showToast("请先选择要上传的文件");
+      return;
+    }
+    showToast(`已暂存 ${stagedFiles.length} 个文件`);
+  });
+  
   document.querySelector("#collectorForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (!validateCollectorForm()) return;
+    
     const form = event.currentTarget;
     const data = Object.fromEntries(new FormData(form));
-    const files = [...form.querySelector("[name='files']").files];
-    if (!files.length) return;
-    for (const file of files) {
-      const asset = await createAssetFromFile(file, { validUntilDate: formDateTimeValue(data, "validUntil") || "", customTags: splitTags(data.businessTags || "") });
+    const selectedTags = [...form.querySelector("[name='businessTags']").selectedOptions].map(opt => opt.value);
+    const newTag = (data.newBusinessTag || "").trim();
+    if (newTag && !selectedTags.includes(newTag)) selectedTags.push(newTag);
+    
+    if (!stagedFiles.length) {
+      showToast("请先选择要上传的文件");
+      return;
+    }
+    
+    const fileCount = stagedFiles.length;
+    showToast(`正在上传 ${fileCount} 个文件...`);
+    
+    for (const staged of stagedFiles) {
+      const asset = await createAssetFromFile(staged.file, { 
+        validUntilDate: "", 
+        customTags: selectedTags,
+        status: 2,
+        asset_source: "external",
+        collect_id: task.id,
+        collect_link: task.link
+      });
       const targetGroup = db.groups.find((group) => group.name === task.group);
       asset.groupId = targetGroup?.id || "all";
-      asset.status = "pending";
-      asset.owner = data.author.trim() || "外部提交";
-      asset.department = "外部收集";
+      asset.creator = task.creator;
+      asset.owner = data.author.trim();
+      asset.department = data.department.trim();
+      asset.contact = data.contact.trim();
+      asset.email = data.email.trim();
       asset.desc = data.note.trim();
-      asset.logs.unshift(`${asset.owner} 通过收集链接上传素材`);
+      asset.logs.unshift(`${asset.owner} 通过收集链接由${asset.department}-${asset.owner}上传素材`);
       db.assets.unshift(asset);
     }
+    
     saveDb();
+    clearStagedFiles();
+    stagedFiles.length = 0;
     form.reset();
+    renderStagedList();
+    
     const result = document.querySelector("#collectorResult");
     result.classList.remove("hidden");
-    setTimeout(() => {
-      result.innerHTML = `已提交 ${files.length} 个素材，管理员可在「待入库」审核。<a href="${escapeAttr(getLibraryLink("pending"))}">进入待入库</a>`;
-    }, 0);
-    result.textContent = `已提交 ${files.length} 个素材，管理员可在素材库「待入库」查看。`;
+    result.innerHTML = `已提交 ${fileCount} 个素材，管理员可在「待入库」审核。<a href="${escapeAttr(getLibraryLink("pending"))}">进入待入库</a>`;
+    showToast(`已成功提交 ${fileCount} 个素材到待入库`);
   });
+
+  function clearStagedFiles() {
+    stagedFiles.forEach((staged) => URL.revokeObjectURL(staged.previewUrl));
+  }
+
+  function renderStagedPreview(staged) {
+    const fileType = getType(staged.file);
+    const format = getFormat(staged.file);
+    if (staged.file.type.startsWith("image/")) {
+      return `<img src="${escapeAttr(staged.previewUrl)}" alt="${escapeAttr(staged.file.name)}" />`;
+    }
+    if (staged.file.type.startsWith("video/")) {
+      return `<video src="${escapeAttr(staged.previewUrl)}" muted playsinline preload="metadata"></video>`;
+    }
+    return `<div class="collector-file-preview"><b>${escapeHtml(format)}</b><span>${escapeHtml(fileType)}</span></div>`;
+  }
+  
+  function renderStagedList() {
+    const section = document.querySelector("#collectorStagedSection");
+    const list = document.querySelector("#collectorStagedList");
+    if (!stagedFiles.length) {
+      section.style.display = "none";
+      return;
+    }
+    section.style.display = "block";
+    list.innerHTML = stagedFiles.map((staged) => `
+      <div class="collector-staged-item" data-staged-id="${escapeAttr(staged.id)}">
+        <div class="collector-staged-thumb">${renderStagedPreview(staged)}</div>
+        <div class="collector-staged-info">
+          <span class="collector-staged-name">${escapeHtml(staged.file.name)}</span>
+          <span class="collector-staged-size">${escapeHtml(getType(staged.file))} · ${escapeHtml(getFormat(staged.file))} · ${formatBytes(staged.file.size)}</span>
+        </div>
+        <button type="button" class="collector-staged-remove" data-remove-staged="${escapeAttr(staged.id)}">移除</button>
+      </div>
+    `).join("");
+    
+    list.querySelectorAll("[data-remove-staged]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.dataset.removeStaged;
+        const index = stagedFiles.findIndex((item) => item.id === id);
+        if (index > -1) {
+          URL.revokeObjectURL(stagedFiles[index].previewUrl);
+          stagedFiles.splice(index, 1);
+          renderStagedList();
+        }
+      });
+    });
+  }
 }
 
 function renderSharePortal(token) {

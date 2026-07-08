@@ -664,6 +664,7 @@
         <form id="collectTaskForm">
           <label>任务名称<input id="collectTaskName" name="name" placeholder="例如：收集618活动素材" required /></label>
           <label>收集说明<textarea id="collectTaskDesc" name="desc" rows="3" placeholder="说明收集要求、格式规范等"></textarea></label>
+          <label>存放素材组<input id="collectTaskGroup" name="group" placeholder="素材上传后存放的目标素材组" /></label>
           <label>截止日期<input id="collectTaskDeadline" name="deadline" type="date" required readonly inputmode="none" /></label>
           <label>允许上传的文件类型<select id="collectTaskTypes" name="types" multiple size="8">
             <option>图片</option>
@@ -714,27 +715,6 @@
             <button id="shareGroupCancel" type="button">取消</button>
             <button id="shareGroupCopy" type="button" disabled>复制链接</button>
             <button class="primary" type="submit">创建分享</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <div class="modal hidden" id="inviteTaskModal">
-      <div class="modal-card form-card">
-        <header>
-          <h2 id="inviteTaskTitle">收集任务邀请</h2>
-          <button class="plain-icon" id="inviteTaskClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
-        </header>
-        <form id="inviteTaskForm">
-          <div class="request-summary">
-            <span>邀请参与</span>
-            <strong id="inviteTaskName"></strong>
-          </div>
-          <label>邀请成员<input id="inviteTaskMembers" name="members" placeholder="输入成员姓名或邮箱，用逗号分隔" /></label>
-          <label>邀请消息<textarea id="inviteTaskMessage" name="message" rows="3" placeholder="可选：添加邀请说明"></textarea></label>
-          <div class="form-actions">
-            <button id="inviteTaskCancel" type="button">取消</button>
-            <button class="primary" type="submit">发送邀请</button>
           </div>
         </form>
       </div>

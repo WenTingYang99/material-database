@@ -65,20 +65,48 @@ async function handleFiles(fileList, options = {}) {
   }
   if (rejectedCount) showToast(`已跳过 ${rejectedCount} 个不支持的文件格式`);
   showToast(`正在识别并导入 ${files.length} 个文件...`);
+  
+  const collectTaskCode = Math.random().toString(36).slice(2, 6);
+  const collectTaskId = `collect-${Date.now()}`;
+  const collectLink = getCollectLink(collectTaskCode);
+  const groupName = getGroupName(state.groupId);
+  
+  db.collectTasks.unshift({
+    id: collectTaskId,
+    theme: `${currentUser.name} 的内部上传任务`,
+    desc: options.desc || "",
+    group: groupName,
+    status: "已完成",
+    code: collectTaskCode,
+    creator: currentUser.name,
+    createdAt: nowText(),
+    expiresAt: calculateExpireTime("永久有效"),
+    requirePassword: false,
+    password: "",
+    types: options.types || [],
+    link: collectLink
+  });
+  
   const created = [];
   for (const file of files) {
-    const asset = await createAssetFromFile(file, options);
+    const asset = await createAssetFromFile(file, {
+      ...options,
+      status: 2,
+      asset_source: "internal",
+      collect_id: collectTaskId,
+      collect_link: collectLink
+    });
     db.assets.unshift(asset);
     created.push(asset);
   }
   saveDb();
-  state.page = "all";
+  state.page = "pending";
   state.groupId = created[0]?.groupId || "all";
   state.selectedIds = new Set(created.map((asset) => asset.id));
   document.querySelector("#fileInput").value = "";
   document.querySelector("#folderInput").value = "";
   render();
-  showToast(`已上传 ${created.length} 个素材，并自动生成内容标签`);
+  showToast(`已上传 ${created.length} 个素材到待审核，审核通过后将在素材库显示`);
 }
 
 async function createAssetFromFile(file, options = {}) {
@@ -108,9 +136,14 @@ async function createAssetFromFile(file, options = {}) {
     groupId: options.groupId || (state.groupId === "all" ? "test" : state.groupId),
     owner: currentUser.name,
     department: currentUser.department,
+    creator: currentUser.name,
+    lastUpdate: currentUser.name,
+    asset_source: options.asset_source || "internal",
+    collect_id: options.collect_id || "",
+    collect_link: options.collect_link || "",
     permission: "企业内部 - 可下载",
     validUntil: validUntilDate,
-    status: "active",
+    status: options.status || 8,
     uploadDate,
     validStart: createdTime.replace(/\//g, "-"),
     validUntilDate,
@@ -1429,6 +1462,7 @@ function openCollectTaskModal(defaultGroupName = "") {
   document.querySelector("#collectTaskDesc").value = "";
   document.querySelector("#collectTaskDeadline").value = "";
   document.querySelector("#collectTaskTypes").innerHTML = getAllCollectTaskTypes().map((type) => `<option>${escapeHtml(type)}</option>`).join("");
+  document.querySelector("#collectTaskGroup").value = defaultGroupName;
   
   document.querySelector("#collectTaskModal").classList.remove("hidden");
 }
@@ -1438,21 +1472,29 @@ function handleCollectTaskSubmit(event) {
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   
-  if (!data.deadline) {
+  if (!data.expiresAtDate || !data.expiresAtTime) {
     showToast("请设置截止日期");
     return;
   }
   
+  const code = Math.random().toString(36).slice(2, 6);
+  const id = `collect-${Date.now()}`;
+  const link = getCollectLink(code);
   db.collectTasks.unshift({ 
+    id,
     theme: data.name, 
     desc: data.desc,
-    deadline: data.deadline,
+    group: data.group || "",
+    deadline: `${data.expiresAtDate} ${data.expiresAtTime}`,
     types: [...document.querySelector("#collectTaskTypes").selectedOptions].map(opt => opt.value),
     status: "生效中", 
-    code: Math.random().toString(36).slice(2, 6), 
+    code,
     creator: currentUser.name, 
     createdAt: nowText(), 
-    expiresAt: data.deadline 
+    expiresAt: `${data.expiresAtDate} ${data.expiresAtTime}`,
+    requirePassword: true,
+    password: code,
+    link
   });
   saveDb();
   closeCollectTaskModal();

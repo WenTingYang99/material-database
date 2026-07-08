@@ -29,7 +29,7 @@ function render() {
   const menuTitleMap = (db.menus || []).filter(m => m.category === "page").reduce((map, m) => {
     map[m.page] = m.name;
     return map;
-  }, { all: getGroupName(state.groupId) || "全部素材", pending: "待入库", created: "我创建的组" });
+  }, { all: getGroupName(state.groupId) || "全部素材", pending: "待审核", created: "我创建的组" });
   els.pageTitle.textContent = menuTitleMap[state.page] || "全部素材";
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
@@ -267,7 +267,7 @@ function renderActions() {
 
 function renderAssets() {
   const filterStrategies = {
-    pending: () => db.assets.filter((asset) => asset.status === "pending"),
+    pending: () => db.assets.filter((asset) => asset.status === 2),
   };
   const filtered = (filterStrategies[state.page] || getFilteredAssets)();
   const body = state.view === "list" ? renderMetadataList(filtered) : renderCompactAssets(filtered);
@@ -348,8 +348,8 @@ function renderMetadataList(items) {
           const aiTags = (asset.aiTags || []).join("、") || "-";
           const validStartParts = splitDateTimeText(asset.validStart || asset.uploadDate || "");
           const validUntilParts = splitDateTimeText(asset.validUntilDate || asset.validUntil || "");
-          const status = getValidityStatus(asset);
-          const statusClass = getValidityStatusClass(status);
+          const status = getAssetStatusText(asset.status);
+          const statusClass = getAssetStatusClass(asset.status);
           return `
             <tr data-id="${asset.id}">
               <td><input data-select-asset="${asset.id}" type="checkbox" ${state.selectedIds.has(asset.id) ? "checked" : ""} /></td>
@@ -391,6 +391,33 @@ function getValidityStatus(asset) {
   const diffDays = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24));
   if (diffDays <= 7) return "即将过期";
   return "生效中";
+}
+
+function getAssetStatusText(status) {
+  const statusMap = {
+    1: "待提交",
+    2: "待审核",
+    3: "机审中",
+    4: "机审通过",
+    5: "机审拒绝",
+    6: "待人审",
+    7: "人审中",
+    8: "人审通过",
+    9: "人审拒绝",
+    10: "未入库",
+    active: "人审通过",
+    pending: "待审核",
+    deleted: "已删除",
+  };
+  return statusMap[status] || "未知状态";
+}
+
+function getAssetStatusClass(status) {
+  if (status === 8 || status === "active") return "ok";
+  if (status === 2 || status === "pending") return "warn";
+  if (status === 3 || status === 4 || status === 6 || status === 7) return "info";
+  if (status === 5 || status === 9 || status === "deleted") return "off";
+  return "ok";
 }
 
 function getValidityStatusClass(status) {
@@ -560,7 +587,7 @@ function renderSharePage() {
 }
 
 function renderRecyclePage() {
-  const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted"));
+  const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted" || asset.status === -1));
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="manage-list-wrap">
       ${deletedAssets.length ? renderList(deletedAssets) : renderEmpty("暂无素材")}
@@ -573,18 +600,30 @@ function renderCollectPage() {
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
     <div class="table-scroll"><table class="records-table manage-table">
-      <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:110px"></colgroup>
+      <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:220px"></colgroup>
       <thead><tr><th>主题</th><th>存放素材组</th><th>状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody>${db.collectTasks.map((task, index) => `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td><button class="link-button" data-open-collect="${index}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button></td></tr>`).join("")}</tbody>
+      <tbody>${db.collectTasks.map((task) => {
+        const taskAssets = db.assets.filter((asset) => asset.collect_id === task.id);
+        const hasPendingAssets = taskAssets.some((asset) => asset.status === 2);
+        const hasMachineAuditAssets = taskAssets.some((asset) => asset.status >= 3 && asset.status <= 5);
+        const hasHumanAuditAssets = taskAssets.some((asset) => asset.status >= 6 && asset.status <= 7);
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : task.status === "已完成" ? "info" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td>
+          ${hasPendingAssets ? `<button class="link-button" data-machine-audit="${escapeAttr(task.id)}" type="button">发起机审</button>` : ""}
+          ${hasMachineAuditAssets || hasHumanAuditAssets ? `<button class="link-button" data-human-audit="${escapeAttr(task.id)}" type="button">发起审核</button>` : ""}
+          <button class="link-button" data-open-collect="${escapeAttr(task.id)}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button>
+        </td></tr>`;
+      }).join("")}</tbody>
     </table></div>
   `);
-  els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(Number(button.dataset.openCollect))));
+  els.contentPanel.querySelectorAll("[data-machine-audit]").forEach((button) => button.addEventListener("click", () => simulateMachineAudit(button.dataset.machineAudit)));
+  els.contentPanel.querySelectorAll("[data-human-audit]").forEach((button) => button.addEventListener("click", () => simulateHumanAudit(button.dataset.humanAudit)));
+  els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(button.dataset.openCollect)));
 }
 
 function renderValidityPage() {
   const now = new Date();
   const assets = db.assets.filter((asset) => {
-    if (asset.status === "deleted") return false;
+    if (asset.status === "deleted" || asset.status === -1) return false;
     if (state.manageValidity === "全部") return true;
     const expireDate = new Date((asset.validUntilDate || asset.validUntil || "").replace(/-/g, "/"));
     if (isNaN(expireDate.getTime())) return false;
@@ -1704,6 +1743,7 @@ function renderRoleManagePage() {
     const visibleCount = pageMenus.filter((menu) => role.permissions?.[menu.id]?.visible).length;
     const editCount = pageMenus.filter((menu) => role.permissions?.[menu.id]?.editable).length;
     return `<tr>
+      <td><span class="mono">${escapeHtml(role.id)}</span></td>
       <td><strong>${escapeHtml(role.name)}</strong><small>${escapeHtml(role.description || "-")}</small></td>
       <td>${members}</td>
       <td>可见 ${visibleCount} 项 / 可编辑 ${editCount} 项</td>
@@ -1718,8 +1758,8 @@ function renderRoleManagePage() {
   els.contentPanel.innerHTML = renderManageShell(`
     ${renderSystemToolbar("角色体系", "新增角色", "add-role")}
     <div class="table-scroll"><table class="records-table manage-table">
-      <thead><tr><th>角色</th><th>成员数</th><th>菜单授权</th><th>状态</th><th>操作</th></tr></thead>
-      <tbody>${rows || `<tr><td colspan="5" class="empty-cell">暂无角色</td></tr>`}</tbody>
+      <thead><tr><th>角色ID</th><th>角色</th><th>成员数</th><th>菜单授权</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="6" class="empty-cell">暂无角色</td></tr>`}</tbody>
     </table></div>`);
   bindSystemManageEvents();
 }
@@ -2171,6 +2211,8 @@ function openUserManageModal(userId = "") {
     <label>登录用户名<input name="username" value="${escapeAttr(user.username || "")}" ${userId ? "readonly" : ""} required /></label>
     <label>密码<input name="password" value="${escapeAttr(user.password || "")}" required /></label>
     <label>姓名<input name="name" value="${escapeAttr(user.name || "")}" required /></label>
+    <label>手机号<input name="phone" value="${escapeAttr(user.phone || "")}" placeholder="请输入手机号" /></label>
+    <label>邮箱<input name="email" value="${escapeAttr(user.email || "")}" placeholder="请输入邮箱" /></label>
     <label>所属组织<select name="organizationId">${buildOptions(db.organizations || [], user.organizationId || "")}</select></label>
     <label>所属角色<select name="roleIds" multiple size="4">${buildMultiOptions(db.roles || [], roleIds)}</select></label>
     <label>状态<select name="status"><option ${user.status !== "停用" ? "selected" : ""}>启用</option><option ${user.status === "停用" ? "selected" : ""}>停用</option></select></label>
@@ -2193,6 +2235,8 @@ function openUserManageModal(userId = "") {
       username,
       password: data.password.trim(),
       name: data.name.trim(),
+      phone: data.phone.trim(),
+      email: data.email.trim(),
       organizationId: data.organizationId,
       roleId: nextRoleIds[0] || "",
       roleIds: nextRoleIds,
@@ -2222,14 +2266,24 @@ function openRoleManageModal(roleId = "") {
   if (!canEditMenu("roles")) return showToast("当前账号没有角色管理编辑权限");
   const role = (db.roles || []).find((item) => item.id === roleId) || {};
   openFormModal(roleId ? "编辑角色" : "新增角色", `
+    <label>角色ID<input name="id" value="${escapeAttr(role.id || "")}" ${roleId ? "readonly" : ""} required /></label>
     <label>角色名称<input name="name" value="${escapeAttr(role.name || "")}" required /></label>
     <label>角色说明<textarea name="description">${escapeHtml(role.description || "")}</textarea></label>
     <label>状态<select name="status"><option ${role.status !== "停用" ? "selected" : ""}>启用</option><option ${role.status === "停用" ? "selected" : ""}>停用</option></select></label>
     <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
   `, (form) => {
     const data = Object.fromEntries(new FormData(form));
+    const nextId = data.id.trim();
+    if (!nextId) {
+      showToast("请输入角色ID");
+      return;
+    }
+    if ((db.roles || []).some((item) => item.id === nextId && item.id !== roleId)) {
+      showToast("角色ID已存在");
+      return;
+    }
     const next = {
-      id: roleId || `role-${Date.now()}`,
+      id: nextId,
       name: data.name.trim(),
       description: data.description.trim(),
       status: data.status,
@@ -2319,12 +2373,12 @@ function openPermissionManageModal(roleId) {
 }
 
 function emptyRecycleBin() {
-  const count = db.assets.filter((asset) => asset.status === "deleted").length + db.groups.filter((group) => group.status === "deleted").length;
+  const count = db.assets.filter((asset) => asset.status === "deleted" || asset.status === -1).length + db.groups.filter((group) => group.status === "deleted").length;
   if (!count) {
     showToast("回收站暂无内容");
     return;
   }
-  db.assets = db.assets.filter((asset) => asset.status !== "deleted");
+  db.assets = db.assets.filter((asset) => asset.status !== "deleted" && asset.status !== -1);
   db.groups = db.groups.filter((group) => group.status !== "deleted");
   saveDb();
   render();

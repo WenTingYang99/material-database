@@ -192,8 +192,8 @@ function closeShareAssetModal() {
   document.querySelector("#shareAssetModal").classList.add("hidden");
 }
 
-function openCollectTaskConfigModal(index) {
-  const task = db.collectTasks[index];
+function openCollectTaskConfigModal(taskId) {
+  const task = db.collectTasks.find((t) => t.id === taskId) || db.collectTasks[taskId];
   if (!task) return;
   const link = getCollectLink(task.code);
   const expiresAtParts = splitDateTimeText(task.expiresAt);
@@ -206,7 +206,7 @@ function openCollectTaskConfigModal(index) {
     EXPIRE_TIME: escapeAttr(expiresAtParts.time),
     REQUIRED_ATTR: task.status === "生效中" ? "required" : "",
   });
-  openFormModal("收集任务邀请", html, (form) => {
+  openFormModal("收集任务配置", html, (form) => {
     const data = Object.fromEntries(new FormData(form));
     task.status = data.status;
     if (data.status === "已失效") {
@@ -230,11 +230,11 @@ function openCollectTaskConfigModal(index) {
   });
   document.querySelector("#copyCollectLink")?.addEventListener("click", () => copyText(link));
   document.querySelector("#openCollectLink")?.addEventListener("click", () => window.open(link, "_blank"));
-  document.querySelector("#simulateCollectUpload")?.addEventListener("click", () => openCollectorUploadModal(index));
+  document.querySelector("#simulateCollectUpload")?.addEventListener("click", () => openCollectorUploadModal(task.id));
 }
 
-function openCollectorUploadModal(index) {
-  const task = db.collectTasks[index];
+function openCollectorUploadModal(taskId) {
+  const task = db.collectTasks.find((t) => t.id === taskId) || db.collectTasks[taskId];
   closeFormModal();
   const html = renderHtmlTemplate("tplCollectorUploadForm", {
     GROUP_NAME: escapeHtml(task.group),
@@ -254,8 +254,16 @@ function openCollectorUploadModal(index) {
       const asset = await createAssetFromFile(file, { validUntilDate: formDateTimeValue(data, "validUntil") || "", customTags: splitTags(data.businessTags || "") });
       const targetGroup = db.groups.find((group) => group.name === task.group);
       asset.groupId = targetGroup?.id || "all";
-      asset.status = "pending";
+      asset.status = 2;
+      asset.collect_id = task.id;
+      asset.collect_link = task.link;
+      asset.creator = task.creator;
+      asset.owner = data.author || task.creator;
+      asset.department = data.department || "";
+      asset.contact = data.contact || "";
+      asset.email = data.email || "";
       asset.desc = data.note || asset.desc;
+      asset.asset_source = "external";
       asset.logs.unshift(`${data.author || "外部用户"} 通过收集任务上传素材`);
       db.assets.unshift(asset);
     }
@@ -263,8 +271,44 @@ function openCollectorUploadModal(index) {
     closeFormModal();
     state.page = "pending";
     render();
-    showToast(`已提交 ${files.length} 个素材到待入库`);
+    showToast(`已提交 ${files.length} 个素材到待审核`);
   });
+}
+
+function simulateMachineAudit(taskId) {
+  const task = db.collectTasks.find((t) => t.id === taskId);
+  if (!task) return;
+  const pendingAssets = db.assets.filter((asset) => asset.collect_id === taskId && asset.status === 2);
+  if (pendingAssets.length === 0) {
+    showToast("该任务没有待审核的素材");
+    return;
+  }
+  pendingAssets.forEach((asset) => {
+    asset.status = 4;
+    asset.logs.unshift(`机审通过 - ${nowText()}`);
+    asset.lastUpdate = currentUser.name;
+  });
+  saveDb();
+  render();
+  showToast(`已完成 ${pendingAssets.length} 个素材的机审，状态已更新为机审通过`);
+}
+
+function simulateHumanAudit(taskId) {
+  const task = db.collectTasks.find((t) => t.id === taskId);
+  if (!task) return;
+  const pendingAssets = db.assets.filter((asset) => asset.collect_id === taskId && asset.status >= 3 && asset.status <= 7);
+  if (pendingAssets.length === 0) {
+    showToast("该任务没有需要人审的素材");
+    return;
+  }
+  pendingAssets.forEach((asset) => {
+    asset.status = 8;
+    asset.logs.unshift(`人审通过 - ${nowText()}`);
+    asset.lastUpdate = currentUser.name;
+  });
+  saveDb();
+  render();
+  showToast(`已完成 ${pendingAssets.length} 个素材的人审，状态已更新为人审通过`);
 }
 
 function openValidityModal(id) {

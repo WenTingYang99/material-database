@@ -1,43 +1,5 @@
 # 代码记忆索引
 
-## 2026-07-07 统一日期/时间格式
-
-- 目的：将项目内所有时间输出统一为 `YYYY/MM/DD HH:mm`（使用 `/` 分隔），减少解析/显示不一致问题。
-- 涉及文件：`app-utils.js`、`app-core.js`（主要修改点），查验并修正了 `app-render.js` / `app-actions.js` 中的硬编码范围值和日志演示字符串。
-- 主要改动：
-  - `app-utils.js`：
-    - `todayText()` 改为返回 `YYYY/MM/DD`。
-    - `parseDateTimeText()` 输出的 `date` 字段改为 `YYYY/MM/DD`，保持对 `-`、`/`、`.` 的输入兼容但统一输出为 `/`。
-    - 相关衍生函数（`normalizeDateText`、`normalizeDateTimeText`、`splitDateTimeText`、`joinDateTime`、`dateTimeTextToTimestamp` 等）继承新格式。
-  - `app-core.js`：
-    - `getExpireDate()`、`calculateExpireTime()` 的返回值由 `YYYY-MM-DD 23:59` 改为 `YYYY/MM/DD 23:59`。
-    - 种子数据（`seedAssets`、`seedTags`）、`collectTasks`、`shares` 中的所有示例时间戳统一为使用 `/` 的格式。
-    - 修正了若干样本条目中残留的 `-` 格式时间戳。
-- 兼容性说明：解析函数仍接受多种分隔符作为输入，故变更只影响输出与存储的标准化，不影响现有用户输入解析逻辑。
-- 后续建议：在 UI 说明或文档中标注时间输入/展示格式为 `YYYY/MM/DD HH:mm`，并在需要与后端对接时确认双方时间字符串约定。
-
-## 2026-07-06 左侧菜单树动态化
-
-- 左侧主导航由 `app-core.js` 的 `renderMainNav()` 递归读取 `db.menus` 渲染，不再把“素材管理 / 更多功能”等分组拍平成页面按钮。
-- 左侧菜单分组使用 `data-nav-toggle` 支持 `+/-` 展开收起，页面节点使用 `data-page` 进入对应页面；展开状态仅保存在当前运行时的 `state.navExpandedMenuIds`，刷新后重新默认展开可见分组。
-- 菜单可见性由 `valid !== false`、`hidden !== true` 和 `canViewMenu(page)` 共同控制；空分组不会展示。
-- 旧的左侧“更多功能”下拉入口、`data-go` 页面跳转分支和 `showMoreMenu()` 已清理，避免同一菜单保留两套入口。
-- 菜单管理不再保留“展示位置”配置；入口统一由菜单树决定，`layout` 仅用于区分素材页面和管理页面。
-
-## 2026-07-03 渲染入口稳定性调整
-
-- `app-render.js` 的 `renderManagePageV2()` 已改为按 `users / roles / organizations / permissions / activity / loginLogs / share / recycle / collect / valueLists / menus / validity` 显式入口分发。
-- 未知管理页现在显示空态 `暂无对应管理页面`，不再落入有效期管理兜底，避免动态菜单或新增页面误渲染成有效期页。
-
-## 2026-07-03 菜单动态化调整
-
-- 菜单入口展示不再依赖固定的 `menu_group_assets` / `menu_group_more` 判断；主导航读取 `db.menus` 树，所有可见菜单统一在左侧树中展示，通过 `layout` 决定素材页面或管理页面。
-- 菜单管理表单保留 `layout` 保存字段；已有本地菜单数据只在字段缺失时补默认值，不覆盖用户维护的名称、层级、顺序等配置。
-- 删除旧的 `getManagedPages()`、`applyMenuPermissions()`、`isMenuPage()` 特殊/重复逻辑，菜单渲染时直接按权限输出可见入口。
-
-更新时间：2026-06-30
-
-用途：后续改动前，先查本文件定位对应代码位置；如果这里不能定位，再回读完整相关文件，并把新定位补充到本文件。
 
 ## 修改前流程
 
@@ -254,10 +216,11 @@
 - 菜单过滤：`app-core.js` 的 `isVisibleNavMenu()` / `getVisibleNavMenuChildren()` 按 `valid`、`hidden` 和 `canViewMenu(page)` 过滤左侧菜单树；空分组不展示。
 - 渲染入口：`app-render.js:506` `renderManagePageV2()` 先判断系统管理页面并转到 `renderSystemManagePage()`。
 - 页面表格：`app-render.js` 的 `renderUserManagePage()` / `renderRoleManagePage()` / `renderOrganizationManagePage()` / `renderPermissionManagePage()` 分别渲染用户、角色、组织、权限。角色管理行内有“角色权限”按钮，调用角色授权弹窗。
-- 用户管理页：`renderUserManagePage()` 已改为左组织树、右人员信息布局；组织树由 `renderUserManageOrgTree()` 渲染，人员筛选由 `getUserManageFilteredUsers()` 处理，支持用户名、员工姓名、是否包含下级组织查询；选中用户后可修改、菜单授权或菜单权限查看，查看弹框为 `openUserPermissionViewModal()`。组织树有子节点时使用明确的 `+/-` 展开收起图标，不能用空方框样式；左侧组织树不显示人数数字，不保留外层框线。编辑用户时登录用户名只读不可改，所属角色为多选并保存到 `roleIds`。
+- 用户管理页：`renderUserManagePage()` 已改为左组织树、右人员信息布局；组织树由 `renderUserManageOrgTree()` 渲染，人员筛选由 `getUserManageFilteredUsers()` 处理，支持用户名、员工姓名、是否包含下级组织查询；选中用户后可修改、菜单授权或菜单权限查看，查看弹框为 `openUserPermissionViewModal()`。组织树有子节点时使用明确的 `+/-` 展开收起图标，不能用空方框样式；左侧组织树不显示人数数字，不保留外层框线。编辑用户时登录用户名只读不可改，所属角色为多选并保存到 `roleIds`。用户表单新增手机号（`phone`）和邮箱（`email`）字段。
+- 角色管理页：`renderRoleManagePage()` 新增角色ID列显示；`openRoleManageModal()` 新增角色ID输入框，创建时输入且校验不可重复，修改时ID只读不可修改。
 - 权限管理页：`renderPermissionManagePage()` 支持“按菜单授权”和“按组织个人授权”两个参考系；内部不再使用下拉框，`renderMenuPermissionTree()` 渲染功能菜单树，`renderSubjectPermissionTree()` 渲染组织/个人树；右侧默认空态，选中左侧节点后由 `renderMenuPermissionDetail()` 或 `renderSubjectPermissionDetail()` 展示权限摘要和“编辑权限”按钮。权限管理中的所有树状结构也必须使用明确的 `+/-` 展开收起图标，并真正支持收缩。
 - 权限编辑弹框：选中菜单后点“编辑权限”会调用 `openMenuPermissionModal()`，弹框内用组织/个人树编辑该菜单对组织/个人的可读可写；选中组织或个人后点“编辑权限”会调用 `openSubjectPermissionModal()`，弹框内用菜单分组树编辑该对象对所有菜单的可读可写；保存逻辑在 `savePermissionRows()`。角色管理中的“角色权限”弹框 `openPermissionManageModal()` 也使用菜单分组树，不再用平铺表格。弹框树同样支持 `+/-` 展开收起，弹框内收缩不丢失未保存勾选。用户“菜单权限查看”由 `renderUserPermissionViewTree()` 渲染只读树，显示可读、可写和权限来源（个人授权、组织权限、角色权限）。
-- 表单：`openUserManageModal()`、`openRoleManageModal()`、`openOrganizationManageModal()`、`openPermissionManageModal()` 使用通用 `openFormModal()` 做新增/编辑/角色授权；新增用户会初始化 `db.userPermissions`，新增组织会初始化 `db.orgPermissions`。
+- 表单：`openUserManageModal()`、`openRoleManageModal()`、`openOrganizationManageModal()`、`openPermissionManageModal()` 使用通用 `openFormModal()` 做新增/编辑/角色授权；新增用户会初始化 `db.userPermissions`，新增组织会初始化 `db.orgPermissions`。用户表单新增手机号（`phone`）和邮箱（`email`）字段。
 - 用户登录日志：`renderLoginLogPage()` 支持按用户名、姓名、登录开始日期、登录结束日期过滤，展示用户名、姓名、登录时间、IP 地址、登录入口。
 - 样式：`styles.css:1118` `.menu-section` / `.menu-section-title` / `.menu-sub button` 控制下拉菜单分组。
 - 页面独立性：管理页壳 `app-render.js:617` `renderManageShell()` 不再渲染 `renderMoreMenuPanel()`；`app-core.js` 也不再监听 `data-panel-page`，避免在页面内用 tab 切换更多功能子菜单。
@@ -410,32 +373,155 @@
   3. 修改业务标签初始数据，添加父级关系
   4. 修改标签添加/编辑弹窗中父级标签的标题为通用名称
 - 效果：业务标签现在支持多层级展示，与AI标签一致
+
+## 2026-07-03 渲染入口稳定性调整
+
+- `app-render.js` 的 `renderManagePageV2()` 已改为按 `users / roles / organizations / permissions / activity / loginLogs / share / recycle / collect / valueLists / menus / validity` 显式入口分发。
+- 未知管理页现在显示空态 `暂无对应管理页面`，不再落入有效期管理兜底，避免动态菜单或新增页面误渲染成有效期页。
+
+## 2026-07-03 菜单动态化调整
+
+- 菜单入口展示不再依赖固定的 `menu_group_assets` / `menu_group_more` 判断；主导航读取 `db.menus` 树，所有可见菜单统一在左侧树中展示，通过 `layout` 决定素材页面或管理页面。
+- 菜单管理表单保留 `layout` 保存字段；已有本地菜单数据只在字段缺失时补默认值，不覆盖用户维护的名称、层级、顺序等配置。
+- 删除旧的 `getManagedPages()`、`applyMenuPermissions()`、`isMenuPage()` 特殊/重复逻辑，菜单渲染时直接按权限输出可见入口。
+
+更新时间：2026-06-30
+
+用途：后续改动前，先查本文件定位对应代码位置；如果这里不能定位，再回读完整相关文件，并把新定位补充到本文件。
+
 ## 2026-07-06 app-core/app-actions 格式报错排查
 
 - `app-core.js`：重点排查 HTML 实体残留，确认 `=>`、`<`、`>`、`&&` 没有被写成 `=&gt;`、`&lt;`、`&gt;`、`&amp;&amp;`。
 - `app-actions.js`：曾出现中文字符串损坏导致语法错误，后续禁止使用 PowerShell `Set-Content` 整文件重写，继续使用 `apply_patch` 做局部补丁。
 - 素材编辑弹框 JS 已与当前 HTML 字段保持一致：品牌、车系、车型、内饰色、外饰色由值列表动态回填，并保存到 `asset.series / asset.interiorColors / asset.exteriorColors`。
 - 本次验证：主要 JS 文件均已通过 `node --check`，`app-core.js` 与 `app-actions.js` 未检出 HTML 实体操作符残留。
+
 ## 2026-07-06 素材编辑候选下拉修复
 
 - 素材编辑弹框不再使用原生 `datalist` 展示品牌、车系、车型、内饰色、外饰色和业务标签候选；原生 `datalist` 会按当前输入值过滤，导致已有值为“东风雪铁龙”时只能看到一个候选。
 - `index.html` 中素材编辑字段改为 `.asset-edit-combo` 结构，输入框仍保留原 `name`，保存字段和表单提交结构不变。
 - `app-actions.js` 的 `setupAssetEditDropdown()` 统一管理候选下拉：聚焦或点击箭头展示完整候选，输入时过滤；品牌/车系/车型继续按值列表 `refId` 级联，业务标签候选来自 `getTagSummary().businessTags`。
 - `styles.css` 仅新增 `.asset-edit-combo*` 样式，限制在素材编辑弹框候选面板使用。
+
 ## 2026-07-06 素材编辑候选下拉细节修复
 
 - 内饰色、外饰色在素材编辑弹框中是单选字段，不使用 `multiple: true`；保存时仍写入 `asset.interiorColors / asset.exteriorColors` 数组，但数组最多保留一个值以兼容既有展示逻辑。
 - `.asset-edit-combo-panel` 背景不能使用未定义的 `--panel` 变量；已改为 `var(--surface, #fff)` 并提高 z-index，避免下拉面板透明或被表单字段文字压住。
 
+## 2026-07-06 左侧菜单树动态化
+
+- 左侧主导航由 `app-core.js` 的 `renderMainNav()` 递归读取 `db.menus` 渲染，不再把“素材管理 / 更多功能”等分组拍平成页面按钮。
+- 左侧菜单分组使用 `data-nav-toggle` 支持 `+/-` 展开收起，页面节点使用 `data-page` 进入对应页面；展开状态仅保存在当前运行时的 `state.navExpandedMenuIds`，刷新后重新默认展开可见分组。
+- 菜单可见性由 `valid !== false`、`hidden !== true` 和 `canViewMenu(page)` 共同控制；空分组不会展示。
+- 旧的左侧“更多功能”下拉入口、`data-go` 页面跳转分支和 `showMoreMenu()` 已清理，避免同一菜单保留两套入口。
+- 菜单管理不再保留“展示位置”配置；入口统一由菜单树决定，`layout` 仅用于区分素材页面和管理页面。
+
 ## 2026-07-07 分享记录操作调整
+
 - 分享记录页的操作列不再拆成“复制链接 / 更新时间”两个按钮，统一为“管理分享”入口。
 - “管理分享”复用收集素材“管理邀请”的弹框结构与样式：左侧二维码，右侧说明、权限、链接，下方可维护分享状态和失效时间。
 - 分享记录仍使用原有 `db.shares` 数据结构；保存时仅更新 `expiresAt`。状态选择“已过期”会写入当前时间，状态为“生效中”且失效时间留空时表示“永久有效”。
 - 已删除旧的 `updateShareExpireModal` 静态弹框、绑定事件和 `openUpdateShareExpireModal / handleUpdateShareExpireSubmit / closeUpdateShareExpireModal` 等专用逻辑，避免同一功能两套实现。
 
 ## 2026-07-07 分享访问密码与分享页下载
+
 - `db.shares` 新增 `requirePassword` 和 `password` 字段；`migrateShareExpiresAt()` 会通过 `normalizeShareSecurity()` 给老分享补默认值，老数据默认不需要访问密码。
 - 创建素材篮分享、素材组分享、单素材分享时均可设置“需要访问密码”和访问密码；勾选但留空时由 `buildShareSecurity()` 自动生成密码。
 - 分享记录“管理分享”弹框可后续开启/关闭访问密码并修改密码，仍复用 `tplShareRecordConfigForm`。
 - 外部分享页 `renderSharePortal()` 增加密码校验页；校验通过后使用 sessionStorage 记录当前分享的临时通过状态，避免同一标签页重复输入。
 - 外部分享页增加素材勾选、批量下载和一键全部下载；素材筛选统一走 `getSharePortalAssets()`，下载统一走 `downloadShareAssets()`，避免 asset/group/basket 三种分享重复写筛选和下载逻辑。
+
+## 2026-07-07 统一日期/时间格式
+
+- 目的：将项目内所有时间输出统一为 `YYYY/MM/DD HH:mm`（使用 `/` 分隔），减少解析/显示不一致问题。
+- 涉及文件：`app-utils.js`、`app-core.js`（主要修改点），查验并修正了 `app-render.js` / `app-actions.js` 中的硬编码范围值和日志演示字符串。
+- 主要改动：
+  - `app-utils.js`：
+    - `todayText()` 改为返回 `YYYY/MM/DD`。
+    - `parseDateTimeText()` 输出的 `date` 字段改为 `YYYY/MM/DD`，保持对 `-`、`/`、`.` 的输入兼容但统一输出为 `/`。
+    - 相关衍生函数（`normalizeDateText`、`normalizeDateTimeText`、`splitDateTimeText`、`joinDateTime`、`dateTimeTextToTimestamp` 等）继承新格式。
+  - `app-core.js`：
+    - `getExpireDate()`、`calculateExpireTime()` 的返回值由 `YYYY-MM-DD 23:59` 改为 `YYYY/MM/DD 23:59`。
+    - 种子数据（`seedAssets`、`seedTags`）、`collectTasks`、`shares` 中的所有示例时间戳统一为使用 `/` 的格式。
+    - 修正了若干样本条目中残留的 `-` 格式时间戳。
+- 兼容性说明：解析函数仍接受多种分隔符作为输入，故变更只影响输出与存储的标准化，不影响现有用户输入解析逻辑。
+- 后续建议：在 UI 说明或文档中标注时间输入/展示格式为 `YYYY/MM/DD HH:mm`，并在需要与后端对接时确认双方时间字符串约定。
+
+## 2026-07-07 收集任务上传页面重构
+
+- **目的**：参考分享页面样式，重构收集任务上传链接页面，添加密码验证、素材上传、暂存和提交功能
+- **主要改动**：
+  - 收集任务数据结构新增 `requirePassword` 和 `password` 字段（`app-core.js` 种子数据、`app-actions.js` 创建任务）
+  - `renderCollectorPortal()` 函数重构为三阶段流程：验证任务有效性 → 密码验证 → 渲染上传页面
+  - 新增 `getCollectPasswordKey(task)` 函数：生成 sessionStorage 密钥，用于记住密码状态
+  - 新增 `renderCollectorPasswordGate(code, task)` 函数：密码验证页面，参考分享页面密码验证逻辑
+  - 新增 `renderCollectorPortalContent(code, task)` 函数：上传页面主体，包含：
+    - 顶部英雄区（品牌、标题、说明、信息栏）
+    - 提交人信息（姓名、公司/部门、联系方式、邮箱，均为必填）
+    - 素材信息（素材说明、业务标签多选 + 新增）
+    - 素材上传区域（支持多选文件、格式过滤）
+    - 暂存列表（展示已选择文件，支持移除）
+    - 操作按钮（重置、暂存、提交到待入库）
+  - 业务标签支持从标签管理读取（`getTagSummary().businessTags`），支持多选和新增
+  - 上传后素材进入 `pending` 状态，保存提交人信息到 `owner/department/contact/email/desc` 字段
+  - 删除自动补全逻辑：owner/department 不再使用 `currentUser` 全局变量补全，为空时直接保存
+  - 新增 `validateCollectorForm()` 函数：校验提交人姓名、公司/部门、联系方式、邮箱必填，暂存和提交时均需验证
+  - 新增 CSS 样式：`.collector-hero`、`.collector-info-bar`、`.collector-content`、`.collector-form-card`、`.collector-form-section`、`.collector-form-row`、`.collector-tag-select`、`.collector-tag-add`、`.collector-upload-area`、`.collector-upload-btn`、`.collector-staged-list`、`.collector-staged-item`、`.collector-form-actions`
+
+## 2026-07-07 素材数据结构与收集任务重构
+
+- **目的**：统一素材状态管理，重构素材和收集任务数据结构，内部上传和外部收集上传统一流程
+- **主要改动**：
+
+### 值列表扩展
+  - 新增「素材管理」维度（`vl_dim_matmanage`），与「素材库筛选」并列
+  - 新增「素材状态」子维度（`vl_dim_manage_status`），包含10个枚举值：
+    - 1: 待提交（素材刚刚上传还没有进入素材库）
+    - 2: 待审核（内容已提交，等待机审）
+    - 3: 机审中（内容正在进行机审）
+    - 4: 机审通过（机审结果为通过，可进入待人审状态）
+    - 5: 机审拒绝（机审结果为拒绝，内容被拦截）
+    - 6: 待人审（机审结果为待人工审核，进入人审队列）
+    - 7: 人审中（内容正在进行人工审核）
+    - 8: 人审通过（人审结果为通过，可进入待发布状态）— **仅此状态在素材库显示**
+    - 9: 人审拒绝（人审结果为拒绝，内容被驳回）
+    - 10: 未入库（内容生成环节的内容，用户还未选择让其进入素材库）
+
+### 素材数据结构新增字段
+  - `creator`: 创建人（素材上传人，内部上传指上传人，外部上传指创建收集链接的人）
+  - `lastUpdate`: 最后修改人（最后修改素材信息的人）
+  - `asset_source`: 素材来源（`internal`-内部上传, `ai-generated`-AI生成, `external`-外部导入）
+  - `collect_id`: 关联的收集任务ID
+  - `collect_link`: 关联的收集任务链接
+  - `status`: 修改为数字枚举（1-10），之前的 `active` 映射为8，`pending` 映射为2，`deleted` 映射为-1
+
+### 收集任务数据结构新增字段
+  - `id`: 任务唯一标识
+  - `desc`: 任务说明
+  - `types`: 允许文件类型
+  - `link`: 收集链接
+
+### 上传逻辑统一
+  - **内部上传**：自动创建收集任务（状态"已完成"），素材直接进入待审核状态（status=2），跳转至待审核页面
+  - **外部上传**：通过收集链接上传，关联收集任务ID和链接，素材进入待审核状态（status=2）
+
+### 素材库展示逻辑
+  - 修改 `getFilteredAssets()`：素材库（`state.page === "all"`）只显示 status=8 的素材
+  - 修改 `renderAssets()`：待审核页面（`state.page === "pending"`）只显示 status=2 的素材
+
+### 静态数据初始化
+  - 所有种子素材状态设置为8（人审通过），`asset_source` 设置为 `internal`，`creator/owner/lastUpdate` 设置为 "Kerry"
+
+### 审核功能模拟
+  - **发起机审**：在收集任务列表中，当任务有 status=2（待审核）的素材时显示"发起机审"按钮，点击后将这些素材状态更新为4（机审通过），并记录日志
+  - **发起审核**：在收集任务列表中，当任务有 status=3~7（机审中/机审通过/机审拒绝/待人审/人审中）的素材时显示"发起审核"按钮，点击后将这些素材状态更新为8（人审通过），并记录日志
+  - 新增函数：`simulateMachineAudit(taskId)`、`simulateHumanAudit(taskId)`
+
+### 状态显示函数
+  - `getAssetStatusText(status)`：将数字状态转换为中文（1=待提交, 2=待审核, 3=机审中, 4=机审通过, 5=机审拒绝, 6=待人审, 7=人审中, 8=人审通过, 9=人审拒绝, 10=未入库）
+  - `getAssetStatusClass(status)`：根据状态返回样式类（ok=绿色, warn=橙色, info=蓝色, off=红色）
+
+### 测试数据
+  - 新增收集任务 `collect-seed`（系统初始化素材）
+  - 所有种子素材关联到 `collect-seed` 任务
+  - 新增测试素材：2个待审核（status=2）、1个机审通过（status=4）
