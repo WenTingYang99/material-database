@@ -17,10 +17,6 @@
       nowTimestamp() {
         return Date.now();
       },
-      formatTime(date = new Date()) {
-        const pad = (value) => String(value).padStart(2, "0");
-        return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-      },
       todayText() {
         const date = new Date();
         const pad = (value) => String(value).padStart(2, "0");
@@ -158,31 +154,36 @@
     }
   }
 
+  // 日期控件统一入口：优先用 flatpickr 强制显示 YYYY-MM-DD；无库时降级原生 date/time。
+  // 注意：flatpickr 接管后显示与输入均为 dateFormat("Y-m-d")，不再受浏览器区域影响（不会变 YYYY/MM/DD）。
   function initDatePicker(selector, options = {}) {
     const nodes = getPickerNodes(selector);
     nodes.forEach((node) => {
-      if (!node) return;
-      node.setAttribute("readonly", "readonly");
+      if (!node || node.dataset.datePickerReady === "true") return;
+      node.dataset.datePickerReady = "true";
+      const isReadOnly = node.readOnly || node.hasAttribute("readonly");
       node.setAttribute("autocomplete", "off");
       node.setAttribute("inputmode", "none");
+      if (window.flatpickr && node.type !== "time") {
+        const fpOptions = {
+          dateFormat: "Y-m-d",
+          allowInput: false,
+          disableMobile: true,
+          ...options,
+        };
+        if (isReadOnly) fpOptions.clickOpens = false;
+        node.removeAttribute("min");
+        node.removeAttribute("max");
+        window.flatpickr(node, fpOptions);
+        return;
+      }
+      // 降级：原生 date/time，锁键盘 + 点开原生选择器
       if (options.minDate && node.type === "date") node.min = options.minDate === "today" ? AppInfra.utils.todayText() : options.minDate;
       if (options.maxDate && node.type === "date") node.max = options.maxDate === "today" ? AppInfra.utils.todayText() : options.maxDate;
       if (options.minTime && node.type === "time") node.min = options.minTime;
       if (options.maxTime && node.type === "time") node.max = options.maxTime;
-      if (node.dataset.datePickerReady === "true") return;
-      node.dataset.datePickerReady = "true";
-      if (window.flatpickr) {
-        window.flatpickr(node, {
-          dateFormat: "Y-m-d",
-          minDate: options.minDate || "2020-01-01",
-          maxDate: options.maxDate || "2036-12-31",
-          allowInput: false,
-          disableMobile: true,
-          ...options,
-        });
-      } else {
-        lockNativePicker(node);
-      }
+      node.setAttribute("readonly", "readonly");
+      lockNativePicker(node);
     });
   }
 

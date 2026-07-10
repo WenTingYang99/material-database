@@ -56,6 +56,12 @@ function openCloudImportModal() {
 }
 
 async function handleFiles(fileList, options = {}) {
+  const groupId = options.groupId || (state.groupId === "all" ? "test" : state.groupId);
+  if (!canUploadToGroup(groupId)) {
+    showToast("没有权限上传素材到该素材组");
+    return;
+  }
+  
   const incomingFiles = [...fileList];
   const files = incomingFiles.filter(isAllowedUploadFile);
   const rejectedCount = incomingFiles.length - files.length;
@@ -69,35 +75,46 @@ async function handleFiles(fileList, options = {}) {
   const collectTaskCode = Math.random().toString(36).slice(2, 6);
   const collectTaskId = `collect-${Date.now()}`;
   const collectLink = getCollectLink(collectTaskCode);
-  const groupName = getGroupName(state.groupId);
+  const groupName = getGroupName(groupId);
   
   db.collectTasks.unshift({
     id: collectTaskId,
-    theme: `${currentUser.name} 的内部上传任务`,
+    theme: `${currentUser.username} 的内部上传任务`,
     desc: options.desc || "",
     group: groupName,
-    status: "已完成",
+    status: getCollectTaskStatusConfig().completed,
     code: collectTaskCode,
-    creator: currentUser.name,
+    creator: currentUser.username,
+    createdBy: currentUser.username,
+    ownedBy: currentUser.username,
+    ownedByDept: currentUser.department || "",
     createdAt: nowText(),
+    updatedAt: nowText(),
     expiresAt: calculateExpireTime("永久有效"),
     requirePassword: false,
     password: "",
     types: options.types || [],
-    link: collectLink
+    link: collectLink,
+    auditStatus: getAuditStatusConfig().humanPass,
+    logs: []
   });
+  logOperation('collect', collectTaskId, `${currentUser.username} 的内部上传任务`, 'collect.create', '创建了收集任务');
   
   const created = [];
   for (const file of files) {
+    const auditConfig = getAuditStatusConfig();
+    const assetStatusConfig = getAssetStatusConfig();
     const asset = await createAssetFromFile(file, {
       ...options,
-      status: 2,
+      auditStatus: auditConfig.pendingAudit,
+      assetStatus: assetStatusConfig.pending,
       asset_source: "internal",
       collect_id: collectTaskId,
       collect_link: collectLink
     });
     db.assets.unshift(asset);
     created.push(asset);
+    logOperation('asset', asset.id, asset.name, 'asset.upload', '上传了素材');
   }
   saveDb();
   state.page = "pending";
@@ -118,6 +135,18 @@ async function createAssetFromFile(file, options = {}) {
   const uploadDate = todayText();
   const createdTime = nowText();
   const validUntilDate = options.validUntilDate || calculateExpireTime("永久有效");
+  const auditConfig = getAuditStatusConfig();
+  const assetStatusConfig = getAssetStatusConfig();
+  const validityConfig = getValidityStatusConfig();
+  const now = new Date();
+  const validStartDate = toJsDate(createdTime);
+  const expireDate = toJsDate(validUntilDate);
+  let validityStatus = validityConfig.valid;
+  if (now < validStartDate) {
+    validityStatus = validityConfig.pending;
+  } else if (now > expireDate && !isNaN(expireDate.getTime())) {
+    validityStatus = validityConfig.expired;
+  }
   return {
     id: `asset-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     name: file.name.replace(/\.[^.]+$/, ""),
@@ -133,19 +162,24 @@ async function createAssetFromFile(file, options = {}) {
     model: detectVehicleModel(file.name),
     customTags: options.customTags || [],
     aiTags: tags,
-    groupId: options.groupId || (state.groupId === "all" ? "test" : state.groupId),
-    owner: currentUser.name,
+    groupId: options.groupId || state.groupId,
+    owner: currentUser.username,
     department: currentUser.department,
-    creator: currentUser.name,
-    lastUpdate: currentUser.name,
+    creator: currentUser.username,
+    lastUpdate: currentUser.username,
+    createdBy: currentUser.username,
+    ownedBy: currentUser.username,
+    ownedByDept: currentUser.department || "",
     asset_source: options.asset_source || "internal",
     collect_id: options.collect_id || "",
     collect_link: options.collect_link || "",
     permission: "企业内部 - 可下载",
     validUntil: validUntilDate,
-    status: options.status || 8,
+    auditStatus: options.auditStatus || auditConfig.pendingSubmit,
+    assetStatus: options.assetStatus || assetStatusConfig.pending,
+    validityStatus: validityStatus,
     uploadDate,
-    validStart: createdTime.replace(/\//g, "-"),
+    validStart: toISODate(createdTime),
     validUntilDate,
     share: 0,
     download: 0,
@@ -153,7 +187,7 @@ async function createAssetFromFile(file, options = {}) {
     createdAt: createdTime,
     updatedAt: createdTime,
     version: `${Date.now()}`,
-    logs: [`${currentUser.name} 上传了素材`, `系统识别内容标签：${tags.join("、") || "无"}`],
+    logs: [],
   };
 }
 
@@ -162,13 +196,23 @@ function deleteSelectedAssets() {
     showToast("请先选择需要删除的素材");
     return;
   }
-  db.assets.forEach((asset) => {
-    if (state.selectedIds.has(asset.id)) {
-      asset.status = "deleted";
-      asset.updatedAt = nowText();
-      asset.deletedAt = asset.updatedAt;
-      asset.logs.unshift(`${currentUser.name} 删除了素材`);
+  const canBatch = state.groupId ? canContributeToGroup(state.groupId) : canContributeToGroup(null);
+  if (!canBatch) {
+    return showToast("权限不足，无法删除素材。请联系管理员申请权限。");
+  }
+  const assets = db.assets.filter((asset) => state.selectedIds.has(asset.id));
+  for (const asset of assets) {
+    if (!canDeleteAsset(asset)) {
+      showToast(`权限不足，无法删除素材「${asset.name}」。请联系管理员申请权限。`);
+      return;
     }
+  }
+  const assetStatusConfig = getAssetStatusConfig();
+  assets.forEach((asset) => {
+    asset.assetStatus = assetStatusConfig.deleted;
+    asset.updatedAt = nowText();
+    asset.deletedAt = asset.updatedAt;
+    logOperation('asset', asset.id, asset.name, 'asset.delete', '删除了素材（软删除）');
   });
   const count = state.selectedIds.size;
   state.selectedIds.clear();
@@ -196,8 +240,10 @@ function downloadSelectedAssets() {
 }
 
 function approveSelectedAssets() {
+  const auditConfig = getAuditStatusConfig();
+  const assetStatusConfig = getAssetStatusConfig();
   const pendingIds = db.assets
-    .filter((asset) => asset.status === "pending")
+    .filter(isPendingAsset)
     .map((asset) => asset.id);
   const targetIds = state.selectedIds.size
     ? [...state.selectedIds].filter((id) => pendingIds.includes(id))
@@ -210,9 +256,10 @@ function approveSelectedAssets() {
   let count = 0;
   db.assets.forEach((asset) => {
     if (targetSet.has(asset.id)) {
-      asset.status = "active";
+      asset.auditStatus = auditConfig.humanPass;
+      asset.assetStatus = assetStatusConfig.active;
       asset.updatedAt = nowText();
-      asset.logs.unshift(`${currentUser.name} 审核入库了素材`);
+      logOperation('asset', asset.id, asset.name, 'asset.edit', '审核入库了素材');
       count += 1;
     }
   });
@@ -225,13 +272,19 @@ function approveSelectedAssets() {
 
 function rerunSelectedRecognition() {
   if (!state.selectedIds.size) return;
-  db.assets.forEach((asset) => {
-    if (state.selectedIds.has(asset.id)) {
-      asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, interiorColors: asset.interiorColors, exteriorColors: asset.exteriorColors });
-      ensureRecognizedAiTagsInLibrary(asset.aiTags);
-      asset.updatedAt = nowText();
-      asset.logs.unshift(`AI重新识别标签：${asset.aiTags.join("、")}`);
+  const assets = db.assets.filter((asset) => state.selectedIds.has(asset.id));
+  for (const asset of assets) {
+    if (!canEditAsset(asset)) {
+      showToast(`没有权限编辑素材「${asset.name}」`);
+      return;
     }
+  }
+  assets.forEach((asset) => {
+    const oldTags = [...(asset.aiTags || [])];
+    asset.aiTags = recognizeTags({ name: asset.name, type: asset.mime || "" }, { width: asset.width, height: asset.height, interiorColors: asset.interiorColors, exteriorColors: asset.exteriorColors });
+    ensureRecognizedAiTagsInLibrary(asset.aiTags);
+    asset.updatedAt = nowText();
+    logOperation('asset', asset.id, asset.name, 'asset.tag', `重新识别标签：${asset.aiTags.join("、")}`);
   });
   saveDb();
   render();
@@ -437,11 +490,11 @@ function showUploadTimeFilterMenu(anchor, label) {
     <div class="date-range-container">
       <label class="date-range-field">
         <span class="date-range-label">开始日期</span>
-        <input id="assetUploadTimeStart" type="date" value="${escapeAttr(startDate)}" readonly inputmode="none" />
+        <input id="assetUploadTimeStart" type="date" value="${escapeAttr(toInputDateValue(startDate))}" readonly inputmode="none" />
       </label>
       <label class="date-range-field">
         <span class="date-range-label">结束日期</span>
-        <input id="assetUploadTimeEnd" type="date" value="${escapeAttr(endDate)}" readonly inputmode="none" />
+        <input id="assetUploadTimeEnd" type="date" value="${escapeAttr(toInputDateValue(endDate))}" readonly inputmode="none" />
       </label>
     </div>
     <button class="${selections.length ? "" : "active-side"}" data-clear-upload-time type="button">全部时间</button>`;
@@ -482,7 +535,7 @@ function showUploadTimeFilterMenu(anchor, label) {
 }
 
 function getFilterValues(label) {
-  const active = db.assets.filter((asset) => asset.status !== "deleted");
+  const active = db.assets.filter((asset) => !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus));
   
   const brandFilter = state.filters["品牌"] || [];
   const seriesFilter = state.filters["车系"] || [];
@@ -510,7 +563,7 @@ function getFilterValues(label) {
   
   const map = {
     "创建者/创建部门": buildFlatTree(active.flatMap((asset) => [asset.owner, asset.department])),
-    "素材来源": buildFlatTree(getAllLeafValues("source").map(n => n.name)),
+    "素材来源": buildFlatTree(getAllLeafValues("source").map(n => n.name).filter(Boolean)),
     "文件格式": buildFilterTree("file_format"),
     "品牌": buildFilterTree("brand"),
     "车系": buildCascadeTree("series", brandFilter, "brand"),
@@ -688,23 +741,35 @@ function openFieldConfigModal() {
 async function deleteGroup(groupId) {
   const group = db.groups.find((item) => item.id === groupId);
   if (!group) return;
+  if (!canManageGroup(groupId)) {
+    showToast("没有权限删除素材组");
+    return;
+  }
   const childIds = db.groups.filter((item) => item.parentId === groupId).map((item) => item.id);
   const ids = [groupId, ...childIds];
-  const assetCount = db.assets.filter((asset) => ids.includes(asset.groupId) && asset.status !== "deleted").length;
+  const assetCount = db.assets.filter((asset) => ids.includes(asset.groupId) && !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus)).length;
   const ok = await window.Modal.confirm(`确定删除素材组「${group.name}」吗？组内 ${assetCount} 个素材会移动到全部素材。`);
   if (!ok) return;
   db.assets.forEach((asset) => {
     if (ids.includes(asset.groupId)) {
       asset.groupId = "all";
       asset.updatedAt = nowText();
-      asset.logs.unshift(`素材组「${group.name}」被删除，素材移到全部素材`);
+      logOperation('asset', asset.id, asset.name, 'asset.move', `素材组「${group.name}」被删除，素材移到全部素材`);
     }
   });
-  db.groups = db.groups.filter((item) => !ids.includes(item.id));
+  db.groups.forEach((g) => {
+    if (ids.includes(g.id)) {
+      g.status = getGroupStatusConfig().deleted;
+      g.deletedAt = nowText();
+      g.updatedAt = nowText();
+      logOperation('group', g.id, g.name, 'group.delete', '删除了素材组（软删除）');
+    }
+  });
   if (ids.includes(state.groupId)) state.groupId = "all";
+  invalidateGroupPermissionCache();
   saveDb();
   render();
-  showToast("素材组已删除");
+  showToast("素材组已移入回收站");
 }
 
 function showGroupMenu(anchor, groupId) {
@@ -722,6 +787,7 @@ function showGroupMenu(anchor, groupId) {
     <button data-group-action="shareRecord" type="button">分享记录</button>
     <button class="split" data-group-action="copy" type="button">复制素材组</button>
     <button data-group-action="move" type="button">移动素材组</button>
+    <button data-group-action="permission" type="button">权限设置</button>
     <button class="danger split" data-group-action="dismiss" type="button">解散素材组</button>
     <button class="danger" data-group-action="deleteAll" type="button">删除组及素材</button>`;
   els.assetMenu.style.left = `${Math.min(rect.right + 8, window.innerWidth - 250)}px`;
@@ -747,7 +813,7 @@ function handleGroupAction(action, groupId) {
   if (action === "child") openGroupModal(groupId);
   if (action === "sort") sortChildGroups(groupId);
   if (action === "edit") openGroupEditModal(groupId);
-  if (action === "collect") openCollectTaskModal(group.name);
+  if (action === "collect") openCollectTaskModal(getGroupName(groupId));
   if (action === "download") downloadGroup(groupId);
   if (action === "share") createGroupShare(groupId);
   if (action === "shareRecord") {
@@ -758,6 +824,7 @@ function handleGroupAction(action, groupId) {
   if (action === "move") openMoveGroupModal(groupId);
   if (action === "dismiss") dissolveGroup(groupId);
   if (action === "deleteAll") deleteGroupAndAssets(groupId);
+  if (action === "permission") openGroupPermissionModal(groupId);
 }
 
 function getGroupDescendantIds(groupId) {
@@ -766,7 +833,8 @@ function getGroupDescendantIds(groupId) {
   while (changed) {
     changed = false;
     db.groups.forEach((group) => {
-      if (group.parentId && group.status !== "deleted" && ids.has(group.parentId) && !ids.has(group.id)) {
+      const groupStatusConfig = getGroupStatusConfig();
+      if (group.parentId && !groupStatusConfig.deletedCodes.includes(group.status) && ids.has(group.parentId) && !ids.has(group.id)) {
         ids.add(group.id);
         changed = true;
       }
@@ -788,16 +856,47 @@ function sortChildGroups(groupId) {
 
 function downloadGroup(groupId) {
   const ids = getGroupDescendantIds(groupId);
-  const first = db.assets.find((asset) => ids.includes(asset.groupId) && asset.status !== "deleted");
+  const first = db.assets.find((asset) => ids.includes(asset.groupId) && !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus));
   if (first) downloadAsset(first.id);
   showToast("已创建素材组下载任务");
 }
 
 function createGroupShare(groupId) {
   const group = db.groups.find((item) => item.id === groupId);
+  if (!group) return;
+  if (!canCreateShare(group, "view")) {
+    showToast("没有权限创建分享链接");
+    return;
+  }
   const code = Math.random().toString(36).slice(2, 8);
   const link = getShareLink("group", groupId, code);
-  db.shares.unshift({ group: group.name, user: currentUser.name, access: "分享给互联网用户（无需登录）", visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: "永久有效", targetType: "group", targetId: groupId, code, link, requirePassword: false, password: "" });
+  db.shares.unshift({ 
+    id: `share-${Date.now()}`,
+    group: group.name, 
+    user: currentUser.username, 
+    access: "分享给互联网用户（无需登录）", 
+    visits: 0, 
+    views: 0, 
+    downloads: 0, 
+    sharedAt: nowText(), 
+    expiresAt: "永久有效", 
+    targetType: "group", 
+    targetId: groupId, 
+    code, 
+    link, 
+    requirePassword: false, 
+    password: "",
+    accessScope: "internal",
+    contentPermission: "view",
+    maxVisits: null,
+    status: "active",
+    ownedBy: currentUser.username,
+    ownedByDept: currentUser.department || "",
+    createdBy: currentUser.username,
+    updatedAt: nowText(),
+    logs: []
+  });
+  logOperation('share', link, group.name, 'share.create', '创建了分享链接');
   saveDb();
   state.page = "share";
   render();
@@ -817,6 +916,11 @@ function copyGroup(groupId) {
 
 async function dissolveGroup(groupId) {
   const group = db.groups.find((item) => item.id === groupId);
+  if (!group) return;
+  if (!canManageGroup(groupId)) {
+    showToast("没有权限解散素材组");
+    return;
+  }
   const ok = await window.Modal.confirm(`确定解散素材组「${group.name}」吗？组内素材会移动到上级素材组。`);
   if (!ok) return;
   const targetId = group.parentId || "all";
@@ -824,7 +928,7 @@ async function dissolveGroup(groupId) {
     if (asset.groupId === groupId) {
       asset.groupId = targetId;
       asset.updatedAt = nowText();
-      asset.logs.unshift(`${currentUser.name} 解散素材组「${group.name}」`);
+      logOperation('asset', asset.id, asset.name, 'asset.move', `素材组「${group.name}」被解散，素材移到上级素材组`);
     }
   });
   db.groups.forEach((item) => {
@@ -833,8 +937,10 @@ async function dissolveGroup(groupId) {
       item.depth = Math.max(0, (group.depth || 0));
     }
   });
+  logOperation('group', groupId, group.name, 'group.delete', '解散了素材组');
   db.groups = db.groups.filter((item) => item.id !== groupId);
   if (state.groupId === groupId) state.groupId = targetId;
+  invalidateGroupPermissionCache();
   saveDb();
   render();
   showToast("素材组已解散");
@@ -842,28 +948,43 @@ async function dissolveGroup(groupId) {
 
 async function deleteGroupAndAssets(groupId) {
   const group = db.groups.find((item) => item.id === groupId);
+  if (!group) return;
+  if (!canManageGroup(groupId)) {
+    showToast("没有权限删除素材组");
+    return;
+  }
   const ids = getGroupDescendantIds(groupId);
-  const ok = await window.Modal.confirm(`确定删除「${group.name}」及组内素材吗？组内素材会进入回收站，素材组会被移除。`);
+  const ok = await window.Modal.confirm(`确定删除「${group.name}」及组内素材吗？组内素材和素材组都会进入回收站。`);
   if (!ok) return;
+  const assetStatusConfig = getAssetStatusConfig();
   db.assets.forEach((asset) => {
     if (ids.includes(asset.groupId)) {
-      asset.status = "deleted";
+      asset.assetStatus = assetStatusConfig.deleted;
       asset.updatedAt = nowText();
       asset.deletedAt = asset.updatedAt;
-      asset.logs.unshift(`${currentUser.name} 删除素材组「${group.name}」及素材`);
+      logOperation('asset', asset.id, asset.name, 'asset.delete', '删除了素材（软删除）');
     }
   });
-  db.groups = db.groups.filter((item) => !ids.includes(item.id));
+  db.groups.forEach((g) => {
+    if (ids.includes(g.id)) {
+      g.status = getGroupStatusConfig().deleted;
+      g.deletedAt = nowText();
+      g.updatedAt = nowText();
+      logOperation('group', g.id, g.name, 'group.delete', '删除了素材组（软删除）');
+    }
+  });
   if (ids.includes(state.groupId)) state.groupId = "all";
+  invalidateGroupPermissionCache();
   saveDb();
   render();
-  showToast("素材已移入回收站，素材组已移除");
+  showToast("素材和素材组已移入回收站");
 }
 
 function showAssetMenu(anchor, id) {
   const rect = anchor.getBoundingClientRect();
   const asset = findAsset(id);
-  const deleted = asset?.status === "deleted";
+  const assetStatusConfig = getAssetStatusConfig();
+  const deleted = asset && assetStatusConfig.deletedCodes.includes(asset.assetStatus);
   els.assetMenu.innerHTML = deleted ? `
     <button data-restore="${id}" type="button">恢复素材</button>
     <button class="danger" data-hard-delete="${id}" type="button">彻底删除</button>` : `
@@ -876,6 +997,7 @@ function showAssetMenu(anchor, id) {
     <button class="split" data-tags="${id}" type="button">重新识别标签</button>
     <button data-owner="${id}" type="button">修改所有者</button>
     <button data-permission="${id}" type="button">修改权限类型</button>
+    <button data-acl="${id}" type="button">权限管理</button>
     <button class="danger split" data-delete="${id}" type="button">删除素材</button>`;
   positionFloatingMenu(els.assetMenu, rect);
   els.assetMenu.addEventListener("click", handleAssetMenuClick, { once: true });
@@ -934,6 +1056,7 @@ function handleAssetMenuClick(event) {
   if (button.dataset.share) openShareAssetModal(id);
   if (button.dataset.owner) openOwnerModal(id);
   if (button.dataset.permission) openPermissionModal(id);
+  if (button.dataset.acl) openAssetPermissionModal(id);
   hideMenus();
 }
 
@@ -946,7 +1069,7 @@ function openViewer(id) {
   state.zoomLevel = 100;
   resetViewerPan();
   asset.view += 1;
-  asset.logs.unshift(`${currentUser.name} 浏览了素材`);
+  logOperation('asset', asset.id, asset.name, 'asset.view', '浏览了素材');
   saveDb();
   els.viewer.classList.remove("hidden");
   renderViewer();
@@ -965,12 +1088,22 @@ function renderViewer() {
   renderViewerMedia(asset);
   updateViewerNav(asset);
   renderViewerFooter(asset);
-  els.detailTabs.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.tab === state.detailTab));
+  const canManage = canManageAsset(asset);
+  els.detailTabs.querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === state.detailTab);
+    if (button.dataset.tab === "log") {
+      button.classList.toggle("hidden", !canManage);
+    }
+  });
+  const logContent = (asset.logs || []).map((log) => {
+    const actionName = log.actionName || log.action || "-";
+    return `<div class="log-item"><span>${escapeHtml(formatDateTimeDisplay(log.createdAt || nowText()))}</span><span class="log-action-tag">${escapeHtml(actionName)}</span><p>${escapeHtml(log.detail || "-")}</p><small>操作人: ${escapeHtml(log.operator || currentUser.username)}</small></div>`;
+  }).join("") || renderEmpty("暂无操作日志");
   const content = {
     overview: `<div class="detail-section"><div class="field editable-field" data-overview-edit="asset"><span>素材名称</span><b>${escapeHtml(asset.name)}</b><small>点击编辑</small></div></div><div class="detail-section"><div class="section-title"><h3>AI标签</h3><button id="retagFromOverview" type="button">AI重新打标</button></div><div class="tag-list">${(asset.aiTags || []).map((tag) => `<span>${escapeHtml(tag)}</span>`).join("") || "<em>暂无AI标签</em>"}</div></div><div class="detail-section"><div class="section-title"><h3>素材信息</h3><button data-overview-edit="asset" type="button">编辑信息</button></div><div class="field-grid"><button class="field interactive" data-overview-edit="asset" type="button"><span>品牌</span>${escapeHtml(asset.brand || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车系</span>${escapeHtml(asset.series || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>车型</span>${escapeHtml(asset.model || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>内饰色</span>${escapeHtml((asset.interiorColors || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>外饰色</span>${escapeHtml((asset.exteriorColors || []).join("、") || "-")}</button><button class="field interactive" data-overview-edit="asset" type="button"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "-")}</button></div></div>`,
-    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${asset.updatedAt}</div><div class="field"><span>上传时间</span>${asset.createdAt}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>品牌</span>${escapeHtml(asset.brand || "无")}</div><div class="field"><span>车系</span>${escapeHtml(asset.series || "无")}</div><div class="field"><span>车型</span>${escapeHtml(asset.model || "无")}</div><div class="field"><span>内饰色</span>${escapeHtml((asset.interiorColors || []).join("、") || "无")}</div><div class="field"><span>外饰色</span>${escapeHtml((asset.exteriorColors || []).join("、") || "无")}</div><div class="field"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart ? formatDateTimeDisplay(asset.validStart) : "-")}</div><div class="field"><span>素材失效日期</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div></div>`,
-    comment: `<div class="comment-box"><textarea id="commentText" placeholder="写一条评论"></textarea><button id="addComment" class="primary" type="button">发布</button></div>${(asset.comments || []).map((item) => `<div class="info-card"><b>${escapeHtml(item.user || currentUser.name)}</b><small>${item.time || ""}</small><p>${escapeHtml(item.text || item)}</p></div>`).join("") || renderEmpty("暂无评论")}`,
-    log: `<div class="timeline">${(asset.logs || []).map((text, index) => `<div class="log-item"><span>${index ? "2026-05-26 17:4" + index : nowText()}</span><p>"${escapeHtml(text)}"</p><small>操作人: ${escapeHtml(currentUser.name)}</small></div>`).join("")}</div>`,
+    detail: `<button class="table-tool" id="editFromDetail" type="button"><span data-icon="edit"></span> 编辑素材信息</button><div class="detail-section"><h3>基础信息</h3><div class="field"><span>素材所有者</span>${escapeHtml(asset.owner)}<br><small>${escapeHtml(asset.department)}</small></div><div class="field"><span>更新时间</span>${formatDateTimeDisplay(asset.updatedAt)}</div><div class="field"><span>上传时间</span>${formatDateTimeDisplay(asset.createdAt)}</div><div class="field"><span>文件尺寸</span>${asset.width || "-"}×${asset.height || "-"}</div><div class="field"><span>素材ID</span>${asset.id}</div><div class="field"><span>文件格式</span>${asset.format}</div><div class="field"><span>文件大小</span>${formatBytes(asset.sizeBytes)}</div></div><div class="detail-section"><div class="field"><span>名称</span>${escapeHtml(asset.name)}</div><div class="field"><span>描述</span>${escapeHtml(asset.desc || "-")}</div><div class="field"><span>品牌</span>${escapeHtml(asset.brand || "无")}</div><div class="field"><span>车系</span>${escapeHtml(asset.series || "无")}</div><div class="field"><span>车型</span>${escapeHtml(asset.model || "无")}</div><div class="field"><span>内饰色</span>${escapeHtml((asset.interiorColors || []).join("、") || "无")}</div><div class="field"><span>外饰色</span>${escapeHtml((asset.exteriorColors || []).join("、") || "无")}</div><div class="field"><span>业务标签</span>${escapeHtml((asset.customTags || []).join("、") || "无")}</div><div class="field"><span>素材生效日期</span>${escapeHtml(asset.validStart ? formatDateTimeDisplay(asset.validStart) : "-")}</div><div class="field"><span>素材失效日期</span>${escapeHtml(formatAssetValidUntil(asset))}</div><div class="field"><span>AI标签</span>${escapeHtml((asset.aiTags || []).join("、") || "无")}</div></div>`,
+    comment: `<div class="comment-box"><textarea id="commentText" placeholder="写一条评论"></textarea><button id="addComment" class="primary" type="button">发布</button></div>${(asset.comments || []).map((item) => `<div class="info-card"><b>${escapeHtml(item.user || currentUser.username)}</b><small>${item.time || ""}</small><p>${escapeHtml(item.text || item)}</p></div>`).join("") || renderEmpty("暂无评论")}`,
+    log: `<div class="timeline">${logContent}</div>`,
   }[state.detailTab];
   els.detailContent.innerHTML = content;
   const retagButton = document.querySelector("#retagFromOverview");
@@ -990,8 +1123,8 @@ function renderViewer() {
     const value = document.querySelector("#commentText").value.trim();
     if (!value) return;
     asset.comments = asset.comments || [];
-    asset.comments.unshift({ user: currentUser.name, time: nowText(), text: value });
-    asset.logs.unshift(`${currentUser.name} 评论了素材`);
+    asset.comments.unshift({ user: currentUser.username, time: nowText(), text: value });
+    logOperation('asset', asset.id, asset.name, 'asset.comment', `评论了素材：${value}`);
     saveDb();
     renderViewer();
   });
@@ -1018,9 +1151,10 @@ function renderViewer() {
 }
 
 function getViewerSequence() {
-  const filtered = getFilteredAssets().filter((asset) => asset.status !== "deleted");
+  const assetStatusConfig = getAssetStatusConfig();
+  const filtered = getFilteredAssets().filter((asset) => !assetStatusConfig.deletedCodes.includes(asset.assetStatus));
   if (filtered.some((asset) => asset.id === state.selectedAssetId)) return filtered;
-  return sortAssets(db.assets.filter((asset) => asset.status !== "deleted"));
+  return sortAssets(db.assets.filter((asset) => !assetStatusConfig.deletedCodes.includes(asset.assetStatus)));
 }
 
 function updateViewerNav(asset) {
@@ -1044,7 +1178,7 @@ function changeViewerAsset(direction) {
   state.zoomLevel = 100;
   resetViewerPan();
   nextAsset.view += 1;
-  nextAsset.logs.unshift(`${currentUser.name} 浏览了素材`);
+  logOperation('asset', nextAsset.id, nextAsset.name, 'asset.view', '浏览了素材');
   saveDb();
   renderViewer();
 }
@@ -1082,9 +1216,11 @@ function renderViewerFooter(asset) {
   const footer = document.querySelector(".detail-panel footer");
   if (!footer) return;
   const canManage = canManageAsset(asset);
+  const canDownload = canDownloadAsset(asset);
+  const canShare = canCreateShare(asset, "view");
   footer.innerHTML = `
-    <button class="primary" data-detail-action="download" type="button">下载素材</button>
-    <button data-detail-action="share" type="button">分享</button>
+    ${canDownload ? `<button class="primary" data-detail-action="download" type="button">下载素材</button>` : ""}
+    ${canShare ? `<button data-detail-action="share" type="button">分享</button>` : ""}
     ${canManage ? `<button data-detail-action="edit" type="button">编辑信息</button>` : `<button data-detail-action="permission" type="button">申请编辑权限</button>`}
     <button data-detail-action="group" type="button">添加到组</button>`;
 }
@@ -1125,10 +1261,10 @@ function openEditAssetModal(id) {
   document.querySelector("#editAssetCustomTags").value = escapeAttr((asset.customTags || []).join(", "));
   document.querySelector("#editAssetBrand").value = escapeAttr(asset.brand || "");
   const validStartParts = splitDateTimeText(asset.validStart || asset.uploadDate || "");
-  document.querySelector("#editAssetValidStartDate").value = escapeAttr(validStartParts.date);
+  document.querySelector("#editAssetValidStartDate").value = escapeAttr(toInputDateValue(asset.validStart || asset.uploadDate));
   document.querySelector("#editAssetValidStartTime").value = escapeAttr(validStartParts.time);
   const validUntilParts = splitDateTimeText(asset.validUntilDate || asset.validUntil || "");
-  document.querySelector("#editAssetValidUntilDate").value = escapeAttr(validUntilParts.date);
+  document.querySelector("#editAssetValidUntilDate").value = escapeAttr(toInputDateValue(asset.validUntilDate || asset.validUntil));
   document.querySelector("#editAssetValidUntilTime").value = escapeAttr(validUntilParts.time || "23:59");
 
   document.querySelector("#editAssetSeries").value = asset.series || "";
@@ -1279,6 +1415,10 @@ function handleEditAssetSubmit(event) {
   event.preventDefault();
   const asset = findAsset(editAssetId);
   if (!asset) return;
+  if (!canEditAsset(asset)) {
+    showToast("没有权限编辑素材");
+    return;
+  }
 
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
@@ -1300,7 +1440,7 @@ function handleEditAssetSubmit(event) {
     permission: data.permission,
     updatedAt: nowText(),
   });
-  asset.logs.unshift(`${currentUser.name} 编辑了素材信息`);
+  logOperation('asset', asset.id, asset.name, 'asset.edit', '修改了素材信息');
   saveDb();
   closeEditAssetModal();
   render();
@@ -1327,11 +1467,40 @@ function handleAddGroupSubmit(event) {
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
   const parent = db.groups.find((group) => group.id === data.parentId);
-  const group = { id: `group-${Date.now()}`, name: data.name.trim(), parentId: data.parentId || "", depth: parent ? (parent.depth || 0) + 1 : 0, count: 0, status: "active" };
+  const group = { 
+    id: `group-${Date.now()}`, 
+    name: data.name.trim(), 
+    parentId: data.parentId || "", 
+    depth: parent ? (parent.depth || 0) + 1 : 0, 
+    count: 0, 
+    status: "active",
+    createdBy: currentUser.username,
+    createdAt: nowText(),
+    ownedBy: currentUser.username,
+    ownedByDept: currentUser.department || "",
+    updatedAt: nowText(),
+    logs: []
+  };
   db.groups.push(group);
+  
+  db.groupAcl = db.groupAcl || [];
+  db.groupAcl.push({
+    id: `acl-${Date.now()}`,
+    groupId: group.id,
+    subjectType: "user",
+    subjectId: currentUser.id || "user-admin",
+    subjectName: currentUser.username,
+    permission: "manage",
+    includeSubDept: true,
+    grantedBy: currentUser.username,
+    grantedAt: nowText()
+  });
+  
   if (data.parentId) state.collapsedGroupIds.delete(data.parentId);
   state.groupId = group.id;
   state.page = "all";
+  logOperation('group', group.id, group.name, 'group.create', '创建了素材组');
+  invalidateGroupPermissionCache();
   saveDb();
   closeAddGroupModal();
   render();
@@ -1359,11 +1528,18 @@ function handleEditGroupSubmit(event) {
   event.preventDefault();
   const group = db.groups.find((item) => item.id === editGroupId);
   if (!group) return;
+  if (!canManageGroup(editGroupId)) {
+    showToast("没有权限编辑素材组");
+    return;
+  }
   
   const form = event.target;
   const data = Object.fromEntries(new FormData(form));
+  const oldName = group.name;
   group.name = data.name.trim();
   group.desc = data.desc.trim();
+  group.updatedAt = nowText();
+  logOperation('group', group.id, group.name, 'group.rename', `重命名为${group.name}`);
   saveDb();
   closeEditGroupModal();
   render();
@@ -1381,10 +1557,12 @@ function openMoveGroupModal(groupId) {
   if (!group) return;
   moveGroupId = groupId;
   
-  const blocked = new Set(getGroupDescendantIds(groupId));
   const options = db.groups
-    .filter((item) => !item.system && !blocked.has(item.id))
-    .map((item) => `<option value="${item.id}">${escapeHtml(item.name)}</option>`)
+    .filter((item) => !item.system)
+    .map((item) => {
+      const isDescendant = item.id === groupId || isGroupDescendant(item.id, groupId);
+      return `<option value="${item.id}"${isDescendant ? ' disabled' : ''}>${escapeHtml(item.name)}</option>`;
+    })
     .join("");
   
   document.querySelector("#moveGroupParentId").innerHTML = `<option value="">无上级</option>${options}`;
@@ -1397,11 +1575,20 @@ function handleMoveGroupSubmit(event) {
   if (!group) return;
   
   const parentId = new FormData(event.target).get("parentId");
+  if (!canMoveGroup(moveGroupId, parentId)) {
+    showToast("没有权限移动素材组，或存在循环依赖");
+    return;
+  }
+  
   const parent = db.groups.find((item) => item.id === parentId);
+  const oldParentName = db.groups.find((g) => g.id === group.parentId)?.name || "无";
+  const newParentName = parent?.name || "无";
   group.parentId = parentId || "";
   group.depth = parent ? (parent.depth || 0) + 1 : 0;
   if (parentId) state.collapsedGroupIds.delete(parentId);
   syncGroupDepths();
+  logOperation('group', group.id, group.name, 'group.move', `从${oldParentName}移动到${newParentName}组下`);
+  invalidateGroupPermissionCache();
   saveDb();
   closeMoveGroupModal();
   render();
@@ -1431,16 +1618,26 @@ function handleAddToGroupSubmit(event) {
   event.preventDefault();
   const groupId = new FormData(event.target).get("groupId");
   const ids = assignGroupBulk ? [...state.selectedIds] : [assignGroupAssetId];
-  db.assets.forEach((item) => {
-    if (ids.includes(item.id)) {
-      item.groupId = groupId;
-      item.updatedAt = nowText();
-      if (item.status === "pending") {
-        item.status = "active";
-        item.logs.unshift(`${currentUser.name} 审核入库并添加到 ${getGroupName(groupId)}`);
-      } else {
-        item.logs.unshift(`${currentUser.name} 添加素材到 ${getGroupName(groupId)}`);
-      }
+  
+  const assets = db.assets.filter((asset) => ids.includes(asset.id));
+  for (const asset of assets) {
+    if (!canMoveAsset(asset, groupId)) {
+      showToast(`没有权限移动素材「${asset.name}」`);
+      return;
+    }
+  }
+  
+  const targetGroupName = getGroupName(groupId);
+  assets.forEach((item) => {
+    const oldGroupName = getGroupName(item.groupId);
+    item.groupId = groupId;
+    item.updatedAt = nowText();
+    const assetStatusConfig = getAssetStatusConfig();
+    if (item.assetStatus === assetStatusConfig.pending) {
+      item.assetStatus = assetStatusConfig.active;
+      logOperation('asset', item.id, item.name, 'asset.edit', `审核入库并添加到${targetGroupName}`);
+    } else {
+      logOperation('asset', item.id, item.name, 'asset.move', `从${oldGroupName}移动到${targetGroupName}`);
     }
   });
   state.selectedIds.clear();
@@ -1460,11 +1657,11 @@ function openCollectTaskModal(defaultGroupName = "") {
   
   document.querySelector("#collectTaskName").value = "";
   document.querySelector("#collectTaskDesc").value = "";
-  document.querySelector("#collectTaskDeadline").value = "";
   document.querySelector("#collectTaskTypes").innerHTML = getAllCollectTaskTypes().map((type) => `<option>${escapeHtml(type)}</option>`).join("");
   document.querySelector("#collectTaskGroup").value = defaultGroupName;
   
   document.querySelector("#collectTaskModal").classList.remove("hidden");
+  initProjectDatePickers(document.querySelector("#collectTaskModal"));
 }
 
 function handleCollectTaskSubmit(event) {
@@ -1485,17 +1682,24 @@ function handleCollectTaskSubmit(event) {
     theme: data.name, 
     desc: data.desc,
     group: data.group || "",
-    deadline: `${data.expiresAtDate} ${data.expiresAtTime}`,
+    deadline: joinDateTime(data.expiresAtDate, data.expiresAtTime),
     types: [...document.querySelector("#collectTaskTypes").selectedOptions].map(opt => opt.value),
-    status: "生效中", 
+    status: getCollectTaskStatusConfig().active, 
     code,
-    creator: currentUser.name, 
+    creator: currentUser.username, 
+    createdBy: currentUser.username,
+    ownedBy: currentUser.username,
+    ownedByDept: currentUser.department || "",
     createdAt: nowText(), 
-    expiresAt: `${data.expiresAtDate} ${data.expiresAtTime}`,
+    updatedAt: nowText(),
+    expiresAt: joinDateTime(data.expiresAtDate, data.expiresAtTime),
     requirePassword: true,
     password: code,
-    link
+    link,
+    auditStatus: getAuditStatusConfig().pendingSubmit,
+    logs: []
   });
+  logOperation('collect', id, data.name, 'collect.create', '创建了收集任务');
   saveDb();
   closeCollectTaskModal();
   state.page = "collect";

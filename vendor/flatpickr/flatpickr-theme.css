@@ -1,0 +1,11 @@
+/* flatpickr 适配：确保日历浮层始终在弹框之上，不被 overflow/transform 层叠上下文裁剪 */
+.flatpickr-calendar {
+  z-index: 100000 !important;
+  font-family: inherit;
+}
+.flatpickr-calendar.open {
+  z-index: 100000 !important;
+}
+.flatpickr-calendar.animate {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+}

@@ -1,5 +1,7 @@
 # 代码记忆索引
 
+> 最后核对日期：2026-07-10
+> 用途：改动前先查本文件定位代码位置；如不能定位再回读完整相关文件，并补充新定位。
 
 ## 修改前流程
 
@@ -8,520 +10,627 @@
 3. 不能定位时，再读取相关完整文件。
 4. 修改后如果新增功能入口、状态字段、模板、动态数据来源，必须补充本文件。
 5. 用户明确要求：每次更新代码前都先阅读本文件；如果代码结构或功能入口有变化，及时更新本文件。
-6. 用户明确要求：以后收到“调整/修改/优化”类消息时，先说明对需求的理解并询问是否正确；用户确认后再开始修改。
+6. 用户明确要求：收到"调整/修改/优化"类消息时，先说明对需求的理解并询问是否正确；用户确认后再开始修改。
 
 ## 文件职责
 
-- `index.html`：静态骨架、模态框、模板、脚本加载顺序。仍包含不少可变配置项的硬编码选项。
+- `index.html`：静态骨架、模态框、模板（`<template>`）、脚本加载顺序。
 - `styles.css`：全局布局、素材卡片、列表、弹窗、标签页、暗色模式、移动端样式。
-- `app-infra.js`：基础设施封装，包括 Toast、Modal、Loading、`http`、`initDatePicker`、`debounce`。
-- `app-core.js`：种子数据、全局 `db/state/els`、初始化、数据迁移、主壳渲染、全局事件绑定。
-- `app-render.js`：主渲染入口、素材列表/卡片、管理页、回收站、标签管理页、标签新增编辑合并。
-- `app-actions.js`：上传、筛选菜单、侧边栏、素材组菜单、素材菜单、查看器、素材/素材组表单、收集任务创建、素材篮计数。
-- `app-workflows.js`：素材篮抽屉、分享、更新分享过期时间、收集任务配置/模拟上传、有效期/所有者/权限、删除/恢复/预览。
-- `app-utils.js`：过滤、排序、相似度、面包屑、日期时间格式、标签拆分、转义、空态。
-- `app.js`：启动入口，当前只调用 `bootstrap()`。
+- `app-infra.js`：基础设施封装（IIFE），包括 Toast、Modal.confirm、Loading、`http`、`initDatePicker`、`debounce`。
+- `app-core.js`：种子数据、全局 `db/state/els`、初始化、数据迁移、主壳渲染、全局事件绑定、菜单系统、收集/分享落地页。
+- `app-render.js`：主渲染入口、素材列表/卡片、管理页分发、回收站、标签管理页、值列表管理页、菜单管理页、系统管理页（用户/角色/组织/权限）、标签新增编辑合并。
+- `app-actions.js`：上传、筛选菜单（树形结构）、侧边栏、素材组菜单、素材菜单、查看器、素材/素材组表单、收集任务创建、素材篮计数、素材编辑候选下拉。
+- `app-workflows.js`：素材篮抽屉、分享（创建/记录管理）、收集任务配置/模拟上传、有效期/所有者/权限、删除/恢复/预览/下载。
+- `app-utils.js`：过滤、排序、相似度、面包屑、日期时间格式、标签拆分、转义、空态、筛选匹配函数。
+- `app.js`：启动入口，只调用 `bootstrap()`。
 
 ## 数据与状态
 
-- 持久化 key：`app-core.js:1` 的 `STORAGE_KEY = "dp-material-library-state-v2"`。
+- 持久化 key：`app-core.js:1` `STORAGE_KEY = "dp-material-library-state-v2"`。
 - 默认素材组：`app-core.js:3` `defaultGroups`。
-- 默认素材：`app-core.js:13` `seedNames` 和 `app-core.js:39` `seedAssets`。
-- 默认标签：`app-core.js:80` `seedTags`。
-- 车型/品牌/车系/颜色筛选数据：从 `app-core.js` 的 `SEED_VALUE_LIST_TREE` 动态读取；旧静态常量 `BRANDS / BRAND_SERIES / SERIES_MODELS / MODEL_INTERIOR_COLORS / MODEL_EXTERIOR_COLORS / VEHICLE_MODELS` 已清理。
-- 筛选项配置：`app-core.js` 的 `filterLabels` 控制默认可见筛选项；可配置筛选项由 `getConfigurableFilters()` 动态合并值列表维度和固定扩展项，旧 `configurableFilters` 常量已清理。
-- 全局状态：`app-core.js:127` `state`；用户管理页使用 `userManageFilters / userManageOrgId / selectedManageUserId` 控制组织树筛选、查询条件和当前选中用户；权限管理页额外使用 `permissionView / permissionMenuId / permissionSubjectType / permissionSubjectId` 控制“按菜单授权 / 按组织个人授权”双视图和左侧树当前选中节点。用户管理和权限相关树不记录全局折叠状态，每次打开页面或弹框默认展开；点击 `+/-` 只做当前 DOM 的临时展开收起。
-- 登录会话 key：`app-core.js:179` `SESSION_USER_KEY = "dp-material-library-current-user"`。
-- 系统菜单权限清单：由 `db.menus` 动态驱动，菜单权限按 `visible/editable` 控制。`getManagedPages()` 函数从 `db.menus` 获取所有有效页面菜单（排除素材管理分组下的页面）。
-- 登录日志筛选状态：`state.loginLogFilters`，包含 `username/name/startDate/endDate`。
-- 当前用户：`app-core.js:223` `currentUser`，由登录会话和 `db.users` 动态生成，不再是固定常量。
-- DOM 缓存：`app-core.js:164` `els`。
-- 读库：`app-core.js:360` `loadDb()`。
-- 存库：`app-core.js:382` `saveDb()`。
-- 数据迁移：`app-core.js:245` `migrateVehicleModels()`，`app-core.js:290` `migrateShareExpiresAt()`，`app-core.js:310` `migrateAssetMetadata()`。
+- 种子素材名：`app-core.js:13` `seedNames`。
+- 值列表种子树：`app-core.js:28` `SEED_VALUE_LIST_TREE`（统一树模型，包含素材库筛选维度和素材管理维度）。
+- 种子素材：`app-core.js` `seedAssets`（使用 `assetStatus` / `auditStatus`，含 `series/interiorColors/exteriorColors/creator/lastUpdate/asset_source/collect_id/collect_link`）。
+- 种子标签：`app-core.js:329` `seedTags`。
+- 默认筛选项：`app-core.js:373` `filterLabels`。
+- 会话 key：`app-core.js:375` `SESSION_USER_KEY`。
+- 全局数据库：`app-core.js:376` `db = loadDb()`，紧接 `ensureSystemData()`。
+- 全局状态：`app-core.js:378` `state`。
+- 当前用户：`app-core.js:422` `currentUser`。
+- DOM 缓存：`app-core.js:600` `els`。
+- 读库：`app-core.js:1009` `loadDb()`。
+- 存库：`app-core.js:1032` `saveDb()`。
+- 数据迁移：`app-core.js:853` `migrateVehicleModels()`，`app-core.js:899` `migrateShareExpiresAt()`，`app-core.js:959` `migrateAssetMetadata()`，`app-core.js:948` `migrateCollectTaskSecurity()`。
+
+### 素材状态体系
+
+- `assetStatus` 是素材主状态，来自值列表 `asset_status`，当前核心值包括 `pending`、`active`、`deleted`、`disabled`。
+- `auditStatus` 是审核链路状态，来自值列表 `audit_status`，覆盖待提交、待审核、机审、人审和终审通过等节点。
+- 素材库展示已入库素材：`assetStatus=active` 且当前用户 `canViewAsset(asset)`。
+- 待入库展示口径：`isPendingAsset(asset)`，包含 `assetStatus=pending` 或 `assetStatus` 非 active 且 `auditStatus` 未终审通过的素材；`assetStatus=active` 的素材一定不算待入库。
+- 回收站展示口径：`assetStatus` 命中 `getAssetStatusConfig().deletedCodes`。
+- 入库动作：`approveSelectedAssets()` 将命中素材写为 `auditStatus=human_pass`、`assetStatus=active`。
+
+### 值列表统一树模型
+
+- `db.valueListTree`：单一数组，节点字段 `id, code, name, type, parentId, refId, description, attr1, attr2, status, sortOrder`。
+- type 取值：`root`/`dimension`/`group`/`value`。
+- 树根："值列表"（`vl_root`），子节点包含"素材库筛选"（`vl_dim_matlib`）和"素材管理"（`vl_dim_matmanage`）。
+- 树派生函数（`app-core.js`）：
+  - `getTreeChildren(parentId)` :179
+  - `getTreeNodeById(id)` / `getTreeNodeByCode(code)` / `getTreeNodeByName(name)` :183/:186/:189 (注: getTreeNodeByName 可能不存在，需核实)
+  - `getDimensionNodes(parentDimId)` :189
+  - `buildFilterTree(dimCode, parentId)` :194
+  - `getAllLeafValues(dimCode)` :204
+  - `getAllUploadAccept()` :218
+  - `getAllCollectTaskTypes()` :222
+  - `getVehicleModels()` :227
+  - `getFileFormatCategoriesFromTree()` :230
+  - `getAspectRatiosFromTree()` :249
+  - `getAllowedUploadFormats()` :255
+  - `getFilterLabels()` :258
+  - `getConfigurableFilters()` :262
+
+### 菜单系统
+
+- `db.menus`：动态菜单树，节点字段 `id, name, page, parentId, category, layout, icon, valid, hidden, sortOrder, visible, editable`。
+- `getManagedPages()` 已删除；当前使用 `getAllMenuPages()` (:464) 获取所有页面菜单。
+- `isAssetPage(page)` :470 / `isManagePage(page)` :474 判断页面类型。
+- `getDefaultMenus()` :691 返回初始菜单树。
+- `ensureSystemData()` :716 仅在 `db.menus` 缺失/空时初始化，不覆盖用户修改。
+- 权限函数：`getMenuPermission(menuId)` :570，`canViewMenu(menuId)` :583，`canEditMenu(menuId)` :587。
+- `isVisibleNavMenu(menu)` :487 / `getVisibleNavMenuChildren(parentId)` :493 过滤左侧菜单。
+- `normalizePageState()` :829 的 `validPages` 改为 `getAllMenuPages()` 动态获取。
 
 ## 主流程
 
 - 启动：`app.js` -> `bootstrap()`。
-- 初始化：`app-core.js:205` `bootstrap()`。
-- URL 参数处理：`app-core.js:230` `applyHashState()`。
-- 主壳同步：`app-core.js:570` `renderShell()`。
-- 主渲染入口：`app-render.js:1` `render()`。
-- 全局事件绑定：`app-core.js:621` `bindEvents()`；2026-07-03 第二批代码审计优化后，重复的弹窗取消/关闭/遮罩关闭事件通过 `bindModalClose()` 统一绑定，原有无遮罩关闭的弹窗仍显式传 `{ backdrop: false }` 保持交互不变。
+- 初始化：`app-core.js:798` `bootstrap()`。
+- URL 参数处理：`app-core.js:838` `applyHashState()`。
+- 主壳同步：`app-core.js:1621` `renderShell()`。
+- 主渲染入口：`app-render.js:10` `render()`。
+- 全局事件绑定：`app-core.js:1718` `bindEvents()`。
+- 左侧菜单树渲染：`app-core.js:1660` `renderMainNav()` / `app-core.js:1682` `renderMainNavNodes()`。
 
 ## 页面定位
 
-- 顶部导航、侧边栏、工具栏骨架：`index.html:11-132`。
-- 顶部栏响应式：`styles.css:70` `.topbar`，`styles.css:167` `.top-icons`，重点看 `max-width: 1200px / 860px / 640px / 480px` 断点。
-- 页面标题和面包屑：`index.html:60-65`，动态更新在 `app-render.js:13-30`，面包屑文案在 `app-utils.js:174` `getPageBreadcrumb()`。
-- 页面按钮区：`index.html:65-98`，显示逻辑在 `app-render.js:252` `renderActions()`；全部素材、待入库、标签管理、收集素材、回收站的顶部操作按钮均在这里统一展示。
-- 素材工具栏筛选/布局/排序：`index.html:94-116`，筛选 chip 在 `app-core.js:605`，排序事件在 `app-core.js:749` 附近。
-- 素材内容区：`index.html:128` `#contentPanel`，主要由 `app-render.js` 动态填充。
-- 更多功能页：`app-render.js:499` `renderManagePageV2()`。
-- 左侧菜单树：`app-core.js` 的 `renderMainNav()` / `renderMainNavNodes()` 读取 `db.menus` 递归渲染；“素材管理”“更多功能”“系统管理”都是树节点，点击 `+/-` 展开收起，点击页面节点进入独立页面。
-- 更多功能子菜单页面：所有更多功能子菜单都通过左侧菜单树的 `data-page` 页面节点进入，不再使用 `#moreMenuContent` / `data-go` 下拉入口，也不在内容区通过 tab/二级导航切换。
-- 系统管理页：`app-render.js:627` `renderSystemManagePage()`。当前五个子页为：用户管理、角色管理、组织管理、权限管理、菜单管理。
-- 菜单管理页：`app-render.js:1153` `renderMenuManagePage()`。左侧树展示 `db.menus`，右侧表单支持新增/修改/删除菜单节点。
-- 值列表管理页：`app-render.js:643` `renderValueListPage()`。单表格展示大类，点击"查看小类"弹框管理小类。详见下方"值列表管理"章节。
-- 登录页：`app-core.js:582` `ensureRuntimeElements()` 动态创建 `#loginPage`；提交在 `app-core.js:790` `handleLoginSubmit()`；退出在 `app-core.js:815` `logoutCurrentUser()`。
-- 用户登录日志页：页面状态 `loginLogs`；菜单入口在 `index.html` 的 `#moreMenuContent`；渲染在 `app-render.js` 的 `renderLoginLogPage()`；登录成功时 `handleLoginSubmit()` 写入 `db.loginLogs`。
-- 标签管理页：`app-render.js:799` `renderTagsPage()`。
-- 分享落地页：`app-core.js:485` `renderSharePortal()`。
-- 收集任务落地页：`app-core.js:427` `renderCollectorPortal()`。
+### HTML 骨架（index.html）
+
+- 顶部栏：`:11-36`（含应用菜单按钮、搜索框、通知/语言/用户按钮）。
+- 侧边栏：`:38-50`（含关闭按钮、`#mainNav`、素材组树、收起手柄）。
+- 页面头部（面包屑+标题+操作按钮）：`:54-96`。
+- 素材工具栏（筛选+布局+排序）：`:98-121`。
+- 以图搜图区：`:123-131`。
+- 内容区：`:133` `#contentPanel`。
+- 查看器：`:221-258`。
+- 素材篮抽屉：`:260-277`。
+- 更多菜单浮层：`:279-289`（`#moreMenuContent` 由 JS 动态渲染）。
+
+### 弹框/模板（index.html）
+
+| 弹框/模板 | 行号 | 说明 |
+|---|---|---|
+| `#basketValidityModal` | 291-314 | 素材篮批量有效期 |
+| `#basketShareModal` | 316-359 | 素材篮分享（含密码字段） |
+| `#addTagModal` | 362-383 | 新增标签 |
+| `#editTagModal` | 385-407 | 编辑标签 |
+| `#mergeTagModal` | 409-435 | 标签合并（checkbox 勾选列表） |
+| `#editAssetModal` | 438-511 | 编辑素材（.asset-edit-combo 结构） |
+| `#shareAssetModal` | 513-545 | 单素材分享（含密码字段） |
+| `#addGroupModal` | 548-563 | 新建素材组 |
+| `#editGroupModal` | 565-580 | 编辑素材组 |
+| `#moveGroupModal` | 582-596 | 移动素材组 |
+| `#addToGroupModal` | 598-612 | 添加到素材组 |
+| `#uploadSettingsModal` | 615-636 | 上传设置 |
+| `#cloudImportModal` | 638-656 | 百度网盘导入 |
+| `#collectTaskModal` | 658-687 | 创建收集任务 |
+| `#shareGroupModal` | 689-721 | 素材组分享（含密码字段） |
+| `#valueListModal` | 737-770 | 值列表新增/编辑（含树状 refId 下拉） |
+| `#valueListItemListModal` | 773-815 | 值列表选项查看（旧，保留兼容） |
+| `#valueListItemFormModal` | 818-840 | 值列表小类表单（旧，保留兼容） |
+| `<template id="tplConfirmModal">` | 723-734 | 确认弹框模板 |
+| `<template id="tplGlobalLoading">` | 842-847 | 全局 Loading 模板 |
+| `<template id="tplFormModal">` | 849-859 | 通用表单弹框模板 |
+| `<template id="tplUploadSettingsForm">` | 861-872 | 上传设置表单模板 |
+| `<template id="tplCloudImportForm">` | 874-886 | 网盘导入表单模板 |
+| `<template id="tplCollectTaskConfigForm">` | 888-906 | 收集任务配置模板 |
+| `<template id="tplShareRecordConfigForm">` | 908-928 | 分享记录管理模板 |
+| `<template id="tplCollectorUploadForm">` | 930-943 | 外部收集上传模板 |
+| `<template id="tplAssetValidityForm">` | 945-955 | 素材有效期表单模板 |
+| `<template id="tplOwnerForm">` | 957-961 | 所有者表单模板 |
+
+### JS 渲染入口（app-render.js）
+
+| 函数 | 行号 | 说明 |
+|---|---|---|
+| `getPageMenus()` | 1 | 从 db.menus 获取页面菜单列表 |
+| `render()` | 10 | 主渲染入口，分发到素材页或管理页 |
+| `renderActions()` | 254 | 顶部操作按钮显示逻辑 |
+| `renderAssets()` | 268 | 素材列表渲染（平铺/分组） |
+| `renderCompactAssets()` | 280 | 平铺视图 |
+| `renderDateGroupedAssets()` | 285 | 日期分组视图 |
+| `renderAssetCard()` | 302 | 素材卡片 |
+| `renderMetadataList()` | 330 | 元数据列表（列表视图） |
+| `renderList()` | 432 | 回收站列表视图 |
+| `bindAssetEvents()` | 446 | 素材卡片事件绑定 |
+| `renderManagePageV2()` | 529 | 管理页分发（directRenderers 映射表） |
+| `renderActivityPage()` | 553 | 活动记录页 |
+| `renderSharePage()` | 569 | 分享记录页 |
+| `renderRecyclePage()` | 589 | 回收站页 |
+| `renderCollectPage()` | 599 | 收集任务列表页 |
+| `renderValidityPage()` | 623 | 有效期管理页 |
+| `renderManageShell()` | 667 | 管理页外壳 |
+| `renderValueListPage()` | 676 | 值列表管理页 |
+| `renderMenuManagePage()` | 1180 | 菜单管理页 |
+| `renderLoginLogPage()` | 1515 | 登录日志页 |
+| `renderSystemManagePage()` | 1581 | 系统管理页（用户/角色/组织/权限分发） |
+| `renderUserManagePage()` | 1642 | 用户管理页 |
+| `renderRoleManagePage()` | 1739 | 角色管理页 |
+| `renderOrganizationManagePage()` | 1767 | 组织管理页 |
+| `renderPermissionManagePage()` | 1788 | 权限管理页 |
+| `renderTagsPage()` | 2622 | 标签管理页 |
+| `getTagSummary()` | 2469 | 标签汇总 |
+| `renderTagTableBody()` | 2688 | 标签表格 |
+| `emptyRecycleBin()` | 2375 | 清空回收站 |
+| `toggleRecycleDeletedTimeSort()` | 2388 | 回收站排序切换 |
+| `sortRecycleItems()` | 2394 | 回收站排序 |
+
+### 落地页（app-core.js）
+
+| 函数 | 行号 | 说明 |
+|---|---|---|
+| `renderCollectorPortal(code)` | 1077 | 收集任务落地页入口 |
+| `renderCollectorPasswordGate()` | 1096 | 收集页密码门 |
+| `renderCollectorPortalContent()` | 1122 | 收集页上传主体 |
+| `renderSharePortal(token)` | 1369 | 分享落地页入口 |
+| `renderSharePasswordGate()` | 1397 | 分享页密码门 |
+| `renderSharePortalContent()` | 1423 | 分享页内容主体 |
+| `getSharePortalAssets()` | 1391 | 分享页素材获取 |
+| `downloadShareAssets()` | 1452 | 分享页批量下载 |
+| `bindSharePortalDownloads()` | 1470 | 分享页下载事件绑定 |
+| `ensureRuntimeElements()` | 1494 | 动态创建登录页 DOM |
+| `handleLoginSubmit()` | 1559 | 登录提交 |
+| `logoutCurrentUser()` | 1600 | 退出登录 |
 
 ## 素材列表与选择
 
-- 素材过滤：`app-utils.js:1` `getFilteredAssets()`。
-- 排序：`app-utils.js:79` `sortAssets()`。
-- 筛选匹配：`app-utils.js:90` `matchFilter()`。
-- 上传时间筛选：`app-actions.js:330` `showUploadTimeFilterMenu()`，匹配在 `app-utils.js:111` `matchUploadTimeFilter()`。
-- 素材卡片：`app-render.js:299` `renderAssetCard()`。
-- 平铺/分组：`app-render.js:277` `renderCompactAssets()`，`app-render.js:282` `renderDateGroupedAssets()`。
-- 卡片尺寸和缩略图布局：`styles.css:829` `.asset-card`，`styles.css:842` `.thumb`，`styles.css:933` `.asset-info`。
-- 元数据列表：`app-render.js:327` `renderMetadataList()`。
-- 回收站素材列表：`app-render.js:402` `renderList()`。
-- 勾选/全选/批量条：`app-render.js:416` `bindAssetEvents()`。
+- 素材过滤：`app-utils.js:1` `getFilteredAssets()`（素材库、待入库、回收站分别按 `assetStatus` / `auditStatus` 的当前口径取数）。
+- 排序：`app-utils.js:82` `sortAssets()`。
+- 筛选匹配：`app-utils.js:93` `matchFilter()`。
+- 上传时间筛选：`app-actions.js:431` `showUploadTimeFilterMenu()`，匹配在 `app-utils.js:164` `matchUploadTimeFilter()`。
+- 素材卡片：`app-render.js:302` `renderAssetCard()`。
+- 平铺/分组：`app-render.js:280` / `app-render.js:285`。
+- 元数据列表：`app-render.js:330` `renderMetadataList()`。
+- 回收站列表：`app-render.js:432` `renderList()`。
+- 勾选/全选/批量条：`app-render.js:446` `bindAssetEvents()`。
 - 已选素材集合：`state.selectedIds`。
-- 素材篮计数：`app-actions.js:1357` `updateBasketCount()`。
+- 素材篮计数：`app-actions.js:1513` `updateBasketCount()`。
 
 ## 筛选与排序
 
-- 默认筛选项：`app-core.js` `filterLabels`。
-- 可配置筛选项：`app-core.js` `getConfigurableFilters()`。
-- 筛选 chip 渲染：`app-core.js:605` `renderFilterChips()`。
-- 筛选配置弹窗：`app-core.js:613` `renderFilterConfig()`。
-- 浮层菜单防越界：`app-actions.js:289` 前后的 `positionFloatingMenu()`；素材菜单在 `app-actions.js:741` `showAssetMenu()`。
-- 普通筛选菜单：`app-actions.js:289` `showFilterMenu()`。
-- 筛选值来源：`app-actions.js:365` `getFilterValues()`。
+- 默认筛选项：`app-core.js:373` `filterLabels`。
+- 可配置筛选项：`app-core.js:262` `getConfigurableFilters()`（用 `new Set` 去重）。
+- 筛选 chip 渲染：`app-core.js:1701` `renderFilterChips()`。
+- 筛选配置弹窗：`app-core.js:1709` `renderFilterConfig()`。
+- 浮层菜单防越界：`app-actions.js:301` `positionFloatingMenu()`。
+- 素材菜单：`app-actions.js:863` `showAssetMenu()`。
+- 普通筛选菜单：`app-actions.js:326` `showFilterMenu()`。
+- 筛选树渲染：`app-actions.js:399` `renderFilterTree()`。
+- 筛选值来源：`app-actions.js:484` `getFilterValues()`（从 `db.valueListTree` 动态读取，`buildCascadeTree()` 支持级联）。
 - 多选状态规范：`state.filters[label]` 保存数组。
-- 清空单个筛选：`app-core.js:792` 附近通过 `data-remove-config-filter` 删除。
-- 排序下拉静态项：`index.html:107-112`。
+- 排序下拉静态项：`index.html:113-118`。
 - 排序状态：`state.sort`。
 
-## 日期时间
+### 筛选树形结构规范
 
-- 统一日期控件入口：`app-infra.js:161` `initDatePicker()`。
-- 项目内初始化：`app-render.js:41` `initProjectDatePickers()`。
-- 日期文本：`app-utils.js:215` `todayText()`，`app-utils.js:221` `normalizeDateText()`。
-- 日期时间组合：`app-utils.js:244` `joinDateTime()`，`app-utils.js:249` `formDateTimeValue()`。
-- 时间戳比较：`app-utils.js:259` `dateTimeTextToTimestamp()`。
-- 分享过期时间更新：`app-workflows.js:68` `openUpdateShareExpireModal()`，`app-workflows.js:104` `handleUpdateShareExpireSubmit()`。
-- 素材有效期弹窗：`app-workflows.js:284` `openValidityModal()`（已改为日期时间选择器，移除相对时间选项）。
-- 素材篮有效期：`app-workflows.js:37` `openBasketValidityModal()`（日期为空时自动设为100年后）。
+- 树形节点有 `selectable` 属性，`true` 可选中，`false` 仅作分类标题。
+- 品牌：可选中顶级节点，无子节点。
+- 车系：按品牌筛选值过滤，返回扁平列表。
+- 车型：按品牌和车系筛选值过滤，返回扁平列表。
+- 内饰色/外饰色：按车型筛选值过滤。
+- 文件格式、业务标签、AI标签：保持树形结构。
+
+## 日期时间（规范：存储 = 显示 = YYYY-MM-DD，全程短横线，禁止 / 与 - 互转）
+
+- 统一日期控件入口：`app-infra.js:157` `initDatePicker()`。**日期统一用 flatpickr 接管**（`dateFormat:"Y-m-d"` → 强制显示 `YYYY-MM-DD`，不受浏览器/系统区域影响，中文环境也不会变 `YYYY/MM/DD`）；库文件在 `index.html` 的 `vendor/flatpickr/` 本地加载（`flatpickr.min.js` + `flatpickr.min.css` + `flatpickr-theme.css`），且必须在 `app-infra.js` 之前加载，保证首次 `initDatePicker` 时 `window.flatpickr` 已存在。
+- 节点原本 `readonly` 的日期 input（如有效期回填、上传设置默认值）：flatpickr 设 `clickOpens:false`，只显示 `YYYY-MM-DD` 不可改；原本可编辑的（如分享/收集任务失效日期）：可点开日历选日期，显示同样是 `YYYY-MM-DD`。
+- `type="time"` 不交给 flatpickr，走原生 `lockNativePicker`（time 无斜杠问题）。
+- flatpickr 未加载时的降级分支：原生 `lockNativePicker`（中文环境会显示 `YYYY/MM/DD`，仅作离线兜底）。
+- 项目内初始化：`app-render.js:44` `initProjectDatePickers()`，每个弹框打开时以 modal 元素为 scope 调用，确保动态插入的日期 input 也被接管。
+- **规范存储格式 = 显示格式 = `YYYY-MM-DD`**（日期部分短横线，时间 `HH:mm`，存储串为 ISO `YYYY-MM-DDTHH:mm:ss`；用户 2026-07-10 最终确认：数据库存短横线，页面显示也必须短横线，绝不做 `/`↔`-` 互相转换）。原生 `<input type="date">` 的 `value` 同样是 `YYYY-MM-DD`（HTML 规范，无需转换）。
+- 所有格式转换收敛到 `app-utils.js` 的日期层，禁止业务代码散写 `replaceAll`/`replace`：
+  - `toISODate(value)`：任意输入（YYYY/MM/DD HH:mm、YYYY-MM-DD HH:mm、ISO、永久有效、null）→ ISO 或原样透传。
+  - `toJsDate(value)`：统一走 ISO 给 `new Date()` 解析，规避浏览器对 `YYYY/MM/DD` 的差异。
+  - `toInputDateValue(value)`：原生 `<input type="date">` 的 value（ISO 取前 10 位 `YYYY-MM-DD`）。
+  - `parseDateTimeText()`：兼容 `-`/`/`/`.` 输入分隔符，输出显示用 `{date:YYYY-MM-DD, time:HH:mm}`（短横线，与存储一致）。
+  - `joinDateTime(date, time)`：组合为 ISO 存储串（入参 date 已是 `YYYY-MM-DD`，**不做任何 `/`↔`-` 转换**）。
+  - `formatDateTimeDisplay(value)`：显示 `YYYY-MM-DD HH:mm`（短横线，与存储一致）；非日期（如"永久有效"）原样返回。
+  - `dateTimeTextToTimestamp(value)`：转时间戳。
+  - `normalizeDbDates(db)`：启动期对整库日期字段归一化为 ISO，**仅用于自愈旧版 localStorage 中遗留的 `/` 或 `-` 数据**；种子数据本身已是 ISO，故对种子为 no-op。在 `app-core.js:bootstrap()` 的 `ensureSystemData()` 之后调用。
+- 日期文本：`app-utils.js` `todayText()`（返回 `YYYY-MM-DD`），`normalizeDateText()`（返回显示用 `YYYY-MM-DD`）。
+- 时间戳比较：`dateTimeTextToTimestamp()`。
+- 格式化显示：`formatDateTimeDisplay()`。
+- 素材有效期弹窗：`app-workflows.js:314` `openValidityModal()`。
+- 素材篮有效期：`app-workflows.js:37` `openBasketValidityModal()`。
 
 ## 素材有效期
 
-- 核心原则：所有日期字段（上传日期、生效日期、失效日期）使用精确日期时间格式（`YYYY-MM-DD HH:mm`），状态由精确日期对比当前时间动态计算。
-- 精确日期生成：`app-core.js:45` `getExpireDate()`（生成未来指定天数的日期），`app-core.js:218` `calculateExpireTime()`（相对时间转精确日期，"永久有效"转100年后日期）。
-- 种子数据：`app-core.js:54` `seedAssets`（已使用精确日期，移除"永久有效"等相对时间）。
-- 数据迁移：`app-core.js:325` `migrateAssetMetadata()`（自动将相对时间转换为精确日期，确保 `validUntil` 和 `validUntilDate` 同步）。
-- 状态计算：`app-render.js:383` `getValidityStatus()`（根据精确日期计算：已过期/即将过期/生效中），`app-render.js:393` `getValidityStatusClass()`（返回状态样式类）。
-- 列表视图：`app-render.js:327` `renderMetadataList()`（新增"状态"列，失效日期改为可编辑的日期时间选择器）。
-- 编辑素材信息：`app-actions.js:1113` `openEditAssetModal()`（失效日期改为可编辑），`app-actions.js:1136` `handleEditAssetSubmit()`（保存失效日期）。
-- 有效期管理页面：`app-render.js:499` `renderManagePageV2()` 内 validity 分支（筛选改为基于精确日期的动态计算）。
-- 上传设置：`app-actions.js:19` `openUploadSettingsModal()`（失效日期为空时自动设为100年后）。
-- 创建素材：`app-actions.js:289` `createAssetFromFile()`（默认失效日期为100年后）。
+- 核心原则：数据库存储精确 ISO 日期（`YYYY-MM-DDTHH:mm:ss`），状态由精确日期对比当前时间动态计算；页面显示统一 `YYYY-MM-DD HH:mm`（短横线，与存储一致，不做转换）。
+- 精确日期生成：`app-core.js` `getExpireDate()`、`calculateExpireTime()`（"永久有效"转100年后日期，均输出 ISO `YYYY-MM-DDTHH:mm:ss`）。
+- 数据迁移：`app-core.js` `migrateAssetMetadata()`；2026-07-10 起统一用 `normalizeDbDates(db)` 在启动期归一化。
+- 状态计算：`app-render.js:386` `getValidityStatus()`，`app-render.js:423` `getValidityStatusClass()`。
+- 有效期格式化：`app-render.js:381` `formatAssetValidUntil()`。
+- 列表视图：`app-render.js:330` `renderMetadataList()`。
+- 编辑素材信息：`app-actions.js:1118` `openEditAssetModal()`，`app-actions.js:1278` `handleEditAssetSubmit()`。
+- 有效期管理页面：`app-render.js:623` `renderValidityPage()`。
+- 上传设置：`app-actions.js:19` `openUploadSettingsModal()`。
+- 创建素材：`app-actions.js:112` `createAssetFromFile()`。
 
 ## 上传与导入
 
-- 上传按钮菜单：`index.html:69-74`，事件在 `app-actions.js:1` `handleUploadMenu()`。
-- 上传设置弹窗：`index.html:575-592`，逻辑在 `app-actions.js:19` `openUploadSettingsModal()`。
-- 上传文件格式白名单：`app-core.js:29` `FILE_FORMAT_CATEGORIES`，由表格梳理出的 70 个具体后缀组成；`UPLOAD_FILE_FORMATS` 用于上传校验和“文件格式”筛选，`UPLOAD_ACCEPT` 用于文件选择框。
-- 文件格式分类与校验：`app-utils.js:196` `isAllowedUploadFile()`，`app-utils.js:200` `getFormatCategory()`；上传处理在 `app-actions.js:59` 会跳过不支持格式。
-- 文件格式筛选：`app-actions.js:397` `getFilterValues()`，其中“文件格式”不再截断 12 项，会返回完整上传白名单并兼容已有素材格式。
-- 文件读取：`app-actions.js:201` `readFileAsDataUrl()`。
-- 媒体信息：`app-actions.js:210` `getMediaInfo()`。
-- AI 标签识别模拟：`app-actions.js:259` `recognizeTags()`。
-- 车型识别：`app-actions.js:278` `detectVehicleModel()`。
-- 百度网盘导入：`index.html:598-612`，逻辑在 `app-actions.js:39` `openCloudImportModal()`。
+- 上传按钮菜单：`index.html:62-68`，事件在 `app-actions.js:1` `handleUploadMenu()`。
+- 上传设置弹窗：`index.html:615-636` + `<template id="tplUploadSettingsForm">` (861-872)，逻辑在 `app-actions.js:19`。
+- 上传文件格式白名单：由 `app-core.js:255` `getAllowedUploadFormats()` 从值列表树动态获取。
+- 文件格式分类：`app-utils.js:270` `getFormatCategory()`（调用 `getFileFormatCategoriesFromTree()`）。
+- 文件格式校验：`app-utils.js:266` `isAllowedUploadFile()`。
+- 文件读取：`app-actions.js:241` `readFileAsDataUrl()`。
+- 媒体信息：`app-actions.js:250` `getMediaInfo()`。
+- AI 标签识别：`app-actions.js:270` `recognizeTags()`。
+- 车型识别：`app-actions.js:290` `detectVehicleModel()`。
+- 百度网盘导入：`index.html:638-656` + `<template id="tplCloudImportForm">` (874-886)，逻辑在 `app-actions.js:39` `openCloudImportModal()`。
+
+### 上传逻辑统一
+
+- **内部上传**：`handleFiles()` 自动创建内部收集任务，素材写入 `assetStatus=pending`、`auditStatus=pending_audit`，进入待入库页面。
+- **外部上传**：通过收集链接上传，关联收集任务 ID 和链接，提交后同样写入待入库状态。
 
 ## 素材组
 
-- 树渲染：`app-render.js:158` `renderGroups()`。
-- 树排序和层级：`app-render.js:188` `getOrderedGroups()`，`app-render.js:225` `syncGroupDepths()`。
-- 折叠：`app-render.js:238` `toggleGroupCollapse()`。
-- 素材组菜单：`app-actions.js:576` `showGroupMenu()`，`app-actions.js:606` `handleGroupAction()`。
-- 新建素材组：`index.html:508-519`，逻辑在 `app-actions.js:1168` `openGroupModal()`。
-- 编辑素材组：`index.html:525-536`，逻辑在 `app-actions.js:1200` `openGroupEditModal()`。
-- 移动素材组：`index.html:542-552`，逻辑在 `app-actions.js:1232` `openMoveGroupModal()`。
+- 树渲染：`app-render.js:160` `renderGroups()`。
+- 树排序和层级：`app-render.js:190` `getOrderedGroups()`，`app-render.js:227` `syncGroupDepths()`。
+- 折叠：`app-render.js:240` `toggleGroupCollapse()`。
+- 素材组菜单：`app-actions.js:710` `showGroupMenu()`，`app-actions.js:738` `handleGroupAction()`。
+- 新建素材组：`index.html:548-563`，逻辑在 `app-actions.js:1315` `openGroupModal()`。
+- 编辑素材组：`index.html:565-580`，逻辑在 `app-actions.js:1347` `openGroupEditModal()`。
+- 移动素材组：`index.html:582-596`，逻辑在 `app-actions.js:1379` `openMoveGroupModal()`。
 
 ## 素材详情与查看器
 
-- 查看器 HTML：`index.html:216-246`。
-- 打开查看器：`app-actions.js:935` `openViewer()`。
-- 查看器渲染：`app-actions.js:950` `renderViewer()`。
-- 查看器序列：`app-actions.js:1015` `getViewerSequence()`。
-- 缩放/平移：`app-render.js:50` `bindViewerPan()`，`app-render.js:90` `bindViewerResize()`，`app-actions.js:1047` `updateZoomDisplay()`。
-- 详情面板布局：`app-render.js:148` `applyDetailPanelLayout()`。
-- 素材编辑：`index.html:438-469`，逻辑在 `app-actions.js:1113` `openEditAssetModal()`。
+- 查看器 HTML：`index.html:221-258`。
+- 打开查看器：`app-actions.js:940` `openViewer()`。
+- 查看器渲染：`app-actions.js:955` `renderViewer()`。
+- 查看器序列：`app-actions.js:1020` `getViewerSequence()`。
+- 缩放/平移：`app-render.js:52` `bindViewerPan()`，`app-render.js:92` `bindViewerResize()`，`app-actions.js:1052` `updateZoomDisplay()`。
+- 详情面板布局：`app-render.js:150` `applyDetailPanelLayout()`。
+- 素材编辑：`index.html:438-511`，逻辑在 `app-actions.js:1118` `openEditAssetModal()`。
+- 素材编辑候选下拉：`app-actions.js:1220` `setupAssetEditDropdown()`，`app-actions.js:1145` `setupAssetEditCascades()`（品牌→车系→车型→内饰色/外饰色级联）。
 
 ## 标签管理
 
-- 标签页入口：`app-render.js:799` `renderTagsPage()`；“新增标签/标签合并”按钮在顶部 `page-actions`，事件绑定在 `app-core.js:758` 附近。
-- 标签菜单权限：`canViewMenu("tags")` 允许查看业务标签和 AI 标签；`canEditMenu("tags")` 才显示新增、编辑、合并、删除等操作按钮。控制点包括 `renderActions()`、`renderTagsPage()`、`renderTagTableBody()`，并在 `openAddTagModal/openEditTagModal/deleteTag/openMergeTagModal` 做二次校验。
-- 标签汇总：`app-render.js:679` `getTagSummary()`。
-- 标签编码：由 `app-render.js:666` 附近的 `generateTagCode()` 自动生成；新增/编辑弹窗不允许用户输入编码，打开标签管理时 `normalizeStoredTagCodes()` 会修正空编码、中文编码或重复编码。
-- 标签表格：`app-render.js:864` `renderTagTableBody()`。
-- 标签树扁平化：2026-07-03 第二批代码审计优化后，业务标签树展开为表格行统一使用 `flattenTagTree()`，不再在初始渲染和业务标签 tab 点击中各写一份局部 `flattenTree`。
-- 旧标签卡片渲染函数 `renderBusinessTagList()` / `renderAITagList()` / `renderSystemTagList()` 已于 2026-07-03 清理；当前标签管理只保留表格渲染。
-- 标签事件：`app-render.js:1054` `bindTagEvents()`，`app-render.js:1059` `handleTagClick()`。
-- 新增标签：`index.html:359-381`，逻辑在 `app-render.js:1097` `openAddTagModal()`；AI 字段显隐在 `app-render.js:1119` `toggleAddAiFields()`，标签类型 change 事件由 `app-core.js` 的 `bindEvents()` 绑定；提交在 `app-render.js:1127` `handleAddTagSubmit()`。
-- 编辑标签：`index.html:387-410`，逻辑在 `app-render.js:1174` `openEditTagModal()`；如果标签来自素材使用汇总但尚未进入 `db.tags`，`createTagRecordFromUsage()` 会先补齐标签库记录再打开弹窗；AI 来源只展示不允许编辑，人工新增 AI 标签固定为“业务预定义”，上传/重新识别补入的 AI 标签固定为“AI 自动识别”；AI 字段显隐在 `app-render.js:1202` `toggleEditAiFields()`，标签类型 change 事件由 `app-core.js` 的 `bindEvents()` 绑定；提交在 `app-render.js:1210` `handleEditTagSubmit()`。
-- AI 识别字段（aiRecognitionRow）：新增/编辑弹窗中共两处 checkbox，`index.html:379` 和 `index.html:408`；业务标签（tagType=1）不显示该字段，AI 标签（tagType=2）才显示，由各自的 `toggleXxxAiFields()` 控制。注意：`.checkbox-label` CSS（`styles.css:3067`）有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`，否则会被 CSS 覆盖。补充覆盖规则见 `styles.css:3081` `.checkbox-label.hidden`。
-- 合并标签：`index.html:416-431`，逻辑在 `app-render.js:1298` `openMergeTagModal()`。
-- 标签合并弹窗的源标签选择已从原生 `select multiple` 改为 checkbox 勾选列表；HTML 在 `index.html:425` 附近 `#mergeSourceTags`，打开弹窗由 `app-render.js` 的 `openMergeTagModal()` 动态生成勾选项，提交由 `handleMergeTagSubmit()` 读取已勾选项；`#mergeClearSelected` 通过 `clearMergeTagSelection()` 一键清除勾选。
+- 标签页入口：`app-render.js:2622` `renderTagsPage()`。
+- 标签菜单权限：`canViewMenu("tags")` / `canEditMenu("tags")` 控制操作按钮。
+- 标签汇总：`app-render.js:2469` `getTagSummary()`。
+- 标签编码：`app-render.js:2426` `generateTagCode()` 自动生成；`normalizeStoredTagCodes()` (:2444) 修正空编码/中文编码/重复编码。
+- 标签表格：`app-render.js:2688` `renderTagTableBody()`。
+- 标签树扁平化：`app-render.js:2610` `flattenTagTree()`。
+- 标签事件：`app-render.js:2826` `bindTagEvents()`，`app-render.js:2831` `handleTagClick()`。
+- 新增标签：`index.html:362-383`，逻辑在 `app-render.js:2896` `openAddTagModal()`；AI 字段显隐在 `app-render.js:2914` `toggleAddAiFields()`；提交在 `app-render.js:2923` `handleAddTagSubmit()`。
+- 编辑标签：`index.html:385-407`，逻辑在 `app-render.js:3019` `openEditTagModal()`；`createTagRecordFromUsage()` (:2969) 补齐标签库记录；提交在 `app-render.js:3052` `handleEditTagSubmit()`。
+- AI 识别字段：`.checkbox-label` CSS 有 `display: flex !important`，必须用 `classList.toggle("hidden")` 控制显隐，不能用 `style.display`。
+- 合并标签：`index.html:409-435`，逻辑在 `app-render.js:3137` `openMergeTagModal()`；源标签选择为 checkbox 勾选列表（`#mergeSourceTags`）。
 
 ## 分享与收集
 
-- 分享素材组弹窗：`index.html:667-693`，逻辑在 `app-workflows.js:128` `openShareCurrentModal()`。
-- 分享单素材弹窗：`index.html:475-501`，逻辑在 `app-workflows.js:167` `openShareAssetModal()`。
-- 素材篮分享：`index.html:317-353`，逻辑在 `app-workflows.js:51` `openBasketShareModal()`。
-- 分享过期时间更新：`index.html:699-724`，逻辑在 `app-workflows.js:68`。
-- 创建收集任务：顶部按钮在 `index.html:93` `#newCollectTask`，事件绑定在 `app-core.js:760` 附近；弹窗逻辑在 `app-actions.js:1311` 和 `app-actions.js:1322`。
-- 创建收集任务的“允许文件类型”选项：静态兜底在 `index.html:628-632`，打开弹窗时由 `app-actions.js:1221` 使用 `COLLECT_TASK_FILE_TYPES` 动态刷新为文件大类。
-- 收集任务配置模板：`index.html:810-828`，逻辑在 `app-workflows.js:209`。
-- 模拟收集上传：`index.html:830-843`，逻辑在 `app-workflows.js:250`；模板中的 `{{UPLOAD_ACCEPT}}` 由 `openCollectorUploadModal()` 注入，提交时同样通过 `isAllowedUploadFile()` 过滤不支持格式。
+- 分享素材组弹窗：`index.html:689-721`，逻辑在 `app-workflows.js:69` `openShareCurrentModal()`。
+- 分享单素材弹窗：`index.html:513-545`，逻辑在 `app-workflows.js:149` `openShareAssetModal()`。
+- 素材篮分享：`index.html:316-359`，逻辑在 `app-workflows.js:51` `openBasketShareModal()`。
+- 分享记录管理弹窗：`<template id="tplShareRecordConfigForm">`，逻辑在 `app-workflows.js` `openShareRecordConfigModal()`（复用收集任务配置弹框结构）。分享状态下拉从 `share_status` 值列表动态生成（生效中/已撤销/已过期），保存时若状态为"已撤销"或"已过期"，记 `share.revoke` 日志并置失效时间；不再有独立 `revokeShare()` 函数（已删除，逻辑并入此处）。
+- 创建收集任务：顶部按钮 `index.html:87` `#newCollectTask`，弹窗 `index.html:658-687`，逻辑在 `app-actions.js:1458` `openCollectTaskModal()` / `app-actions.js:1470` `handleCollectTaskSubmit()`。
+- 收集任务允许文件类型：`index.html:669-680` 静态兜底，打开弹窗时由 `getAllCollectTaskTypes()` (:222) 动态刷新。
+- 收集任务配置模板：`<template id="tplCollectTaskConfigForm">` (888-906)，逻辑在 `app-workflows.js:195` `openCollectTaskConfigModal()`。
+- 模拟收集上传：`<template id="tplCollectorUploadForm">` (930-943)，逻辑在 `app-workflows.js:236` `openCollectorUploadModal()`。
+- 审核模拟：`app-workflows.js:278` `simulateMachineAudit()`，`app-workflows.js:296` `simulateHumanAudit()`。
+
+### 分享访问密码
+
+- `db.shares` 新增 `requirePassword` 和 `password` 字段；`migrateShareExpiresAt()` 通过 `normalizeShareSecurity()` (:923) 给老分享补默认值。
+- 创建分享时可设置密码；`buildShareSecurity()` (:934) 处理密码生成。
+- 分享记录"管理分享"弹框可后续修改密码。
+- 外部分享页 `renderSharePortal()` 增加密码校验页，校验通过后用 sessionStorage 记录。
 
 ## 回收站
 
-- 顶部按钮：`index.html:87-89`。
-- 页面渲染：`app-render.js:540` 附近在 `renderManagePageV2()` 内。
-- 清空回收站：`app-render.js:650` `emptyRecycleBin()`。
-- 删除时间排序：`app-render.js:663` `toggleRecycleDeletedTimeSort()`。
-- 回收站排序函数：`app-render.js:669` `sortRecycleItems()`。
-- 素材恢复/硬删：`app-workflows.js:430` `restoreAsset()`，`app-workflows.js:443` `hardDeleteAsset()`。
-- 批量恢复素材：顶部按钮 `index.html:88` `#restoreSelectedRecycle`，事件绑定 `app-core.js:761`，逻辑 `app-workflows.js:443` `restoreSelectedRecycleAssets()`。
-- 回收站已去掉素材组功能；删除“组及素材”时，素材进入回收站，素材组直接移除。
+- 顶部按钮：`index.html:90-94`。
+- 页面渲染：`app-render.js:589` `renderRecyclePage()`。
+- 清空回收站：`app-render.js:2375` `emptyRecycleBin()`。
+- 删除时间排序：`app-render.js:2388` `toggleRecycleDeletedTimeSort()`。
+- 回收站排序函数：`app-render.js:2394` `sortRecycleItems()`。
+- 素材恢复/硬删：`app-workflows.js:468` `restoreAsset()`，`app-workflows.js:502` `hardDeleteAsset()`。
+- 批量恢复：`app-workflows.js:482` `restoreSelectedRecycleAssets()`。
+- 回收站已去掉素材组功能；删除"组及素材"时，素材进入回收站，素材组直接移除。
 
 ## 权限与所有者
 
-- 修改权限弹窗：`index.html:194-211`，逻辑在 `app-workflows.js:319` `openPermissionModal()`。
-- 申请权限弹窗：`index.html:157-188`，逻辑在 `app-workflows.js:344` `openPermissionRequestModal()`。
-- 所有者弹窗模板：`index.html:857-860`，逻辑在 `app-workflows.js:302` `openOwnerModal()`。
-- 权限判断：`app-core.js:156` `isAdmin()`，`app-core.js:160` `canManageAsset()`。
+- 修改权限弹窗：`index.html:199-219`，逻辑在 `app-workflows.js:357` `openPermissionModal()`。
+- 申请权限弹窗：`index.html:162-178`，逻辑在 `app-workflows.js:638` `openPermissionRequestModal(id, type)`，支持 asset/group 两种类型，权限等级从值列表动态取值。
+- 所有者弹窗模板：`<template id="tplOwnerForm">` (957-961)，逻辑在 `app-workflows.js:340` `openOwnerModal()`。
+- 权限判断：`app-core.js:424` `isAdmin()`，`app-core.js:428` `canManageAsset()`。
+
+## 权限管理弹窗
+
+### 组权限设置弹窗
+- 入口：组右键菜单 → 权限设置（canManageGroup 可见）
+- 模板：`<template id="tplGroupPermissionForm">`
+- 逻辑：`app-workflows.js:261` `openGroupPermissionModal(groupId)`
+- Tab1 成员与权限：已授权列表每行含「权限等级下拉（change 调 `updateGroupAcl`）+ 复选框 + 单行删除按钮」；列表上方工具栏有「添加授权」按钮（点击展开默认隐藏的添加表单）与「批量删除」按钮（按勾选批量删除，含全选）；辅助函数新增 `buildPermissionOptions()` / `syncGroupAclBatchButton()` / `bindGroupAclToolbarEvents()`。
+- Tab2 权限交接：仅 ownedBy 或 admin 可见，变更 ownedBy/ownedByDept
+- Tab3 操作日志：展示组权限变更日志，倒序排列
+- 辅助函数：`populateGroupPermissionDropdowns()`、`renderGroupAclList()`、`handleGroupAclAdd()`、`handleGroupOwnerTransfer()`、`renderGroupPermissionLogs()`
+
+### 素材权限设置弹窗
+- 入口：素材详情页 → 权限 Tab 或 权限设置按钮
+- 模板：`<template id="tplAssetPermissionForm">`
+- 逻辑：`app-workflows.js:428` `openAssetPermissionModal(assetId)`
+- 继承权限区域：只读展示从组继承的权限
+- 单独授权区域：已授权列表每行含「权限等级下拉（change 调 `updateAssetAcl`）+ 复选框 + 单行删除按钮」；列表上方工具栏有「添加授权」按钮（展开默认隐藏的添加表单）与「批量删除」按钮（按勾选批量删除，含全选）；辅助函数：`populateAssetPermissionDropdowns()`、`renderAssetAclList()`、`updateAssetAcl()`、`bindAssetAclToolbarEvents()`。
+
+### 操作日志列表模板
+- 模板：`<template id="tplOperationLogList">`，组和素材权限弹窗共用
+- 字段：操作时间、操作人、操作类型、详情
+
+## 分享体系升级
+
+### 分享创建弹窗升级
+- 三个弹窗：素材篮分享 `#basketShareModal`、素材分享 `#shareAssetModal`、组分享 `#shareGroupModal`
+- 新增字段：访问范围（share_access_scope）、密码保护（复选框+密码输入）、内容权限（share_content_permission）、有效期（7天/30天/90天/永久 + 日期时间选择器）、最大访问次数
+- 公共函数：`populateShareDropdowns(prefix)`、`bindShareExpireButtons(prefix)`、`bindSharePasswordToggle(prefix)`、`bindShareAccessScopeChange(prefix)`、`getShareFormData(prefix)`
+- 内容权限限制：用户无 download 权限时"可下载"选项置灰
+
+### 分享落地页鉴权链路
+- 顺序校验：状态校验 → 有效期校验 → 访问次数校验 → 访问范围校验 → 密码校验 → 内容展示 → 访问计数
+- 状态校验：`share.status !== 'active'` → 展示"分享已失效"
+- 有效期校验：`isShareRecordExpired(share)`（分享记录对象）→ 过期后自动标记 `status = 'expired'`；通用日期过期判断用 `isShareExpired(expiresAt)`（日期字符串）。
+- 访问次数校验：`maxVisits != null && visits >= maxVisits` → 自动失效
+- 访问范围校验：internal 需要登录，public 直接放行
+- 密码校验：`requirePassword === true` 时弹出密码框
+- 内容展示：根据 `contentPermission` 控制下载按钮显隐
+- 访问计数：有效访问后 `visits + 1`，达到上限自动标记失效
+- 辅助函数：`renderShareLandingError(title, message)`、`renderShareLandingLogin(token)`
+
+## 新增模板清单
+
+- `tplGroupPermissionForm`：组权限设置弹窗（3个Tab）
+- `tplAssetPermissionForm`：素材权限设置弹窗
+- `tplOperationLogList`：操作日志列表（复用模板）
+- `tplRecycleBin`：已删除（无任何 JS 引用，回收站页面 `renderRecyclePage()` 自建 HTML）
+- `tplGroupMoveSelector`：已删除（无任何 JS 引用，组移动用 `openMoveGroupModal()` 自建 HTML）
+- `tplPermissionRequestForm`：权限申请表单（升级现有）
+- `tplShareLandingExpired`：分享失效/过期/次数耗尽提示页
 
 ## 系统管理
 
-- 入口层级：左侧“更多功能”弹出菜单中的“系统管理”分组，子菜单为用户管理、角色管理、组织管理、权限管理。
-- 页面状态值：`users`、`roles`、`organizations`、`permissions`。
-- 数据结构：`db.users` 保存登录用户名、密码、姓名、所属组织、所属角色、状态、最近登录；用户角色标准字段为 `roleIds`（数组，多角色），`roleId` 仅作为旧数据兼容和首个角色冗余字段；`db.organizations` 保存组织；`db.roles` 保存角色和 `permissions`；`db.orgPermissions` 保存组织/部门菜单授权；`db.userPermissions` 保存个人菜单授权。
-- 登录日志结构：`db.loginLogs` 保存 `{ username, name, loginAt, ip, entry }`；登录入口值包括“网页登录 / 飞书登录 / 企微登录”。纯前端版本暂用 `127.0.0.1` 作为 IP 占位，后续接服务端可替换真实来源 IP。
+- 入口层级：左侧菜单树中的"系统管理"分组，子菜单为用户管理、角色管理、组织管理、权限管理、菜单管理。
+- 页面状态值：`users`、`roles`、`organizations`、`permissions`、`menus`。
+- 数据结构：`db.users`（含 `roleIds` 数组多角色、`phone`、`email`）；`db.organizations`；`db.roles`（含 `roleId` 字段）；`db.orgPermissions`；`db.userPermissions`。
+- 登录日志：`db.loginLogs` 保存 `{ username, name, loginAt, ip, entry }`。
 - 默认账号：`admin / admin123`（超级管理员）、`kerry / kerry123`（素材运营）、`tagview / tag123`（标签只读）。
-- 默认数据补齐：`app-core.js` 的 `ensureSystemData()` 会初始化组织、角色、用户，并为每个角色、组织、用户补齐 `db.menus` 中所有菜单的 `visible/editable` 权限。
-- 页面白名单：`app-core.js:286` `normalizePageState()` 的 `validPages`。
-- 主导航激活：`app-render.js:8` 的 `morePage` 数组，系统管理子页会高亮“更多功能”。
-- 标题映射：`app-render.js:19` `titleMap`。
-- 面包屑：`app-utils.js:234` `getPageBreadcrumb()`。
-- 权限判断：`app-core.js` 的 `getMenuPermission(menuId)` 会合并多个角色权限、组织权限、个人权限；任一来源有 `visible` 即可见，任一来源有 `editable` 即可编辑且默认可见。`getUserRoleIds()` 兼容读取 `roleIds` 和旧 `roleId`，`canViewMenu(menuId)` 控制菜单可见，`canEditMenu(menuId)` 控制页面操作。
-- 菜单过滤：`app-core.js` 的 `isVisibleNavMenu()` / `getVisibleNavMenuChildren()` 按 `valid`、`hidden` 和 `canViewMenu(page)` 过滤左侧菜单树；空分组不展示。
-- 渲染入口：`app-render.js:506` `renderManagePageV2()` 先判断系统管理页面并转到 `renderSystemManagePage()`。
-- 页面表格：`app-render.js` 的 `renderUserManagePage()` / `renderRoleManagePage()` / `renderOrganizationManagePage()` / `renderPermissionManagePage()` 分别渲染用户、角色、组织、权限。角色管理行内有“角色权限”按钮，调用角色授权弹窗。
-- 用户管理页：`renderUserManagePage()` 已改为左组织树、右人员信息布局；组织树由 `renderUserManageOrgTree()` 渲染，人员筛选由 `getUserManageFilteredUsers()` 处理，支持用户名、员工姓名、是否包含下级组织查询；选中用户后可修改、菜单授权或菜单权限查看，查看弹框为 `openUserPermissionViewModal()`。组织树有子节点时使用明确的 `+/-` 展开收起图标，不能用空方框样式；左侧组织树不显示人数数字，不保留外层框线。编辑用户时登录用户名只读不可改，所属角色为多选并保存到 `roleIds`。用户表单新增手机号（`phone`）和邮箱（`email`）字段。
-- 角色管理页：`renderRoleManagePage()` 新增角色ID列显示；`openRoleManageModal()` 新增角色ID输入框，创建时输入且校验不可重复，修改时ID只读不可修改。
-- 权限管理页：`renderPermissionManagePage()` 支持“按菜单授权”和“按组织个人授权”两个参考系；内部不再使用下拉框，`renderMenuPermissionTree()` 渲染功能菜单树，`renderSubjectPermissionTree()` 渲染组织/个人树；右侧默认空态，选中左侧节点后由 `renderMenuPermissionDetail()` 或 `renderSubjectPermissionDetail()` 展示权限摘要和“编辑权限”按钮。权限管理中的所有树状结构也必须使用明确的 `+/-` 展开收起图标，并真正支持收缩。
-- 权限编辑弹框：选中菜单后点“编辑权限”会调用 `openMenuPermissionModal()`，弹框内用组织/个人树编辑该菜单对组织/个人的可读可写；选中组织或个人后点“编辑权限”会调用 `openSubjectPermissionModal()`，弹框内用菜单分组树编辑该对象对所有菜单的可读可写；保存逻辑在 `savePermissionRows()`。角色管理中的“角色权限”弹框 `openPermissionManageModal()` 也使用菜单分组树，不再用平铺表格。弹框树同样支持 `+/-` 展开收起，弹框内收缩不丢失未保存勾选。用户“菜单权限查看”由 `renderUserPermissionViewTree()` 渲染只读树，显示可读、可写和权限来源（个人授权、组织权限、角色权限）。
-- 表单：`openUserManageModal()`、`openRoleManageModal()`、`openOrganizationManageModal()`、`openPermissionManageModal()` 使用通用 `openFormModal()` 做新增/编辑/角色授权；新增用户会初始化 `db.userPermissions`，新增组织会初始化 `db.orgPermissions`。用户表单新增手机号（`phone`）和邮箱（`email`）字段。
-- 用户登录日志：`renderLoginLogPage()` 支持按用户名、姓名、登录开始日期、登录结束日期过滤，展示用户名、姓名、登录时间、IP 地址、登录入口。
-- 样式：`styles.css:1118` `.menu-section` / `.menu-section-title` / `.menu-sub button` 控制下拉菜单分组。
-- 页面独立性：管理页壳 `app-render.js:617` `renderManageShell()` 不再渲染 `renderMoreMenuPanel()`；`app-core.js` 也不再监听 `data-panel-page`，避免在页面内用 tab 切换更多功能子菜单。
+- 默认数据补齐：`ensureSystemData()` (:716) 初始化组织、角色、用户，并为每个角色/组织/用户补齐 `db.menus` 中所有菜单的 `visible/editable` 权限。
+- 页面白名单：`normalizePageState()` (:829) 的 `validPages` 改为 `getAllMenuPages()` 动态获取。
+- 标题映射：`render()` (:10) 内动态从 `db.menus` 生成 `menuTitleMap`，不再有固定 `titleMap` 常量。
+- 面包屑：`app-utils.js:241` `getPageBreadcrumb()` 动态遍历 `db.menus` 父链。
+- 权限判断：`getMenuPermission(menuId)` (:570) 合并多个角色权限、组织权限、个人权限；`canViewMenu(menuId)` (:583) / `canEditMenu(menuId)` (:587)。
+- 菜单过滤：`isVisibleNavMenu()` (:487) / `getVisibleNavMenuChildren()` (:493) 按 `valid`、`hidden` 和 `canViewMenu(page)` 过滤。
+- 渲染分发：`renderManagePageV2()` (:529) 使用 `directRenderers` 映射表分发。
+- 用户管理页：`renderUserManagePage()` (:1642)，左组织树右人员信息布局；`renderUserManageOrgTree()` (:1708)，`getUserManageFilteredUsers()` (:1725)。
+- 角色管理页：`renderRoleManagePage()` (:1739)，新增角色 ID 列；`openRoleManageModal()` (:2265)。
+- 权限管理页：`renderPermissionManagePage()` (:1788)，支持"按菜单授权"和"按组织个人授权"双视图。
+- 菜单管理页：`renderMenuManagePage()` (:1180)，左树右表布局。
+- 用户登录日志：`renderLoginLogPage()` (:1515)，支持按用户名/姓名/日期范围过滤。
+- 值列表扩展：在 `material_manage` 维度下新增8个维度（授权主体类型 `permission_subject_type`、素材组权限等级 `group_permission_level`、素材权限等级 `asset_permission_level`、分享访问范围 `share_access_scope`、分享内容权限 `share_content_permission`、权限申请状态 `permission_request_status`、操作类型 `operation_action_type`、素材状态 `asset_status`），禁止硬编码权限枚举数组。
+- 数据模型扩展：统一审计字段（createdBy、createdAt、ownedBy、ownedByDept、updatedAt）；新增 `db.groupAcl`（素材组授权表）、`db.assetAcl`（素材单独授权表）、`db.permissionRequests`（权限申请表）、`db.operationLogs`（全局操作日志）；升级 `db.shares` 新增 accessScope/contentPermission/maxVisits/status；素材主状态使用 `assetStatus`，审核链路使用 `auditStatus`；操作日志体系双写（实体级 + 全局）；`logOperation()` 统一日志函数；`migrateAuditFields()` 数据迁移。
+- 权限校验体系：`buildUserGroupPermissionCache()` + `groupPermissionCache` 权限缓存；`getPermissionWeight()` 从值列表取权重；`hasGroupPermissionLevel()` 判断组权限等级；`getGroupEffectiveAcl()` 递归合并父组ACL；`aclMatchesCurrentUser()` 统一匹配人员/部门/公司授权主体；素材组权限 `canViewGroup/canDownloadFromGroup/canContributeToGroup/canManageGroup`；素材使用权限 `canViewAsset/canEditAsset/canDownloadAsset`；素材管理权限 `canDeleteAsset/canRestoreAsset/canMoveAsset/canUploadToGroup/canPurgeAsset`；`hasAssetAclPermission()` 资产ACL检查（正交权限映射）；`canCreateShare/canManageShare` 分享权限；`canManageTag/canManageCollect` 标签与收集任务权限；`canMoveGroup/isGroupDescendant` 组移动与循环检测；`getFilteredAssets()` 按页面和权限返回素材列表，`isPendingAsset()` 统一待入库判断。
+- 写操作改造：所有写操作函数添加前置权限校验 + 统一日志。素材操作（`handleFiles`/`deleteSelectedAssets`/`handleEditAssetSubmit`/`softDeleteAsset`/`restoreAsset`/`hardDeleteAsset`/`handleAddToGroupSubmit`/`rerunRecognition`）；素材组操作（`handleAddGroupSubmit`/`handleEditGroupSubmit`/`handleMoveGroupSubmit`/`deleteGroup`/`dissolveGroup`/`deleteGroupAndAssets`）；标签操作（`createTagRecordFromUsage`/`handleEditTagSubmit`/`deleteTag`）；分享操作（`createGroupShare`/`handleShareGroupSubmit`/`handleShareAssetSubmit`）；收集任务操作（`handleCollectTaskSubmit`/`openCollectTaskConfigModal`）；权限申请操作（`openPermissionRequestModal`/`approvePermissionRequest`/`rejectPermissionRequest`）；组权限操作（`addGroupAcl`/`removeGroupAcl`/`updateGroupAcl`/`transferGroupOwner`）；素材权限操作（`addAssetAcl`/`removeAssetAcl`）。通用规则：每个写操作函数第一行调用对应 `canXxx()` 校验权限，操作成功后调用 `logOperation()` 写日志，涉及 groupAcl 变更后调用 `invalidateGroupPermissionCache()` 清除权限缓存。
+
+### 树展开/折叠规范
+
+- 所有树状结构（组织树、权限树、菜单树等）必须使用明确的 `+/-` 展开收起图标，并真正支持收缩。
+- 用户管理和权限相关树不记录全局折叠状态，每次打开页面或弹框默认展开；点击 `+/-` 只做当前 DOM 的临时展开收起。
+- `bindTreeToggleEvents()` (:1608) / `applyTreeToggle()` (:1618) 统一处理树展开/折叠。
 
 ## 值列表管理
 
-- 页面状态值：`valueLists`（已加入 `normalizePageState()` 的 `validPages`）。
-- 菜单入口：由 `db.menus` 中 `page="valueLists"` 的页面节点驱动，在左侧菜单树中通过 `data-page="valueLists"` 进入。
-- 菜单权限：`db.menus` 包含 `valueLists`，受 RBAC 控制。
-- 渲染入口：`app-render.js` `renderValueListPage()`。
-
-### 数据结构（统一树模型）
-- 使用 `db.valueListTree` 单一数组，废弃旧的 `db.valueListDefinitions` + `db.valueListItems` 双表。
-- 节点字段：`id, code, name, type, parentId, refId, description, attr1, attr2, status, sortOrder`。
-- type 取值：`root`（根节点）、`dimension`（维度/分类）、`group`（分组）、`value`（选项值）。
-- 树以"值列表"（`vl_root`, parentId=null）为根节点，"素材库筛选"（`vl_dim_matlib`）为其子节点。
-- 种子数据：`app-core.js:73` `SEED_VALUE_LIST_TREE`。
-
-### 树派生函数（app-core.js）
-- `getTreeChildren(parentId)`：按父节点+status=enabled 获取子节点。
-- `getTreeNodeById(id)` / `getTreeNodeByCode(code)` / `getTreeNodeByName(name)`：按 ID/编码/名称查找。
-- `getDimensionNodes(parentDimId)`：获取 material_lib 下所有 dimension 节点。
-- `getTreeChildrenByRefIds(dimCode, refIds)`：按关联 refId 过滤子节点（用于级联筛选）。
-- `getAllLeafValues(dimCode)`：递归获取维度下所有叶子 value 节点。
-- `buildFilterTree(dimCode)`：构建筛选菜单树形结构。
-- `getAllUploadAccept()`：从 file_format 维度动态获取上传 accept 值。
-
-### 筛选系统动态化
-- 所有筛选值从 `db.valueListTree` 动态读取，不再依赖静态常量。
-- `app-actions.js` `getFilterValues()` 使用 `buildFilterTree()` / `getAllLeafValues()` / `buildCascadeTree()`。
-- `buildCascadeTree(dimCode, parentFilter, parentDimCode)`：通用级联函数，根据上级筛选值过滤下级选项。
-- **已删除废弃常量**：`FILE_FORMAT_CATEGORIES`、`UPLOAD_FILE_FORMATS`、`UPLOAD_ACCEPT`、`COLLECT_TASK_FILE_TYPES`、`ASPECT_RATIOS`（2026-07-02 清理）
-- **种子数据**：model 字段从 `vl_dim_model` 子节点读取（`SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model")...`），不再使用任何旧车型静态常量。
+- 页面状态值：`valueLists`。
+- 菜单入口：由 `db.menus` 中 `page="valueLists"` 的页面节点驱动。
+- 渲染入口：`app-render.js:676` `renderValueListPage()`。
 
 ### 页面布局
+
 - 左侧树 + 右侧搜索表格（`styles.css` `.value-list-layout`：grid 260px+1fr）。
-- 左侧树：`renderValueListTreeNodes(tree, null, 0)` 从 null parentId 开始递归渲染完整树，支持展开/折叠/选中高亮。根节点"值列表"在树中可见。
-- 右侧：搜索栏（按编码/名称过滤）+ 操作按钮（新增/修改/删除当前节点）+ 面包屑导航 + 子节点表格。
-- 表格列：编码、名称、类型、描述、**关联管理**（父级 `名称 (code)` / refId 关联节点 `名称 (code)`）、**属性值**（attr1 / attr2）、子节点数、状态、操作。
+- 左侧树：`renderValueListTreeNodes(tree, null, 0)` (:805) 从 null parentId 开始递归渲染完整树。
+- 右侧：搜索栏 + 操作按钮 + 面包屑导航 + 子节点表格。
+- 表格列：编码、名称、类型、描述、关联管理（父级 `名称 (code)` / refId 关联节点 `名称 (code)`）、属性值（attr1/attr2）、子节点数、状态、操作。
 - 状态管理：`state.valueListSearch` / `state.valueListSelectedNodeId` / `state.valueListExpandedIds`。
 
 ### 弹框（index.html）
 
-- `#valueListModal`：新增/编辑节点。表单字段：编码、名称、类型（root/dimension/group/value）、父级下拉（禁用，默认当前节点且不可改）、**关联码(refId) 树状下拉**、描述、属性1、属性2、状态。逻辑：`openValueListModal(nodeId, parentId)` / `saveValueList(data)`。
+- `#valueListModal` (:737-770)：新增/编辑节点。表单字段：编码、名称、类型、父级下拉（禁用，默认当前节点且不可改）、关联码(refId) 树状下拉、描述、属性1、属性2、状态。
+- `renderValueListRefIdDropdown()` (:3252) / `bindRefIdDropdownEvents()` (:3322)：树状下拉组件，支持搜索过滤。
 - 保留旧弹框 `#valueListItemListModal` / `#valueListItemFormModal`（不再被新布局调用，保留代码兼容）。
-- 2026-07-02 修复：`renderValueListRefIdDropdown()` 和 `bindRefIdDropdownEvents()` 已覆盖为稳定版本；关联码打开时完整展示值列表树，编辑已有节点时按 `refId` 回填 `#valueListRefIdSearch` 和选中态，选择节点后同步更新隐藏字段 `#valueListRefId`。
-- 2026-07-02 追加：关联码已从只读触发框改为可输入搜索的树状下拉，HTML 在 `index.html` 的 `#valueListRefIdSearch` / `#valueListRefIdPanel`，支持按名称、编码、描述、属性1、属性2过滤；例如输入“东风”会保留匹配节点及其父级路径。样式在 `styles.css` 的 `.tree-dropdown-input`、`.tree-dropdown-trigger`、`.tree-dropdown-panel .tree-item`，输入和选中项保持普通表单字重，不额外加粗。
-- 2026-07-03 第二批代码审计优化：值列表后代节点收集统一为 `collectValueListDescendantIds(tree, rootId, options)`；查看旧小类弹窗默认排除 `status=deleted`，删除节点时传 `{ includeDeleted: true }`，保持原有两处逻辑差异。
 
 ### 事件绑定
-- 页面级：`bindValueListEvents()` 绑定树展开/选择、搜索、新增/修改/删除当前节点、行内操作。
-- 弹框级：`initValueListModalEvents()` 在 `bootstrap()` 中一次性绑定表单提交和关闭按钮。
-- 下拉填充：
-  - `populateValueListParentSelect(excludeNodeId)` 填充节点弹窗的父级下拉。
-  - `populateValueListRefIdSelect(excludeNodeId)` 填充节点弹窗的关联码(refId)下拉，递归生成带缩进的树形 option，排除当前节点及其子孙节点以避免循环引用。
 
-## 目前发现的 HTML 固定可变数据
+- 页面级：`bindValueListEvents()` (:836) 绑定树展开/选择/搜索/新增/修改/删除。
+- 弹框级：`initValueListModalEvents()` (:1493) 在 `bootstrap()` 中一次性绑定。
+- `populateValueListParentSelect()` (:961) / `collectValueListDescendantIds()` (:971)。
 
-这些不是本次全部改动项，只是后续动态化时优先检查的清单。
+## HTML 固定可变数据清单
 
-- 主导航文案与入口：`index.html:41-45` 固定写死；页面状态在 `state.page`，渲染逻辑在 `app-core.js:648` 附近。
-- 排序项：`index.html:107-112` 固定写死；排序实现依赖 `app-utils.js:79` `sortAssets()`。
-- 相似搜索模式：`index.html:121-122` 固定写死；读取位置在 `app-utils.js:16`。
-- 权限选项：`index.html:169-180`、`index.html:202-205`、`index.html:462-465`、`index.html:653-657` 固定写死；相关逻辑分散在 `app-workflows.js` 和 `app-actions.js`。
-- 分享访问范围与有效期：`index.html:332-343`、`index.html:486-495`、`index.html:678-687` 固定写死；提交逻辑在 `app-workflows.js:141`、`app-workflows.js:182`。
-- 标签类型与 AI 来源：`index.html:366-378`、`index.html:395-407` 固定写死；保存逻辑在 `app-render.js:1144`、`app-render.js:1227`。
-- 素材权限范围：`index.html:462-465` 固定写死；编辑提交在 `app-actions.js:1136`。
-- 收集任务允许文件类型：静态 HTML 仅兜底；打开弹窗时从 `COLLECT_TASK_FILE_TYPES` 动态生成，保存逻辑在 `app-actions.js:1322`。
-- 收集任务状态：`index.html:820` 固定写死；配置逻辑在 `app-workflows.js:209`。
-- 有效期提醒选项：`index.html:853` 固定写死；有效期弹窗逻辑在 `app-workflows.js:276`。
-- 品牌、公司名、搜索提示：`app-core.js:573-576` 动态写入，但值仍硬编码在 JS。
-- 筛选项名称和值：筛选项在 `app-core.js:123`，筛选值在 `app-actions.js:365`，其中部分固定值如素材来源、失效日、时长、创建时间仍写在 JS。
-- 标签名称与使用次数：截图中标签行来自 `db.tags` 和 `db.assets` 动态汇总，不是 HTML 固定数据；定位 `app-render.js:679` `getTagSummary()` 与 `app-render.js:864` `renderTagTableBody()`。
+后续动态化时优先检查的清单：
 
-## 当前仍需注意的历史痕迹
+- 排序项：`index.html:113-118` 固定写死；排序实现在 `app-utils.js:82` `sortAssets()`。
+- 相似搜索模式：`index.html:126-127` 固定写死。
+- 权限选项：`index.html:174-178`、`index.html:207-211`、`index.html:501-504`、`index.html:700-704` 固定写死。
+- 分享访问范围与有效期：`index.html:331-335`、`index.html:524-536`、`index.html:700-712` 固定写死。
+- 标签类型与 AI 来源：`index.html:369-372`、`index.html:393-396` 固定写死。
+- 收集任务允许文件类型：`index.html:669-680` 静态兜底，打开弹窗时从 `getAllCollectTaskTypes()` 动态刷新。
+- 收集任务状态：`index.html:898` 固定写死。
+- 有效期提醒选项：`index.html:953` 固定写死。
+- 品牌、公司名、搜索提示：`app-core.js` `renderShell()` (:1621) 动态写入，但值仍硬编码在 JS。
+- 筛选项名称：`app-core.js:373` `filterLabels`。
+- 筛选值来源：`app-actions.js:484` `getFilterValues()`，素材来源已从 `source` 值列表动态读取；剩余固定值如失效日、时长、创建时间仍写在 JS。
 
-- 2026-07-03 第二批代码审计优化已将新增/编辑标签类型的内联 `onchange` 迁移到 `app-core.js` 的 `addEventListener("change", ...)`，`index.html` 当前不再保留这两处内联事件。
-- 2026-07-03 代码审计第一批优化已清理旧协作弹窗 `memberPermissionModal` 及 `styles.css` 中明确标注的 Collaboration modal 残留样式。
-- 2026-07-03 bug 修复：`render()` 中标签页渲染分支必须先于 `getManagedPages()` 管理页分支判断，否则 `tags` 会被动态菜单识别为管理页并落入有效期管理兜底渲染。
-- 2026-07-03 bug 修复：`ensureSystemData()` 仅在 `db.menus` 不存在或为空时初始化 `getDefaultMenus()`，不再每次启动覆盖菜单管理保存的新增、修改、删除结果。
+## 历史痕迹与注意事项
+
+- 左侧主导航已删除"我收藏的组"功能模块入口；`favorite` 页面筛选/标题/面包屑已移除。旧链接进入 `page=favorite` 会通过 `normalizePageState()` 回退到 `all`。
+- `ensureSystemData()` 仅在 `db.menus` 不存在或为空时初始化 `getDefaultMenus()`，不再每次启动覆盖用户修改。
+- `render()` 中标签页渲染分支必须先于 `isManagePage()` 管理页分支判断，否则 `tags` 会被识别为管理页。
+- `renderManagePageV2()` 使用 `directRenderers` 映射表，未知管理页显示空态"暂无对应管理页面"。
+- 已删除废弃常量：`FILE_FORMAT_CATEGORIES`、`UPLOAD_FILE_FORMATS`、`UPLOAD_ACCEPT`、`COLLECT_TASK_FILE_TYPES`、`ASPECT_RATIOS`、`VEHICLE_MODELS`、`SYSTEM_MENUS`，全部改为从值列表树动态读取。
+- 已删除旧函数：`showMoreMenu()`、`getManagedPages()`、`applyMenuPermissions()`、`isMenuPage()`、`updateShareExpireModal` 系列函数。
+- 日期格式统一为 `YYYY-MM-DD HH:mm`（使用 `-` 短横线分隔，与存储一致），解析函数兼容多种分隔符输入。
+- 素材编辑弹框不再使用原生 `datalist`，改为 `.asset-edit-combo` 结构 + `setupAssetEditDropdown()` 统一管理候选下拉。
+- 内饰色/外饰色在素材编辑弹框中是单选字段，保存时写入数组但最多保留一个值。
+- `db.shares` 和 `db.collectTasks` 新增 `requirePassword` / `password` 字段，老数据由迁移函数补默认值。
+- 禁止使用 PowerShell `Set-Content` 整文件重写（曾导致中文字符串损坏），继续使用 `apply_patch` / Edit 做局部修改。
+- CODE_MEMORY.md 必须保存为 UTF-8（带 BOM）。
 
 ## 点检建议
 
 - 改筛选/排序：先测顶部筛选、多选、排序菜单、素材数量、控制台。
 - 改标签：先测标签管理页表格、卡片、编辑、新增、合并、AI 标签跳转筛选。
 - 改日期：先测 `readonly`、日期控件可选择、不能手填、提交值格式。
-- 改分享/收集：先测创建链接、复制链接、过期时间、收集任务落地页。
+- 改分享/收集：先测创建链接、复制链接、过期时间、收集任务落地页、密码门。
 - 改回收站：先测软删、恢复、硬删、清空、删除时间排序。
 
-## 2026-06-22 补充
+## 第三步任务：权限改造记录（2026-07-08）
 
-- 左侧主导航已删除“我收藏的组”功能模块入口；`favorite` 页面筛选、标题、面包屑已移除。素材组菜单中的收藏/取消收藏、订阅/取消订阅也已删除；这些字段没有有效业务使用。旧链接或旧状态如进入 `page=favorite`，会通过 `app-core.js` 的 `normalizePageState()` 按非法页面回退到 `all`。
+### 通用规则
+- `render()` 函数开头调用 `buildUserGroupPermissionCache()` 构建权限缓存
+- 所有列表数据先过权限过滤再渲染
+- 所有操作按钮按权限动态显隐，无权限不展示或置灰
+- 所有枚举下拉从值列表动态生成，不写死选项
+- 无权限的入口直接隐藏，不让用户看到（不是置灰）
 
-### 筛选树形结构数据规范
+### 修改内容
 
-- 树形节点增加 selectable 属性，true 表示可选中，false 表示仅作为分类标题（不可选中）
-- 品牌筛选：品牌为可选中的顶级节点，无子节点
-- 车系筛选：品牌为分类标题（不可选中），车系为可选中子节点
-- 车型筛选：品牌为分类标题（不可选中），车系为子分类标题（不可选中），车型为可选中节点
-- 文件格式筛选：格式类别为分类标题（不可选中），具体格式为可选中节点
-- 标签筛选：所有标签节点均可选中
-- 分类标题样式：加粗显示，hover背景色较浅
+1. **render() 权限缓存**：`app-render.js:10` `render()` 函数开头调用 `buildUserGroupPermissionCache()`
 
-## 2026-06-29 修复筛选菜单屏蔽问题
+2. **左侧素材组导航树**：`app-render.js:160` `renderGroups()` 
+   - 只渲染 `canViewGroup()` 为 true 的组
+   - "全部素材"作为顶部独立入口
+   - 组右键菜单按 `canManageGroup()` 控制显隐
 
-- **问题**：选中某个筛选选项后，再次打开筛选菜单时其他选项被屏蔽，只显示已选中的选项
-- **根因**：buildSeriesTree、buildModelTree、buildColorTree 函数错误地使用当前筛选值来过滤显示的选项
-- **修复方案**：移除使用当前筛选值（如 brandFilter、seriesFilter、modelFilter）来过滤显示选项的逻辑
-- **修改的函数**：
-  - buildBrandTree()：始终显示所有品牌
-  - buildSeriesTree()：始终显示所有品牌及其车系
-  - buildModelTree()：始终显示所有品牌、车系及其车型
-  - buildColorTree()：始终显示所有颜色
-- **效果**：筛选菜单始终显示所有可用选项，选中状态只是高亮显示，不会屏蔽其他选项
+3. **素材列表过滤**：`renderAssets()` 
+   - 统一复用 `getFilteredAssets()` 取得当前页面素材池
+   - `all` / `pending` 页面再应用 `canViewAsset()`；待入库页面由 `isPendingAsset()` 判断是否仍处于审核或入库链路
 
-## 2026-06-29 优化筛选菜单显示格式
+4. **素材卡片按钮**：`app-render.js:302` `renderAssetCard()` 
+   - 编辑按钮：`canEditAsset()`
+   - 下载按钮：`canDownloadAsset()`
+   - 分享按钮：`canCreateShare(asset, 'view')`
+   - 移动按钮：`canMoveAsset(asset)`
 
-- **问题**：车系和车型筛选显示了品牌/车系作为分类标题，用户要求界面上只显示可选中的选项，不显示分类标题
-- **根因**：buildSeriesTree 和 buildModelTree 返回了树形结构，包含不可选中的品牌/车系父节点
-- **修复方案**：
-  - buildSeriesTree()：根据品牌筛选值过滤车系，返回扁平列表（无品牌分类标题）
-  - buildModelTree()：根据品牌和车系筛选值过滤车型，返回扁平列表（无品牌/车系分类标题）
-  - buildColorTree()：根据品牌、车系、车型筛选值过滤颜色，返回扁平列表
-- **效果**：车系、车型、颜色筛选界面只显示可选中的选项，无分类标题，但仍保持联动筛选逻辑
-- **保持树形结构的筛选**：文件格式（有格式类别）、业务标签、AI标签（多层级标签）
+5. **元数据列表操作按钮**：`app-render.js:330` `renderMetadataList()` 
+   - 按权限控制操作按钮显隐
 
-## 2026-06-29 修改筛选自定义配置
+6. **回收站页面**：`app-render.js:589` `renderRecyclePage()` 
+   - 筛选：status=deleted + `canViewAsset()`
+   - 恢复按钮：`canRestoreAsset()`
+   - 彻底删除按钮：`canPurgeAsset()`
 
-- 删除：筛选自定义配置中的文件高度和文件宽度选项
-- 宽高比：改为下拉框，选项包括：1:1、3:4、9:16、4:3、3:2、16:9、21:9
-- 文件大小：改为多选，选项包括：<=5MB、5MB～10MB、10MB～50MB、>50MB
-- 宽高比筛选逻辑：根据素材的 aspectRatio 字段或 width/height 计算值进行匹配
-- 文件大小筛选逻辑：根据素材的 sizeBytes 字段进行区间匹配
+7. **分享记录页**：`app-render.js:569` `renderSharePage()` 
+   - 只展示 `canManageShare()` 的记录
 
-## 2026-06-29 修复筛选条件过多被遮挡问题
+8. **收集任务页**：`app-render.js:599` `renderCollectPage()` 
+   - 只展示 `canManageCollect()` 的任务
 
-- 问题：当选择的筛选条件太多时，后面的筛选条件会被遮住
-- 修复方案：为 .filters 容器添加 overflow-x: auto 属性，支持水平滚动
-- 样式优化：设置滚动条为细样式，颜色为主题色
+9. **标签管理页**：`app-render.js:2622` `renderTagsPage()` 
+   - AI标签按 `ownedBy` 控制操作按钮，普通用户看不到AI标签的编辑按钮
 
-## 2026-06-29 修复业务标签分组层级不生效问题
+10. **素材详情页操作日志 Tab**：`app-actions.js:1041` `renderViewer()` 
+    - 操作日志 Tab 显示结构化日志（操作时间、操作人、操作类型、操作详情）
+    - 无素材管理权限的用户看不到该 Tab
 
-- 问题：业务标签在标签管理页面中显示为扁平表格，没有层级展示
-- 根因1：业务标签的数据中所有 parentId 都是 0
-- 根因2：标签管理页面使用 businessTags（扁平列表）而不是 businessTagTree（树形结构）
-- 根因3：handleAddTagSubmit 和 handleEditTagSubmit 中业务标签的 parentId 被强制设置为 0
-- 修复方案：
-  1. 修改标签管理页面使用 businessTagTree 并扁平化展示
-  2. 移除业务标签 parentId 强制为 0 的限制
-  3. 修改业务标签初始数据，添加父级关系
-  4. 修改标签添加/编辑弹窗中父级标签的标题为通用名称
-- 效果：业务标签现在支持多层级展示，与AI标签一致
+11. **组移动目标选择器**：`app-actions.js:1518` `openMoveGroupModal()` 
+    - 源组自身及其所有后代组置灰不可选（调用 `isGroupDescendant()` 判断）
 
-## 2026-07-03 渲染入口稳定性调整
+### 权限函数汇总
 
-- `app-render.js` 的 `renderManagePageV2()` 已改为按 `users / roles / organizations / permissions / activity / loginLogs / share / recycle / collect / valueLists / menus / validity` 显式入口分发。
-- 未知管理页现在显示空态 `暂无对应管理页面`，不再落入有效期管理兜底，避免动态菜单或新增页面误渲染成有效期页。
+| 权限函数 | 说明 |
+|---|---|
+| `canViewGroup(groupId)` | 查看素材组 |
+| `canManageGroup(groupId)` | 管理素材组 |
+| `canViewAsset(asset)` | 查看素材 |
+| `canEditAsset(asset)` | 编辑素材 |
+| `canDownloadAsset(asset)` | 下载素材 |
+| `canDeleteAsset(asset)` | 删除素材（软删除） |
+| `canRestoreAsset(asset)` | 恢复素材 |
+| `canPurgeAsset(asset)` | 彻底删除素材 |
+| `canMoveAsset(asset)` | 移动素材 |
+| `canUploadToGroup(groupId)` | 上传到组 |
+| `canContributeToGroup(groupId)` | 贡献到组 |
+| `canCreateShare(target, permission)` | 创建分享 |
+| `canManageShare(share)` | 管理分享 |
+| `canManageCollect(task)` | 管理收集任务 |
+| `canManageTag(tag)` | 管理标签 |
+| `canManageAsset(asset)` | 素材管理权限 |
+| `isGroupDescendant(descendantId, ancestorId)` | 判断组是否为后代 |
+| `canDownloadFromGroup(groupId)` | 从组下载 |
+| `isPendingAsset(asset)` | 判断素材是否处于待入库/待终审链路 |
+| `aclMatchesCurrentUser(acl)` | 统一匹配 user / department / company 授权主体 |
+| `getOrgAncestorIds(orgId)` | 获取组织祖先链，用于包含子部门授权 |
+| `getEffectiveGroupPermissionLevel(groupId)` | 获取组继承 ACL 中当前用户最高权限等级 |
 
-## 2026-07-03 菜单动态化调整
+### 当前权限与值列表实现基线
 
-- 菜单入口展示不再依赖固定的 `menu_group_assets` / `menu_group_more` 判断；主导航读取 `db.menus` 树，所有可见菜单统一在左侧树中展示，通过 `layout` 决定素材页面或管理页面。
-- 菜单管理表单保留 `layout` 保存字段；已有本地菜单数据只在字段缺失时补默认值，不覆盖用户维护的名称、层级、顺序等配置。
-- 删除旧的 `getManagedPages()`、`applyMenuPermissions()`、`isMenuPage()` 特殊/重复逻辑，菜单渲染时直接按权限输出可见入口。
+#### 素材与审核状态
+- `assetStatus` 是素材主状态，覆盖 `pending`、`active`、`deleted`、`disabled` 等展示和操作状态。
+- `auditStatus` 是审核链路状态，覆盖待提交、待审核、机审、人审、终审通过等节点。
+- `isPendingAsset(asset)` 是待入库统一判断入口；`assetStatus=active` 直接返回 false，`assetStatus=pending` 直接返回 true，其他状态再判断 `auditStatus` 是否终审通过。
+- `getFilteredAssets()` 根据页面状态返回基础素材池；`renderAssets()` 对 `all` / `pending` 页面继续应用 `canViewAsset()`。
+- `approveSelectedAssets()` 只处理 `isPendingAsset(asset)` 命中的素材，入库后写入 `auditStatus=human_pass` 和 `assetStatus=active`。
 
-更新时间：2026-06-30
+#### ACL 权限
+- `aclMatchesCurrentUser(acl)` 是 user / department / company 的统一匹配入口。
+- `department` 支持 `includeSubDept`，通过 `getOrgAncestorIds(currentUser.organizationId)` 匹配上级部门授权。
+- `company` 使用 `subjectId="all"` 表示全公司授权。
+- 组 ACL 缓存、组继承权限、素材 ACL 权限均复用统一匹配逻辑。
+- 组 ACL 和素材 ACL 弹窗均支持公司级授权；切换主体类型时清空旧主体选择，避免提交脏 ID。
 
-用途：后续改动前，先查本文件定位对应代码位置；如果这里不能定位，再回读完整相关文件，并把新定位补充到本文件。
+#### 权限申请
+- `renderPermissionManagePage()` 已接入权限申请列表、状态筛选、审批通过和审批拒绝按钮。
+- `approvePermissionRequest()` / `rejectPermissionRequest()` 只处理 `pending` 状态。
+- 审批通过时先查找既有 ACL，存在则更新，不存在才新增，避免重复点击产生重复授权。
+- 审批处理完成后刷新权限管理页。
 
-## 2026-07-06 app-core/app-actions 格式报错排查
+#### 值列表
+- `db.valueListTree` 是统一树模型，权限枚举、状态枚举、上传格式、收集类型和业务标签都应来自值列表。
+- `getTreeNodeByCode(code, parentDimCode)` 支持维度限定，避免 `view`、`active` 等通用 code 跨维度冲突。
+- `saveValueList()` / `saveValueListItem()` 的 code 唯一性按同父节点约束，允许不同维度复用同名编码。
+- 编辑节点时禁止移动到自己的子孙节点下，避免树结构成环。
 
-- `app-core.js`：重点排查 HTML 实体残留，确认 `=>`、`<`、`>`、`&&` 没有被写成 `=&gt;`、`&lt;`、`&gt;`、`&amp;&amp;`。
-- `app-actions.js`：曾出现中文字符串损坏导致语法错误，后续禁止使用 PowerShell `Set-Content` 整文件重写，继续使用 `apply_patch` 做局部补丁。
-- 素材编辑弹框 JS 已与当前 HTML 字段保持一致：品牌、车系、车型、内饰色、外饰色由值列表动态回填，并保存到 `asset.series / asset.interiorColors / asset.exteriorColors`。
-- 本次验证：主要 JS 文件均已通过 `node --check`，`app-core.js` 与 `app-actions.js` 未检出 HTML 实体操作符残留。
+#### 菜单管理
+- `db.menus` 是动态菜单源，页面白名单、标题、面包屑、管理页入口都从菜单树派生。
+- 菜单权限 key 使用 `page` 字段。
+- `saveMenu()` 校验 `page` 唯一性，避免多个菜单共用同一个权限 key。
+- `deleteMenu()` 删除菜单树时同步清理角色、组织、用户权限对象中的残留 page key，并调用 `normalizePageState()` 防止停留在已删除页面。
 
-## 2026-07-06 素材编辑候选下拉修复
+#### 弹框 DOM 查询规范
+- 弹框内 `name="..."`、`class="..."` 等选择器必须限定在 `#formModal` 或对应弹框根节点内，禁止直接使用 `document.querySelector("[name='status']")` 等全局查询，避免命中页面其他同名元素。
+- 典型错误：`openCollectTaskConfigModal` 曾全局查询 `[name='status']`，结果把 option 加到了值列表编辑弹框的 select 上，导致收集任务配置弹框的状态下拉为空。
 
-- 素材编辑弹框不再使用原生 `datalist` 展示品牌、车系、车型、内饰色、外饰色和业务标签候选；原生 `datalist` 会按当前输入值过滤，导致已有值为“东风雪铁龙”时只能看到一个候选。
-- `index.html` 中素材编辑字段改为 `.asset-edit-combo` 结构，输入框仍保留原 `name`，保存字段和表单提交结构不变。
-- `app-actions.js` 的 `setupAssetEditDropdown()` 统一管理候选下拉：聚焦或点击箭头展示完整候选，输入时过滤；品牌/车系/车型继续按值列表 `refId` 级联，业务标签候选来自 `getTagSummary().businessTags`。
-- `styles.css` 仅新增 `.asset-edit-combo*` 样式，限制在素材编辑弹框候选面板使用。
+#### 日期 input 回填格式
+- `<input type="date">` 的 `value` 必须是 `YYYY-MM-DD`（HTML 规范）。统一用 `toInputDateValue(字段)` 生成（内部走 `toISODate` 取前 10 位），禁止在业务代码里散写 `splitDateTimeText().date.replaceAll("/", "-")`。
+- `calculateExpireTime()` / `getExpireDate()` 统一输出 ISO `YYYY-MM-DDTHH:mm:ss`；显示层由 `formatDateTimeDisplay()` 渲染为 `YYYY/MM/DD HH:mm`。
 
-## 2026-07-06 素材编辑候选下拉细节修复
+#### Modal.confirm 调用规范
+- `Modal.confirm()` 返回 Promise，调用处必须使用 `await` 或 `.then()`，禁止传入回调函数；历史代码中的回调式调用会导致点击确定后没有任何动作。
 
-- 内饰色、外饰色在素材编辑弹框中是单选字段，不使用 `multiple: true`；保存时仍写入 `asset.interiorColors / asset.exteriorColors` 数组，但数组最多保留一个值以兼容既有展示逻辑。
-- `.asset-edit-combo-panel` 背景不能使用未定义的 `--panel` 变量；已改为 `var(--surface, #fff)` 并提高 z-index，避免下拉面板透明或被表单字段文字压住。
+#### 函数命名冲突
+- 避免同名函数覆盖。曾存在两个 `isShareExpired`（一个接受 share 对象，一个接受 expiresAt 字符串），后者覆盖了前者，导致分享落地页的对象版过期判断永远返回 false。现已将对象版重命名为 `isShareRecordExpired(share)`。
 
-## 2026-07-06 左侧菜单树动态化
+#### 待入库判断
+- `isPendingAsset()` 必须优先排除 `assetStatus=active` 的素材，否则所有已入库但 `auditStatus` 非终审通过的素材会同时出现在"全部素材"和"待审核"两个页面。
 
-- 左侧主导航由 `app-core.js` 的 `renderMainNav()` 递归读取 `db.menus` 渲染，不再把“素材管理 / 更多功能”等分组拍平成页面按钮。
-- 左侧菜单分组使用 `data-nav-toggle` 支持 `+/-` 展开收起，页面节点使用 `data-page` 进入对应页面；展开状态仅保存在当前运行时的 `state.navExpandedMenuIds`，刷新后重新默认展开可见分组。
-- 菜单可见性由 `valid !== false`、`hidden !== true` 和 `canViewMenu(page)` 共同控制；空分组不会展示。
-- 旧的左侧“更多功能”下拉入口、`data-go` 页面跳转分支和 `showMoreMenu()` 已清理，避免同一菜单保留两套入口。
-- 菜单管理不再保留“展示位置”配置；入口统一由菜单树决定，`layout` 仅用于区分素材页面和管理页面。
-
-## 2026-07-07 分享记录操作调整
-
-- 分享记录页的操作列不再拆成“复制链接 / 更新时间”两个按钮，统一为“管理分享”入口。
-- “管理分享”复用收集素材“管理邀请”的弹框结构与样式：左侧二维码，右侧说明、权限、链接，下方可维护分享状态和失效时间。
-- 分享记录仍使用原有 `db.shares` 数据结构；保存时仅更新 `expiresAt`。状态选择“已过期”会写入当前时间，状态为“生效中”且失效时间留空时表示“永久有效”。
-- 已删除旧的 `updateShareExpireModal` 静态弹框、绑定事件和 `openUpdateShareExpireModal / handleUpdateShareExpireSubmit / closeUpdateShareExpireModal` 等专用逻辑，避免同一功能两套实现。
-
-## 2026-07-07 分享访问密码与分享页下载
-
-- `db.shares` 新增 `requirePassword` 和 `password` 字段；`migrateShareExpiresAt()` 会通过 `normalizeShareSecurity()` 给老分享补默认值，老数据默认不需要访问密码。
-- 创建素材篮分享、素材组分享、单素材分享时均可设置“需要访问密码”和访问密码；勾选但留空时由 `buildShareSecurity()` 自动生成密码。
-- 分享记录“管理分享”弹框可后续开启/关闭访问密码并修改密码，仍复用 `tplShareRecordConfigForm`。
-- 外部分享页 `renderSharePortal()` 增加密码校验页；校验通过后使用 sessionStorage 记录当前分享的临时通过状态，避免同一标签页重复输入。
-- 外部分享页增加素材勾选、批量下载和一键全部下载；素材筛选统一走 `getSharePortalAssets()`，下载统一走 `downloadShareAssets()`，避免 asset/group/basket 三种分享重复写筛选和下载逻辑。
-
-## 2026-07-07 统一日期/时间格式
-
-- 目的：将项目内所有时间输出统一为 `YYYY/MM/DD HH:mm`（使用 `/` 分隔），减少解析/显示不一致问题。
-- 涉及文件：`app-utils.js`、`app-core.js`（主要修改点），查验并修正了 `app-render.js` / `app-actions.js` 中的硬编码范围值和日志演示字符串。
-- 主要改动：
-  - `app-utils.js`：
-    - `todayText()` 改为返回 `YYYY/MM/DD`。
-    - `parseDateTimeText()` 输出的 `date` 字段改为 `YYYY/MM/DD`，保持对 `-`、`/`、`.` 的输入兼容但统一输出为 `/`。
-    - 相关衍生函数（`normalizeDateText`、`normalizeDateTimeText`、`splitDateTimeText`、`joinDateTime`、`dateTimeTextToTimestamp` 等）继承新格式。
-  - `app-core.js`：
-    - `getExpireDate()`、`calculateExpireTime()` 的返回值由 `YYYY-MM-DD 23:59` 改为 `YYYY/MM/DD 23:59`。
-    - 种子数据（`seedAssets`、`seedTags`）、`collectTasks`、`shares` 中的所有示例时间戳统一为使用 `/` 的格式。
-    - 修正了若干样本条目中残留的 `-` 格式时间戳。
-- 兼容性说明：解析函数仍接受多种分隔符作为输入，故变更只影响输出与存储的标准化，不影响现有用户输入解析逻辑。
-- 后续建议：在 UI 说明或文档中标注时间输入/展示格式为 `YYYY/MM/DD HH:mm`，并在需要与后端对接时确认双方时间字符串约定。
-
-## 2026-07-07 收集任务上传页面重构
-
-- **目的**：参考分享页面样式，重构收集任务上传链接页面，添加密码验证、素材上传、暂存和提交功能
-- **主要改动**：
-  - 收集任务数据结构新增 `requirePassword` 和 `password` 字段（`app-core.js` 种子数据、`app-actions.js` 创建任务）
-  - `renderCollectorPortal()` 函数重构为三阶段流程：验证任务有效性 → 密码验证 → 渲染上传页面
-  - 新增 `getCollectPasswordKey(task)` 函数：生成 sessionStorage 密钥，用于记住密码状态
-  - 新增 `renderCollectorPasswordGate(code, task)` 函数：密码验证页面，参考分享页面密码验证逻辑
-  - 新增 `renderCollectorPortalContent(code, task)` 函数：上传页面主体，包含：
-    - 顶部英雄区（品牌、标题、说明、信息栏）
-    - 提交人信息（姓名、公司/部门、联系方式、邮箱，均为必填）
-    - 素材信息（素材说明、业务标签多选 + 新增）
-    - 素材上传区域（支持多选文件、格式过滤）
-    - 暂存列表（展示已选择文件，支持移除）
-    - 操作按钮（重置、暂存、提交到待入库）
-  - 业务标签支持从标签管理读取（`getTagSummary().businessTags`），支持多选和新增
-  - 上传后素材进入 `pending` 状态，保存提交人信息到 `owner/department/contact/email/desc` 字段
-  - 删除自动补全逻辑：owner/department 不再使用 `currentUser` 全局变量补全，为空时直接保存
-  - 新增 `validateCollectorForm()` 函数：校验提交人姓名、公司/部门、联系方式、邮箱必填，暂存和提交时均需验证
-  - 新增 CSS 样式：`.collector-hero`、`.collector-info-bar`、`.collector-content`、`.collector-form-card`、`.collector-form-section`、`.collector-form-row`、`.collector-tag-select`、`.collector-tag-add`、`.collector-upload-area`、`.collector-upload-btn`、`.collector-staged-list`、`.collector-staged-item`、`.collector-form-actions`
-
-## 2026-07-07 素材数据结构与收集任务重构
-
-- **目的**：统一素材状态管理，重构素材和收集任务数据结构，内部上传和外部收集上传统一流程
-- **主要改动**：
-
-### 值列表扩展
-  - 新增「素材管理」维度（`vl_dim_matmanage`），与「素材库筛选」并列
-  - 新增「素材状态」子维度（`vl_dim_manage_status`），包含10个枚举值：
-    - 1: 待提交（素材刚刚上传还没有进入素材库）
-    - 2: 待审核（内容已提交，等待机审）
-    - 3: 机审中（内容正在进行机审）
-    - 4: 机审通过（机审结果为通过，可进入待人审状态）
-    - 5: 机审拒绝（机审结果为拒绝，内容被拦截）
-    - 6: 待人审（机审结果为待人工审核，进入人审队列）
-    - 7: 人审中（内容正在进行人工审核）
-    - 8: 人审通过（人审结果为通过，可进入待发布状态）— **仅此状态在素材库显示**
-    - 9: 人审拒绝（人审结果为拒绝，内容被驳回）
-    - 10: 未入库（内容生成环节的内容，用户还未选择让其进入素材库）
-
-### 素材数据结构新增字段
-  - `creator`: 创建人（素材上传人，内部上传指上传人，外部上传指创建收集链接的人）
-  - `lastUpdate`: 最后修改人（最后修改素材信息的人）
-  - `asset_source`: 素材来源（`internal`-内部上传, `ai-generated`-AI生成, `external`-外部导入）
-  - `collect_id`: 关联的收集任务ID
-  - `collect_link`: 关联的收集任务链接
-  - `status`: 修改为数字枚举（1-10），之前的 `active` 映射为8，`pending` 映射为2，`deleted` 映射为-1
-
-### 收集任务数据结构新增字段
-  - `id`: 任务唯一标识
-  - `desc`: 任务说明
-  - `types`: 允许文件类型
-  - `link`: 收集链接
-
-### 上传逻辑统一
-  - **内部上传**：自动创建收集任务（状态"已完成"），素材直接进入待审核状态（status=2），跳转至待审核页面
-  - **外部上传**：通过收集链接上传，关联收集任务ID和链接，素材进入待审核状态（status=2）
-
-### 素材库展示逻辑
-  - 修改 `getFilteredAssets()`：素材库（`state.page === "all"`）只显示 status=8 的素材
-  - 修改 `renderAssets()`：待审核页面（`state.page === "pending"`）只显示 status=2 的素材
-
-### 静态数据初始化
-  - 所有种子素材状态设置为8（人审通过），`asset_source` 设置为 `internal`，`creator/owner/lastUpdate` 设置为 "Kerry"
-
-### 审核功能模拟
-  - **发起机审**：在收集任务列表中，当任务有 status=2（待审核）的素材时显示"发起机审"按钮，点击后将这些素材状态更新为4（机审通过），并记录日志
-  - **发起审核**：在收集任务列表中，当任务有 status=3~7（机审中/机审通过/机审拒绝/待人审/人审中）的素材时显示"发起审核"按钮，点击后将这些素材状态更新为8（人审通过），并记录日志
-  - 新增函数：`simulateMachineAudit(taskId)`、`simulateHumanAudit(taskId)`
-
-### 状态显示函数
-  - `getAssetStatusText(status)`：将数字状态转换为中文（1=待提交, 2=待审核, 3=机审中, 4=机审通过, 5=机审拒绝, 6=待人审, 7=人审中, 8=人审通过, 9=人审拒绝, 10=未入库）
-  - `getAssetStatusClass(status)`：根据状态返回样式类（ok=绿色, warn=橙色, info=蓝色, off=红色）
-
-### 测试数据
-  - 新增收集任务 `collect-seed`（系统初始化素材）
-  - 所有种子素材关联到 `collect-seed` 任务
-  - 新增测试素材：2个待审核（status=2）、1个机审通过（status=4）
+#### 权限交接数据一致性
+- 素材组责任人字段 `group.ownedBy` 存储的是 `username`，搜索选人时虽然列表显示用户姓名，但回填和交接必须使用 `username`，否则后续权限判断会失效。

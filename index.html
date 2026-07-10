@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>素材库</title>
     <link rel="stylesheet" href="styles.css?v=20260617-dynamicdata" />
+    <link rel="stylesheet" href="vendor/flatpickr/flatpickr.min.css?v=20260710" />
+    <link rel="stylesheet" href="vendor/flatpickr/flatpickr-theme.css?v=20260710" />
   </head>
   <body>
     <div class="app-shell">
@@ -162,31 +164,19 @@
     <div class="modal hidden" id="permissionRequestModal">
       <div class="modal-card form-card">
         <header>
-          <h2 id="permissionRequestTitle">申请编辑权限</h2>
+          <h2 id="permissionRequestTitle">申请权限</h2>
           <button class="plain-icon" id="permissionRequestClose" type="button" aria-label="关闭"><span data-icon="x"></span></button>
         </header>
         <form id="permissionRequestForm">
           <div class="request-summary">
-            <span>申请素材</span>
-            <strong id="permissionRequestAssetName"></strong>
+            <span>申请对象</span>
+            <strong id="permissionRequestTargetName"></strong>
           </div>
-          <label>申请权限
-            <select id="permissionRequestPermission" name="permission">
-              <option>可编辑/删除</option>
-              <option>仅编辑信息</option>
-              <option>可下载原文件</option>
-            </select>
-          </label>
-          <label>使用期限
-            <select id="permissionRequestDuration" name="duration">
-              <option>7天</option>
-              <option>30天</option>
-              <option>90天</option>
-              <option>长期</option>
-            </select>
+          <label>申请权限等级
+            <select id="permissionRequestPermission" name="permission"></select>
           </label>
           <label>申请理由
-            <textarea id="permissionRequestReason" name="reason" placeholder="请填写用途，例如：用于活动海报二次编辑" required></textarea>
+            <textarea id="permissionRequestReason" name="reason" placeholder="请填写申请理由" required></textarea>
           </label>
           <div class="form-actions">
             <button id="permissionRequestCancel" type="button">取消</button>
@@ -327,24 +317,35 @@
           <label>分享名称
             <input id="basketShareName" name="shareName" placeholder="输入分享名称，默认为素材篮分享" />
           </label>
-          <label>链接权限
-            <select id="basketShareAccess" name="access">
-              <option>企业内部成员可访问</option>
-              <option>互联网用户无需登录可访问</option>
-              <option>仅指定成员可访问</option>
-            </select>
+          <label>访问范围
+            <select id="basketShareAccessScope" name="accessScope"></select>
           </label>
-          <label class="checkbox-label"><input id="basketShareRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
-          <label>访问密码
-            <input id="basketSharePassword" name="password" placeholder="可填写访问密码，留空则自动生成" />
+          <div id="basketSharePublicNotice" class="public-notice hidden"><span data-icon="alert"></span> 公开链接建议设置访问密码，防止滥用</div>
+          <div class="password-section">
+            <label class="checkbox-label"><input id="basketShareRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
+            <div id="basketSharePasswordField" class="hidden">
+              <label>访问密码
+                <input id="basketSharePassword" name="password" placeholder="设置访问密码" required />
+              </label>
+            </div>
+          </div>
+          <label>内容权限
+            <select id="basketShareContentPermission" name="contentPermission"></select>
           </label>
           <label>有效期
-            <select id="basketShareExpiresAt" name="expiresAt">
-              <option>7天</option>
-              <option>30天</option>
-              <option>90天</option>
-              <option>永久有效</option>
-            </select>
+            <div class="expire-options">
+              <button type="button" class="expire-btn" data-expire="7">7天</button>
+              <button type="button" class="expire-btn" data-expire="30">30天</button>
+              <button type="button" class="expire-btn" data-expire="90">90天</button>
+              <button type="button" class="expire-btn" data-expire="forever">永久</button>
+            </div>
+            <div class="date-time-row">
+              <input id="basketShareExpireDate" type="date" readonly inputmode="none" />
+              <input id="basketShareExpireTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <label>最大访问次数（留空不限）
+            <input id="basketShareMaxVisits" name="maxVisits" type="number" min="1" placeholder="不限" />
           </label>
           <label>分享链接
             <input id="basketShareLink" readonly placeholder="创建分享后生成链接" />
@@ -521,19 +522,36 @@
             <span>分享素材</span>
             <strong id="shareAssetName"></strong>
           </div>
-          <label>链接权限<select id="shareAssetAccess" name="access">
-            <option>企业内部成员可访问</option>
-            <option>互联网用户无需登录可访问</option>
-            <option>指定成员可访问</option>
-          </select></label>
-          <label class="checkbox-label"><input id="shareAssetRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
-          <label>访问密码<input id="shareAssetPassword" name="password" placeholder="可填写访问密码，留空则自动生成" /></label>
-          <label>有效期<select id="shareAssetExpiresAt" name="expiresAt">
-            <option>7天</option>
-            <option>30天</option>
-            <option>90天</option>
-            <option>永久有效</option>
-          </select></label>
+          <label>访问范围
+            <select id="shareAssetAccessScope" name="accessScope"></select>
+          </label>
+          <div id="shareAssetPublicNotice" class="public-notice hidden"><span data-icon="alert"></span> 公开链接建议设置访问密码，防止滥用</div>
+          <div class="password-section">
+            <label class="checkbox-label"><input id="shareAssetRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
+            <div id="shareAssetPasswordField" class="hidden">
+              <label>访问密码
+                <input id="shareAssetPassword" name="password" placeholder="设置访问密码" required />
+              </label>
+            </div>
+          </div>
+          <label>内容权限
+            <select id="shareAssetContentPermission" name="contentPermission"></select>
+          </label>
+          <label>有效期
+            <div class="expire-options">
+              <button type="button" class="expire-btn" data-expire="7">7天</button>
+              <button type="button" class="expire-btn" data-expire="30">30天</button>
+              <button type="button" class="expire-btn" data-expire="90">90天</button>
+              <button type="button" class="expire-btn" data-expire="forever">永久</button>
+            </div>
+            <div class="date-time-row">
+              <input id="shareAssetExpireDate" type="date" readonly inputmode="none" />
+              <input id="shareAssetExpireTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <label>最大访问次数（留空不限）
+            <input id="shareAssetMaxVisits" name="maxVisits" type="number" min="1" placeholder="不限" />
+          </label>
           <label>分享链接<input id="shareAssetLink" readonly placeholder="创建分享后生成链接" /></label>
           <div class="form-actions">
             <button id="shareAssetCancel" type="button">取消</button>
@@ -665,7 +683,8 @@
           <label>任务名称<input id="collectTaskName" name="name" placeholder="例如：收集618活动素材" required /></label>
           <label>收集说明<textarea id="collectTaskDesc" name="desc" rows="3" placeholder="说明收集要求、格式规范等"></textarea></label>
           <label>存放素材组<input id="collectTaskGroup" name="group" placeholder="素材上传后存放的目标素材组" /></label>
-          <label>截止日期<input id="collectTaskDeadline" name="deadline" type="date" required readonly inputmode="none" /></label>
+          <label>截止时间          <input name="expiresAtDate" type="date" value="" readonly inputmode="none" />
+          <input name="expiresAtTime" type="time" value="" readonly inputmode="none" /></label>
           <label>允许上传的文件类型<select id="collectTaskTypes" name="types" multiple size="8">
             <option>图片</option>
             <option>视频</option>
@@ -697,19 +716,36 @@
             <span>分享对象</span>
             <strong id="shareGroupName"></strong>
           </div>
-          <label>链接权限<select id="shareGroupAccess" name="access">
-            <option>企业内部成员可访问</option>
-            <option>互联网用户无需登录可访问</option>
-            <option>指定成员可访问</option>
-          </select></label>
-          <label class="checkbox-label"><input id="shareGroupRequirePassword" name="requirePassword" type="checkbox" /> 需要访问密码</label>
-          <label>访问密码<input id="shareGroupPassword" name="password" placeholder="可填写访问密码，留空则自动生成" /></label>
-          <label>有效期<select id="shareGroupExpiresAt" name="expiresAt">
-            <option>7天</option>
-            <option>30天</option>
-            <option>90天</option>
-            <option>永久有效</option>
-          </select></label>
+          <label>访问范围
+            <select id="shareGroupAccessScope" name="accessScope"></select>
+          </label>
+          <div id="shareGroupPublicNotice" class="public-notice hidden"><span data-icon="alert"></span> 公开链接建议设置访问密码，防止滥用</div>
+          <div class="password-section">
+            <label class="checkbox-label"><input id="shareGroupRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
+            <div id="shareGroupPasswordField" class="hidden">
+              <label>访问密码
+                <input id="shareGroupPassword" name="password" placeholder="设置访问密码" required />
+              </label>
+            </div>
+          </div>
+          <label>内容权限
+            <select id="shareGroupContentPermission" name="contentPermission"></select>
+          </label>
+          <label>有效期
+            <div class="expire-options">
+              <button type="button" class="expire-btn" data-expire="7">7天</button>
+              <button type="button" class="expire-btn" data-expire="30">30天</button>
+              <button type="button" class="expire-btn" data-expire="90">90天</button>
+              <button type="button" class="expire-btn" data-expire="forever">永久</button>
+            </div>
+            <div class="date-time-row">
+              <input id="shareGroupExpireDate" type="date" readonly inputmode="none" />
+              <input id="shareGroupExpireTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <label>最大访问次数（留空不限）
+            <input id="shareGroupMaxVisits" name="maxVisits" type="number" min="1" placeholder="不限" />
+          </label>
           <label>分享链接<input id="shareGroupLink" readonly placeholder="创建分享后生成链接" /></label>
           <div class="form-actions">
             <button id="shareGroupCancel" type="button">取消</button>
@@ -895,11 +931,12 @@
           <label>上传链接<input readonly value="{{LINK}}" /></label>
         </div>
       </div>
-      <label>任务状态<select name="status"><option>生效中</option><option>已失效</option></select></label>
+      <label>任务状态<select name="status"></select></label>
+      <label>审核状态<input readonly value="{{AUDIT_STATUS}}" /></label>
       <label>失效时间
         <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
-          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} inputmode="none" />
+          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} inputmode="none" />
         </div>
       </label>
       <div class="form-actions"><button type="button" data-cancel>关闭</button><button id="copyCollectLink" type="button">复制链接</button><button id="openCollectLink" type="button">打开上传页</button><button id="simulateCollectUpload" type="button">本页测试上传</button><button class="primary" type="submit">保存</button></div>
@@ -915,13 +952,13 @@
           <label>分享链接<input readonly value="{{LINK}}" /></label>
         </div>
       </div>
-      <label>分享状态<select name="status"><option>生效中</option><option>已过期</option></select></label>
+      <label>分享状态<select name="status"></select></label>
       <label class="checkbox-label"><input name="requirePassword" type="checkbox" {{PASSWORD_CHECKED}} /> 需要访问密码</label>
       <label>访问密码<input name="password" value="{{PASSWORD}}" placeholder="可填写访问密码，留空则自动生成" /></label>
       <label>失效时间
         <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
-          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} readonly inputmode="none" />
+          <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} inputmode="none" />
+          <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} inputmode="none" />
         </div>
       </label>
       <div class="form-actions"><button type="button" data-cancel>关闭</button><button id="copyShareRecordLink" type="button">复制链接</button><button id="openShareRecordLink" type="button">打开分享页</button><button class="primary" type="submit">保存</button></div>
@@ -960,6 +997,101 @@
       <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
     </template>
 
+    <template id="tplGroupPermissionForm">
+      <div class="permission-tabs">
+        <button class="active" data-tab="members">成员与权限</button>
+        <button data-tab="transfer">权限交接</button>
+        <button data-tab="logs">操作日志</button>
+      </div>
+      <div class="permission-tab-content" id="groupPermMembers">
+        <div class="acl-section">
+          <div class="acl-toolbar">
+            <h3>已授权列表</h3>
+            <div class="acl-toolbar-actions">
+              <button type="button" id="groupAclAddToggle" class="primary">添加授权</button>
+              <button type="button" id="groupAclBatchDelete" class="danger hidden">批量删除</button>
+            </div>
+          </div>
+          <table class="acl-table">
+            <thead><tr><th class="col-check"><input type="checkbox" id="groupAclCheckAll" /></th><th>主体名称</th><th>主体类型</th><th>权限等级</th><th>授权人</th><th>授权时间</th><th>操作</th></tr></thead>
+            <tbody id="groupAclList"></tbody>
+          </table>
+        </div>
+        <div class="acl-form hidden" id="groupAclFormPanel">
+          <h3>添加授权</h3>
+          <label>主体类型<select id="groupAclSubjectType" name="subjectType"></select></label>
+          <label>主体搜索<input id="groupAclSubjectSearch" type="text" placeholder="输入姓名或部门" /></label>
+          <div id="groupAclSubjectList" class="subject-list hidden"></div>
+          <label>权限等级<select id="groupAclPermission" name="permission"></select></label>
+          <label class="checkbox-label"><input id="groupAclIncludeSubDept" type="checkbox" checked /> 包含子部门</label>
+          <input id="groupAclSubjectId" type="hidden" name="subjectId" />
+          <input id="groupAclSubjectName" type="hidden" name="subjectName" />
+          <div class="form-actions"><button type="button" id="groupAclCancel">取消</button><button class="primary" id="groupAclSubmit" type="button">添加授权</button></div>
+        </div>
+      </div>
+      <div class="permission-tab-content hidden" id="groupPermTransfer">
+        <div class="transfer-section">
+          <h3>当前责任人</h3>
+          <div class="current-owner">
+            <span>{{CURRENT_OWNER}}</span>
+            <small>{{CURRENT_DEPT}}</small>
+          </div>
+          <h3>新责任人</h3>
+          <label>搜索人员<input id="transferSearch" type="text" placeholder="输入姓名搜索" /></label>
+          <div id="transferUserList" class="subject-list"></div>
+          <input id="transferUserId" type="hidden" />
+          <input id="transferUserName" type="hidden" />
+          <input id="transferUserDept" type="hidden" />
+          <div class="form-actions"><button type="button" id="transferCancel">取消</button><button class="primary" id="transferSubmit" type="button">确认交接</button></div>
+        </div>
+      </div>
+      <div class="permission-tab-content hidden" id="groupPermLogs">
+        <div id="groupPermLogList"></div>
+      </div>
+    </template>
+
+    <template id="tplAssetPermissionForm">
+      <div class="inherit-section">
+        <h3>继承权限</h3>
+        <div class="inherit-info">
+          <span>继承自「{{GROUP_NAME}}」的权限</span>
+          <div class="inherit-level">{{INHERIT_LEVEL}}</div>
+          <small>组权限由组管理员管理，无法在此修改</small>
+        </div>
+      </div>
+      <div class="acl-section">
+        <div class="acl-toolbar">
+          <h3>单独授权</h3>
+          <div class="acl-toolbar-actions">
+            <button type="button" id="assetAclAddToggle" class="primary">添加授权</button>
+            <button type="button" id="assetAclBatchDelete" class="danger hidden">批量删除</button>
+          </div>
+        </div>
+        <table class="acl-table">
+          <thead><tr><th class="col-check"><input type="checkbox" id="assetAclCheckAll" /></th><th>主体名称</th><th>主体类型</th><th>权限等级</th><th>有效期</th><th>授权人</th><th>操作</th></tr></thead>
+          <tbody id="assetAclList"></tbody>
+        </table>
+        <div class="acl-form hidden" id="assetAclFormPanel">
+          <label>主体类型<select id="assetAclSubjectType" name="subjectType"></select></label>
+          <label>主体搜索<input id="assetAclSubjectSearch" type="text" placeholder="输入姓名或部门" /></label>
+          <div id="assetAclSubjectList" class="subject-list hidden"></div>
+          <label>权限等级<select id="assetAclPermission" name="permission"></select></label>
+          <label>有效期（留空为永久）
+            <div class="date-time-row">
+              <input id="assetAclExpireDate" type="date" readonly inputmode="none" />
+              <input id="assetAclExpireTime" type="time" readonly inputmode="none" />
+            </div>
+          </label>
+          <input id="assetAclSubjectId" type="hidden" name="subjectId" />
+          <input id="assetAclSubjectName" type="hidden" name="subjectName" />
+          <div class="form-actions"><button type="button" id="assetAclCancel">取消</button><button class="primary" id="assetAclSubmit" type="button">添加授权</button></div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 死模板已删除：tplRecycleBin / tplGroupMoveSelector 无任何 JS 引用 -->
+
+    <script src="vendor/flatpickr/flatpickr.min.js?v=20260710"></script>
     <script src="app-infra.js?v=20260617-dynamicdata"></script>
     <script src="app-core.js?v=20260617-dynamicdata"></script>
     <script src="app-render.js?v=20260617-dynamicdata"></script>

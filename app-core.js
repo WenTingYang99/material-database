@@ -1,13 +1,13 @@
 const STORAGE_KEY = "dp-material-library-state-v2";
 
 const defaultGroups = [
-  { id: "all", name: "全部素材", count: 0, depth: 0, system: true, status: "active" },
-  { id: "smart", name: "杨文婷的智能内容素材", count: 0, depth: 0, status: "active" },
-  { id: "redbook", name: "小红书平台素材", count: 3, depth: 0, status: "active" },
-  { id: "shanghai", name: "上海车展活动素材", count: 1, depth: 0, status: "active" },
-  { id: "test", name: "凡尔赛素材-测试", count: 2, depth: 0, active: true, status: "active" },
-  { id: "versailles", name: "凡尔赛 618车展", count: 2, depth: 1, parentId: "test", status: "active" },
-  { id: "aaa", name: "AAA", count: 0, depth: 0, status: "active" },
+  { id: "all", name: "全部素材", count: 0, depth: 0, system: true, status: "active", createdBy: "system", createdAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "", updatedAt: "2026-01-01T00:00:00" },
+  { id: "smart", name: "杨文婷的智能内容素材", count: 0, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-03-01T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-03-01T09:00:00" },
+  { id: "redbook", name: "小红书平台素材", count: 3, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-05-01T10:00:00" },
+  { id: "shanghai", name: "上海车展活动素材", count: 1, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-06-01T14:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-01T14:00:00" },
+  { id: "test", name: "凡尔赛素材-测试", count: 2, depth: 0, active: true, status: "active", createdBy: "kerry", createdAt: "2026-05-20T16:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-20T16:00:00" },
+  { id: "versailles", name: "凡尔赛 618车展", count: 2, depth: 1, parentId: "test", status: "active", createdBy: "kerry", createdAt: "2026-05-22T17:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-22T17:00:00" },
+  { id: "aaa", name: "AAA", count: 0, depth: 0, status: "active", createdBy: "kerry", createdAt: "2026-05-25T09:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-25T09:00:00" },
 ];
 
 const seedNames = [
@@ -29,7 +29,79 @@ const SEED_VALUE_LIST_TREE = [
   { id: "vl_root", code: "root", name: "值列表", type: "root", parentId: null, refId: null, description: "值列表管理根节点", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
   { id: "vl_dim_matlib", code: "material_lib", name: "素材库筛选", type: "dimension", parentId: "vl_root", refId: null, description: "素材库筛选条件集合", attr1: "", attr2: "", status: "enabled", sortOrder: 0 },
   { id: "vl_dim_matmanage", code: "material_manage", name: "素材管理", type: "dimension", parentId: "vl_root", refId: null, description: "素材管理相关维度", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
-  { id: "vl_dim_manage_status", code: "manage_status", name: "素材状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材状态枚举值", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_dim_manage_status", code: "manage_status", name: "审核状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材审核流程状态", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_dim_subject_type", code: "permission_subject_type", name: "授权主体类型", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "ACL授权主体类型", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_st1", code: "user", name: "人员", type: "value", parentId: "vl_dim_subject_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_st2", code: "department", name: "部门", type: "value", parentId: "vl_dim_subject_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_st3", code: "company", name: "公司", type: "value", parentId: "vl_dim_subject_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_group_perm", code: "group_permission_level", name: "素材组权限等级", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材组权限等级（高包含低）", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_gp1", code: "view", name: "可见", type: "value", parentId: "vl_dim_group_perm", refId: null, description: "仅查看素材组", attr1: "1", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_gp2", code: "download", name: "下载", type: "value", parentId: "vl_dim_group_perm", refId: null, description: "查看+下载", attr1: "2", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_gp3", code: "contribute", name: "素材维护", type: "value", parentId: "vl_dim_group_perm", refId: null, description: "查看+下载+上传/编辑", attr1: "3", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_gp4", code: "manage", name: "组管理", type: "value", parentId: "vl_dim_group_perm", refId: null, description: "完整管理权限", attr1: "4", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_dim_asset_perm", code: "asset_permission_level", name: "素材权限等级", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材权限等级（正交平行）", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ap1", code: "view", name: "仅预览", type: "value", parentId: "vl_dim_asset_perm", refId: null, description: "看缩略图、基本信息、进详情页", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ap2", code: "edit", name: "可编辑", type: "value", parentId: "vl_dim_asset_perm", refId: null, description: "预览+修改元数据/标签/描述", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ap3", code: "download", name: "可下载", type: "value", parentId: "vl_dim_asset_perm", refId: null, description: "预览+下载原始文件（不含编辑）", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ap4", code: "full", name: "全部权限", type: "value", parentId: "vl_dim_asset_perm", refId: null, description: "预览+编辑+下载（全套使用权限）", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_dim_share_scope", code: "share_access_scope", name: "分享访问范围", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "分享链接访问范围", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ss1", code: "internal", name: "仅公司内部", type: "value", parentId: "vl_dim_share_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ss2", code: "public", name: "公开互联网", type: "value", parentId: "vl_dim_share_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_share_perm", code: "share_content_permission", name: "分享内容权限", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "分享链接内容权限", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_sp1", code: "view", name: "仅预览", type: "value", parentId: "vl_dim_share_perm", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_sp2", code: "download", name: "可下载", type: "value", parentId: "vl_dim_share_perm", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_request_status", code: "permission_request_status", name: "权限申请状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "权限申请状态", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_rs1", code: "pending", name: "待审批", type: "value", parentId: "vl_dim_request_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_rs2", code: "approved", name: "已通过", type: "value", parentId: "vl_dim_request_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_rs3", code: "rejected", name: "已拒绝", type: "value", parentId: "vl_dim_request_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_operation_type", code: "operation_action_type", name: "操作类型", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "操作日志动作类型", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ot1", code: "asset.upload", name: "素材上传", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ot2", code: "asset.edit", name: "素材编辑", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ot3", code: "asset.delete", name: "素材删除", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_ot4", code: "asset.restore", name: "素材恢复", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_ot5", code: "asset.move", name: "素材移动", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_ot6", code: "asset.download", name: "素材下载", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ot7", code: "asset.tag", name: "素材打标签", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_ot8", code: "group.acl.add", name: "组权限添加", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_ot9", code: "group.acl.remove", name: "组权限移除", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_ot10", code: "group.acl.update", name: "组权限更新", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_ot11", code: "group.owner.transfer", name: "组所有权转移", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_ot12", code: "asset.acl.add", name: "素材权限添加", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 12 },
+  { id: "vl_ot13", code: "asset.acl.remove", name: "素材权限移除", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 13 },
+  { id: "vl_ot14", code: "share.create", name: "分享创建", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 14 },
+  { id: "vl_ot15", code: "share.revoke", name: "分享撤销", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 15 },
+  { id: "vl_ot16", code: "share.update", name: "分享更新", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 16 },
+  { id: "vl_ot17", code: "collect.create", name: "收集任务创建", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 17 },
+  { id: "vl_ot18", code: "collect.close", name: "收集任务关闭", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 18 },
+  { id: "vl_ot19", code: "request.submit", name: "权限申请提交", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 19 },
+  { id: "vl_ot20", code: "request.approve", name: "权限申请通过", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 20 },
+  { id: "vl_ot21", code: "request.reject", name: "权限申请拒绝", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 21 },
+  { id: "vl_ot22", code: "tag.create", name: "标签创建", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 22 },
+  { id: "vl_ot23", code: "tag.edit", name: "标签编辑", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 23 },
+  { id: "vl_ot24", code: "tag.delete", name: "标签删除", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 24 },
+  { id: "vl_ot25", code: "group.create", name: "组创建", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 25 },
+  { id: "vl_ot26", code: "group.rename", name: "组重命名", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 26 },
+  { id: "vl_ot27", code: "group.move", name: "组移动", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 27 },
+  { id: "vl_ot28", code: "group.delete", name: "组删除", type: "value", parentId: "vl_dim_operation_type", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 28 },
+  { id: "vl_dim_audit_status", code: "audit_status", name: "审核状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材审核流程状态", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_au1", code: "pending_submit", name: "待提交", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "素材刚刚上传还没有进入素材库", attr1: "1", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_au2", code: "pending_audit", name: "待审核", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "内容已提交，等待机审", attr1: "2", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_au3", code: "machine_auditing", name: "机审中", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "内容正在进行机审", attr1: "3", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_au4", code: "machine_pass", name: "机审通过", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "机审结果为通过，可进入待人审状态", attr1: "4", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_au5", code: "machine_reject", name: "机审拒绝", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "机审结果为拒绝，内容被拦截", attr1: "5", attr2: "", status: "enabled", sortOrder: 5 },
+  { id: "vl_au6", code: "pending_human", name: "待人审", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "机审通过，等待人工审核", attr1: "6", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_au7", code: "human_auditing", name: "人审中", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "内容正在进行人工审核", attr1: "7", attr2: "", status: "enabled", sortOrder: 7 },
+  { id: "vl_au8", code: "human_pass", name: "人审通过", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "人审结果为通过，素材可以正常使用", attr1: "8", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_au9", code: "human_reject", name: "人审拒绝", type: "value", parentId: "vl_dim_audit_status", refId: null, description: "人审结果为拒绝，内容被拒绝", attr1: "9", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_dim_asset_status_flag", code: "asset_status", name: "素材状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材软删除标记", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
+  { id: "vl_asf1", code: "active", name: "正常", type: "value", parentId: "vl_dim_asset_status_flag", refId: null, description: "素材正常可用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_asf2", code: "deleted", name: "已删除", type: "value", parentId: "vl_dim_asset_status_flag", refId: null, description: "素材已移入回收站", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_asf3", code: "disabled", name: "已禁用", type: "value", parentId: "vl_dim_asset_status_flag", refId: null, description: "素材已彻底删除，数据库保留但不可见", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_asf4", code: "pending", name: "待审核", type: "value", parentId: "vl_dim_asset_status_flag", refId: null, description: "素材待审核", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
+  { id: "vl_dim_asset_validity", code: "asset_validity", name: "素材有效期状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材有效期状态：待生效/有效/已失效", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_av1", code: "pending", name: "待生效", type: "value", parentId: "vl_dim_asset_validity", refId: null, description: "素材尚未到达生效时间", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_av2", code: "valid", name: "有效", type: "value", parentId: "vl_dim_asset_validity", refId: null, description: "素材在有效期内", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_av3", code: "expired", name: "已失效", type: "value", parentId: "vl_dim_asset_validity", refId: null, description: "素材已超过有效期", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
   { id: "vl_ms1", code: "ms_pending", name: "待提交", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "素材刚刚上传还没有进入素材库", attr1: "1", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_ms2", code: "ms_pending_audit", name: "待审核", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容已提交，等待机审", attr1: "2", attr2: "", status: "enabled", sortOrder: 2 },
   { id: "vl_ms3", code: "ms_machine_auditing", name: "机审中", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容正在进行机审", attr1: "3", attr2: "", status: "enabled", sortOrder: 3 },
@@ -40,6 +112,27 @@ const SEED_VALUE_LIST_TREE = [
   { id: "vl_ms8", code: "ms_human_pass", name: "人审通过", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "人审结果为通过，可进入待发布状态", attr1: "8", attr2: "", status: "enabled", sortOrder: 8 },
   { id: "vl_ms9", code: "ms_human_reject", name: "人审拒绝", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "人审结果为拒绝，内容被驳回", attr1: "9", attr2: "", status: "enabled", sortOrder: 9 },
   { id: "vl_ms10", code: "ms_not_in_library", name: "未入库", type: "value", parentId: "vl_dim_manage_status", refId: null, description: "内容生成环节的内容，用户还未选择让其进入素材库", attr1: "10", attr2: "", status: "enabled", sortOrder: 10 },
+  { id: "vl_dim_share_status", code: "share_status", name: "分享状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "分享链接状态", attr1: "", attr2: "", status: "enabled", sortOrder: 11 },
+  { id: "vl_ss1", code: "active", name: "生效中", type: "value", parentId: "vl_dim_share_status", refId: null, description: "分享链接正常可用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_ss2", code: "revoked", name: "已撤销", type: "value", parentId: "vl_dim_share_status", refId: null, description: "分享链接已被主动撤销", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_ss3", code: "expired", name: "已过期", type: "value", parentId: "vl_dim_share_status", refId: null, description: "分享链接已过期", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_collect_task_status", code: "collect_task_status", name: "收集任务状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "收集任务状态", attr1: "", attr2: "", status: "enabled", sortOrder: 12 },
+  { id: "vl_cts1", code: "active", name: "生效中", type: "value", parentId: "vl_dim_collect_task_status", refId: null, description: "收集任务正常进行中", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_cts2", code: "completed", name: "已完成", type: "value", parentId: "vl_dim_collect_task_status", refId: null, description: "收集任务已完成（所有素材审核通过）", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_cts3", code: "expired", name: "已失效", type: "value", parentId: "vl_dim_collect_task_status", refId: null, description: "收集任务已失效（过期或手动失效）", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_group_status", code: "group_status", name: "素材组状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "素材组软删除状态", attr1: "", attr2: "", status: "enabled", sortOrder: 13 },
+  { id: "vl_gs1", code: "active", name: "正常", type: "value", parentId: "vl_dim_group_status", refId: null, description: "素材组正常可用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_gs2", code: "deleted", name: "已删除", type: "value", parentId: "vl_dim_group_status", refId: null, description: "素材组已移入回收站", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_gs3", code: "disabled", name: "已禁用", type: "value", parentId: "vl_dim_group_status", refId: null, description: "素材组已彻底删除", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_user_status", code: "user_status", name: "用户状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "用户账号状态", attr1: "", attr2: "", status: "enabled", sortOrder: 14 },
+  { id: "vl_us1", code: "enabled", name: "启用", type: "value", parentId: "vl_dim_user_status", refId: null, description: "用户账号正常启用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_us2", code: "disabled", name: "停用", type: "value", parentId: "vl_dim_user_status", refId: null, description: "用户账号已停用", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_role_status", code: "role_status", name: "角色状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "角色状态", attr1: "", attr2: "", status: "enabled", sortOrder: 15 },
+  { id: "vl_rs1", code: "enabled", name: "启用", type: "value", parentId: "vl_dim_role_status", refId: null, description: "角色正常启用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_rs2", code: "disabled", name: "停用", type: "value", parentId: "vl_dim_role_status", refId: null, description: "角色已停用", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_dim_org_status", code: "org_status", name: "组织状态", type: "dimension", parentId: "vl_dim_matmanage", refId: null, description: "组织部门状态", attr1: "", attr2: "", status: "enabled", sortOrder: 16 },
+  { id: "vl_os1", code: "enabled", name: "启用", type: "value", parentId: "vl_dim_org_status", refId: null, description: "组织正常启用", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_os2", code: "disabled", name: "停用", type: "value", parentId: "vl_dim_org_status", refId: null, description: "组织已停用", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
   { id: "vl_dim_brand", code: "brand", name: "品牌", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "车辆品牌列表", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_b1", code: "peugeot", name: "东风标致", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_b2", code: "citroen", name: "东风雪铁龙", type: "value", parentId: "vl_dim_brand", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
@@ -157,10 +250,10 @@ const SEED_VALUE_LIST_TREE = [
   { id: "vl_dim_permission_scope", code: "permission_scope", name: "权限范围", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材权限范围", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
   { id: "vl_ps1", code: "downloadable", name: "可下载", type: "value", parentId: "vl_dim_permission_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_ps2", code: "shareable", name: "可分享", type: "value", parentId: "vl_dim_permission_scope", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
-  { id: "vl_dim_asset_status", code: "asset_status", name: "素材状态", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材状态筛选", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
-  { id: "vl_as1", code: "valid", name: "有效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
-  { id: "vl_as2", code: "expired", name: "已失效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
-  { id: "vl_as3", code: "pending", name: "待生效", type: "value", parentId: "vl_dim_asset_status", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
+  { id: "vl_dim_asset_validity_filter", code: "asset_validity_filter", name: "素材有效期筛选", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "素材有效期状态筛选", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
+  { id: "vl_avf1", code: "valid", name: "有效", type: "value", parentId: "vl_dim_asset_validity_filter", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 1 },
+  { id: "vl_avf2", code: "expired", name: "已失效", type: "value", parentId: "vl_dim_asset_validity_filter", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 2 },
+  { id: "vl_avf3", code: "pending", name: "待生效", type: "value", parentId: "vl_dim_asset_validity_filter", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 3 },
   { id: "vl_dim_aspect_ratio", code: "aspect_ratio", name: "宽高比", type: "dimension", parentId: "vl_dim_matlib", refId: null, description: "图片/视频宽高比", attr1: "", attr2: "", status: "enabled", sortOrder: 10 },
   { id: "vl_ar1", code: "1:1", name: "1:1", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "1.0", attr2: "", status: "enabled", sortOrder: 1 },
   { id: "vl_ar2", code: "3:4", name: "3:4", type: "value", parentId: "vl_dim_aspect_ratio", refId: null, description: "", attr1: "0.75", attr2: "", status: "enabled", sortOrder: 2 },
@@ -183,8 +276,11 @@ function getTreeChildren(parentId = null) {
 function getTreeNodeById(id) {
   return (db.valueListTree || []).find(n => n.id === id);
 }
-function getTreeNodeByCode(code) {
-  return (db.valueListTree || []).find(n => n.code === code);
+function getTreeNodeByCode(code, parentDimCode) {
+  if (!parentDimCode) return (db.valueListTree || []).find(n => n.code === code);
+  const parentDim = getTreeNodeByCode(parentDimCode);
+  if (!parentDim) return (db.valueListTree || []).find(n => n.code === code);
+  return (db.valueListTree || []).find(n => n.code === code && n.parentId === parentDim.id);
 }
 function getDimensionNodes(parentDimId) {
   const parentId = parentDimId || getTreeNodeByCode("material_lib")?.id;
@@ -214,6 +310,118 @@ function getAllLeafValues(dimCode) {
   };
   collect(dim.id);
   return result;
+}
+
+function getAssetStatusConfig() {
+  const statusValues = getAllLeafValues("asset_status");
+  return {
+    active: statusValues.find(v => v.code === "active")?.code || "active",
+    deleted: statusValues.find(v => v.code === "deleted")?.code || "deleted",
+    disabled: statusValues.find(v => v.code === "disabled")?.code || "disabled",
+    pending: statusValues.find(v => v.code === "pending")?.code || "pending",
+    deletedCodes: statusValues.filter(v => v.code === "deleted" || v.code === "disabled").map(v => v.code),
+    activeCodes: statusValues.filter(v => v.code === "active").map(v => v.code),
+    pendingCodes: statusValues.filter(v => v.code === "pending").map(v => v.code),
+  };
+}
+
+function getAuditStatusConfig() {
+  const auditValues = getAllLeafValues("audit_status");
+  return {
+    pendingSubmit: auditValues.find(v => v.code === "pending_submit")?.code || "pending_submit",
+    pendingAudit: auditValues.find(v => v.code === "pending_audit")?.code || "pending_audit",
+    machineAuditing: auditValues.find(v => v.code === "machine_auditing")?.code || "machine_auditing",
+    machinePass: auditValues.find(v => v.code === "machine_pass")?.code || "machine_pass",
+    machineReject: auditValues.find(v => v.code === "machine_reject")?.code || "machine_reject",
+    pendingHuman: auditValues.find(v => v.code === "pending_human")?.code || "pending_human",
+    humanAuditing: auditValues.find(v => v.code === "human_auditing")?.code || "human_auditing",
+    humanPass: auditValues.find(v => v.code === "human_pass")?.code || "human_pass",
+    humanReject: auditValues.find(v => v.code === "human_reject")?.code || "human_reject",
+    allCodes: auditValues.map(v => v.code),
+    pendingCodes: ["pending_submit", "pending_audit", "pending_human"],
+    auditingCodes: ["machine_auditing", "human_auditing"],
+    passCodes: ["machine_pass", "human_pass"],
+    rejectCodes: ["machine_reject", "human_reject"],
+    finalPassCode: "human_pass",
+    getCodeByNumber: (num) => auditValues.find(v => v.attr1 === String(num))?.code || "",
+    getNumberByCode: (code) => auditValues.find(v => v.code === code)?.attr1 || "",
+  };
+}
+
+function getValidityStatusConfig() {
+  const validityValues = getAllLeafValues("asset_validity");
+  return {
+    valid: validityValues.find(v => v.code === "valid")?.code || "valid",
+    expired: validityValues.find(v => v.code === "expired")?.code || "expired",
+    pending: validityValues.find(v => v.code === "pending")?.code || "pending",
+    codes: validityValues.map(v => v.code),
+    names: validityValues.map(v => v.name),
+  };
+}
+function getShareStatusConfig() {
+  const shareValues = getAllLeafValues("share_status");
+  return {
+    active: shareValues.find(v => v.code === "active")?.code || "active",
+    revoked: shareValues.find(v => v.code === "revoked")?.code || "revoked",
+    expired: shareValues.find(v => v.code === "expired")?.code || "expired",
+    activeCodes: ["active"],
+    inactiveCodes: ["revoked", "expired"],
+  };
+}
+function getCollectTaskStatusConfig() {
+  const taskValues = getAllLeafValues("collect_task_status");
+  return {
+    active: taskValues.find(v => v.code === "active")?.code || "active",
+    completed: taskValues.find(v => v.code === "completed")?.code || "completed",
+    expired: taskValues.find(v => v.code === "expired")?.code || "expired",
+    activeCodes: ["active"],
+    inactiveCodes: ["completed", "expired"],
+  };
+}
+function getPermissionRequestStatusConfig() {
+  const requestValues = getAllLeafValues("permission_request_status");
+  return {
+    pending: requestValues.find(v => v.code === "pending")?.code || "pending",
+    approved: requestValues.find(v => v.code === "approved")?.code || "approved",
+    rejected: requestValues.find(v => v.code === "rejected")?.code || "rejected",
+  };
+}
+function getGroupStatusConfig() {
+  const groupValues = getAllLeafValues("group_status");
+  return {
+    active: groupValues.find(v => v.code === "active")?.code || "active",
+    deleted: groupValues.find(v => v.code === "deleted")?.code || "deleted",
+    disabled: groupValues.find(v => v.code === "disabled")?.code || "disabled",
+    deletedCodes: ["deleted", "disabled"],
+    activeCodes: ["active"],
+  };
+}
+function getUserStatusConfig() {
+  const userValues = getAllLeafValues("user_status");
+  return {
+    enabled: userValues.find(v => v.code === "enabled")?.code || "enabled",
+    disabled: userValues.find(v => v.code === "disabled")?.code || "disabled",
+    enabledCodes: ["enabled"],
+    disabledCodes: ["disabled"],
+  };
+}
+function getRoleStatusConfig() {
+  const roleValues = getAllLeafValues("role_status");
+  return {
+    enabled: roleValues.find(v => v.code === "enabled")?.code || "enabled",
+    disabled: roleValues.find(v => v.code === "disabled")?.code || "disabled",
+    enabledCodes: ["enabled"],
+    disabledCodes: ["disabled"],
+  };
+}
+function getOrgStatusConfig() {
+  const orgValues = getAllLeafValues("org_status");
+  return {
+    enabled: orgValues.find(v => v.code === "enabled")?.code || "enabled",
+    disabled: orgValues.find(v => v.code === "disabled")?.code || "disabled",
+    enabledCodes: ["enabled"],
+    disabledCodes: ["disabled"],
+  };
 }
 function getAllUploadAccept() {
   const leaves = getAllLeafValues("file_format");
@@ -269,7 +477,7 @@ function getExpireDate(daysFromNow) {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-  return `${year}/${month}/${day} 23:59`;
+  return `${year}-${month}-${day}T23:59:00`;
 }
 
 const seedAssets = seedNames.map((name, index) => {
@@ -294,80 +502,77 @@ const seedAssets = seedNames.map((name, index) => {
     customTags: [["试驾活动"], ["车展物料","618促销"], ["产品宣传","自媒体推广"], ["经销商素材"], ["KOL合作"], ["车展物料"], ["618促销","自媒体推广"], ["产品宣传"], ["KOL合作","试驾活动"], ["经销商素材","售后服务"], ["国庆活动"], ["车展物料","618促销"]][index] || [],
     aiTags: [["汽车","户外场景","城市街道","品牌Logo"], ["产品特写","外观展示","汽车"], ["汽车","高清锐利","外观展示"], ["户外场景","自然风光","汽车"], ["汽车","内饰展示","胶片颗粒感"], ["人物","活动","汽车"], ["汽车","赛道","高清锐利"], ["户外场景","城市街道","横版"], ["产品特写","灯光细节","竖版"], ["汽车","外观展示","柔光朦胧"], ["人物","品牌Logo","活动"], ["汽车","内饰展示","产品特写"]][index] || [],
     groupId: index < 2 ? "test" : index < 5 ? "redbook" : "all",
-    owner: "Kerry",
-    department: "采购",
-    creator: "Kerry",
-    lastUpdate: "Kerry",
+    owner: "kerry",
+    department: "org-market",
+    creator: "kerry",
+    lastUpdate: "kerry",
     asset_source: "internal",
     collect_id: "collect-seed",
     collect_link: "",
     permission: "企业内部 - 可下载",
     validUntil: expireDate,
     validUntilDate: expireDate,
-    validStart: "2026/05/26 00:00",
-    status: 8,
+    validStart: "2026-05-26T00:00:00",
+    status: "active",
     share: index % 2,
     download: index % 3,
     view: [0, 3, 3, 2, 0, 24, 9, 11, 8, 6, 5, 5][index],
-    createdAt: "2026/05/26 17:38",
-    updatedAt: "2026/05/26 17:38",
+    createdAt: "2026-05-26T17:38:00",
+    updatedAt: "2026-05-26T17:38:00",
+    createdBy: "kerry",
+    ownedBy: "kerry",
+    ownedByDept: "org-market",
     version: `2026052${index < 5 ? 5 : 6}16${String(1783847578 + index * 913951).slice(0, 8)}`,
     logs: [
-      "Kerry 上传了素材",
-      "Kerry 将此素材操作入库",
-      "Kerry 下载了素材",
+      { operator: "kerry", operatorDept: "org-market", action: "asset.upload", actionName: "上传素材", detail: `上传了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
+      { operator: "kerry", operatorDept: "org-market", action: "asset.edit", actionName: "编辑素材", detail: "操作入库", createdAt: "2026-05-26T17:38:00" },
+      { operator: "kerry", operatorDept: "org-market", action: "asset.download", actionName: "下载素材", detail: `下载了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
     ],
   });
 });
 
-seedAssets.push(
-  { id: "test-pending-1", name: "待审核测试图片1", src: "assets/asset-01.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 485919, width: 3000, height: 2000, desc: "待审核测试素材", brand: "东风标致", series: "4008", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 2, uploadDate: "2026/05/26 10:00", share: 0, download: 0, view: 0, createdAt: "2026/05/26 10:00", updatedAt: "2026/05/26 10:00", version: "1", logs: ["Kerry 上传了素材"] },
-  { id: "test-pending-2", name: "待审核测试图片2", src: "assets/asset-02.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 160420, width: 3000, height: 2000, desc: "待审核测试素材", brand: "东风雪铁龙", series: "天逸 (C5)AIRCROSS", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 2, uploadDate: "2026/05/26 10:05", share: 0, download: 0, view: 0, createdAt: "2026/05/26 10:05", updatedAt: "2026/05/26 10:05", version: "1", logs: ["Kerry 上传了素材"] },
-  { id: "test-machine-pass-1", name: "机审通过测试图片", src: "assets/asset-03.jpg", format: "JPEG", mime: "image/jpeg", type: "图片", sizeBytes: 101468, width: 3000, height: 2000, desc: "机审通过测试素材", brand: "东风标致", series: "4008", model: "", interiorColors: [], exteriorColors: [], customTags: [], aiTags: [], groupId: "test", owner: "Kerry", department: "采购", creator: "Kerry", lastUpdate: "Kerry", asset_source: "internal", collect_id: "collect-seed", collect_link: "", permission: "企业内部 - 可下载", validUntil: "2027/05/26", validUntilDate: "2027/05/26", validStart: "2026/05/26 00:00", status: 4, uploadDate: "2026/05/26 11:00", share: 0, download: 0, view: 0, createdAt: "2026/05/26 11:00", updatedAt: "2026/05/26 11:00", version: "1", logs: ["Kerry 上传了素材", "机审通过 - 2026/05/26 11:00"] }
-);
-
 const seedTags = [
   // ===== 业务标签 (tagType=1, 支持多层级) =====
 
-  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "杨文婷", createdAt: "2026/01/01 09:00:00", updatedAt: "2026/05/01 10:00:00" },
-  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "杨文婷", createdAt: "2026/02/20 10:15:00", updatedAt: "2026/05/18 16:30:00" },
-  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "Kerry", createdAt: "2026/04/01 08:00:00", updatedAt: "2026/05/22 11:00:00" },
-  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "杨文婷", createdAt: "2026/01/10 14:00:00", updatedAt: "2026/04/15 09:00:00" },
-  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "Kerry", createdAt: "2026/05/01 10:00:00", updatedAt: "2026/06/01 08:00:00" },
-  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "杨文婷", createdAt: "2026/04/20 09:00:00", updatedAt: "2026/05/10 14:00:00" },
-  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "Kerry", createdAt: "2026/03/01 11:00:00", updatedAt: "2026/05/25 16:00:00" },
-  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "杨文婷", createdAt: "2026/02/15 10:00:00", updatedAt: "2026/04/30 09:00:00" },
-  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "Kerry", createdAt: "2026/04/10 15:00:00", updatedAt: "2026/05/15 10:00:00" },
-  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "杨文婷", createdAt: "2026/01/20 09:00:00", updatedAt: "2026/03/10 11:00:00" },
+  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "yangwt", createdAt: "2026-01-01T09:00:00", updatedAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "yangwt", createdAt: "2026-02-20T10:15:00", updatedAt: "2026-05-18T16:30:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "kerry", createdAt: "2026-04-01T08:00:00", updatedAt: "2026-05-22T11:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "yangwt", createdAt: "2026-01-10T14:00:00", updatedAt: "2026-04-15T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "kerry", createdAt: "2026-05-01T10:00:00", updatedAt: "2026-06-01T08:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "yangwt", createdAt: "2026-04-20T09:00:00", updatedAt: "2026-05-10T14:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "kerry", createdAt: "2026-03-01T11:00:00", updatedAt: "2026-05-25T16:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "yangwt", createdAt: "2026-02-15T10:00:00", updatedAt: "2026-04-30T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "kerry", createdAt: "2026-04-10T15:00:00", updatedAt: "2026-05-15T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "yangwt", createdAt: "2026-01-20T09:00:00", updatedAt: "2026-03-10T11:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
 
   // ===== AI标签 (tagType=2, 支持父级层级) =====
   // -- 顶层 AI 父标签 --
-  { id: "tag-ai-001", tagName: "汽车", tagCode: "auto_car", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "汽车品类顶级标签，AI自动识别", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
-  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "Kerry", createdAt: "2026/03/10 14:00:00", updatedAt: "2026/04/01 10:00:00" },
-  { id: "tag-ai-003", tagName: "户外场景", tagCode: "outdoor", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "户外场景识别分类", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 <PASSWORD>:<PASSWORD>" },
-  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "Kerry", createdAt: "2026/04/05 <PASSWORD>:<PASSWORD>", updatedAt: "2<PASSWORD>-<PASSWORD> <PASSWORD>:<PASSWORD>" },
+  { id: "tag-ai-001", tagName: "汽车", tagCode: "auto_car", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "汽车品类顶级标签，AI自动识别", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "kerry", createdAt: "2026-03-10T14:00:00", updatedAt: "2026-04-01T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-003", tagName: "户外场景", tagCode: "outdoor", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "户外场景识别分类", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "kerry", createdAt: "2026-04-05T10:00:00", updatedAt: "2026-04-05T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
 
   // -- 画面质感 子标签 --
-  { id: "tag-ai-011", tagName: "胶片颗粒感", tagCode: "film_grain", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "具有胶片颗粒质感的画面风格", createdBy: "系统", createdAt: "2026/03/15 08:00:00", updatedAt: "2026/03/15 08:00:00" },
-  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "Kerry", createdAt: "2026/04/01 15:00:00", updatedAt: "2026/04/01 15:00:00" },
-  { id: "tag-ai-013", tagName: "柔光朦胧", tagCode: "soft_dreamy", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "柔光、朦胧或雾化效果的画面", createdBy: "系统", createdAt: "2026/04/20 10:00:00", updatedAt: "2026/04/20 10:00:00" },
+  { id: "tag-ai-011", tagName: "胶片颗粒感", tagCode: "film_grain", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "具有胶片颗粒质感的画面风格", createdBy: "system", createdAt: "2026-03-15T08:00:00", updatedAt: "2026-03-15T08:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "kerry", createdAt: "2026-04-01T15:00:00", updatedAt: "2026-04-01T15:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-013", tagName: "柔光朦胧", tagCode: "soft_dreamy", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "柔光、朦胧或雾化效果的画面", createdBy: "system", createdAt: "2026-04-20T10:00:00", updatedAt: "2026-04-20T10:00:00", ownedBy: "system", ownedByDept: "" },
 
   // -- 户外场景 子标签 --
-  { id: "tag-ai-021", tagName: "城市街道", tagCode: "city_street", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "城市道路、街景背景", createdBy: "系统", createdAt: "2026/02/01 12:00:00", updatedAt: "2026/02/01 12:00:00" },
-  { id: "tag-ai-022", tagName: "自然风光", tagCode: "nature", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "山川、湖泊、森林等自然景观", createdBy: "系统", createdAt: "2026/02/01 12:00:00", updatedAt: "2026/02/01 12:00:00" },
-  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "Kerry", createdAt: "2026/05/10 08:00:00", updatedAt: "2026/05/10 08:00:00" },
+  { id: "tag-ai-021", tagName: "城市街道", tagCode: "city_street", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "城市道路、街景背景", createdBy: "system", createdAt: "2026-02-01T12:00:00", updatedAt: "2026-02-01T12:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-022", tagName: "自然风光", tagCode: "nature", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "山川、湖泊、森林等自然景观", createdBy: "system", createdAt: "2026-02-01T12:00:00", updatedAt: "2026-02-01T12:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "kerry", createdAt: "2026-05-10T08:00:00", updatedAt: "2026-05-10T08:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
 
   // -- 产品特写 子标签 --
-  { id: "tag-ai-031", tagName: "内饰展示", tagCode: "interior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "车内饰细节展示", createdBy: "系统", createdAt: "2026/03/01 08:00:00", updatedAt: "2026/03/01 08:00:00" },
-  { id: "tag-ai-032", tagName: "外观展示", tagCode: "exterior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "车外观整体及局部展示", createdBy: "系统", createdAt: "2026/03/01 08:00:00", updatedAt: "2026/03/01 08:00:00" },
-  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "Kerry", createdAt: "2026/05/12 10:00:00", updatedAt: "2026/05/12 10:00:00" },
+  { id: "tag-ai-031", tagName: "内饰展示", tagCode: "interior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "车内饰细节展示", createdBy: "system", createdAt: "2026-03-01T08:00:00", updatedAt: "2026-03-01T08:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-032", tagName: "外观展示", tagCode: "exterior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "车外观整体及局部展示", createdBy: "system", createdAt: "2026-03-01T08:00:00", updatedAt: "2026-03-01T08:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "kerry", createdAt: "2026-05-12T10:00:00", updatedAt: "2026-05-12T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
 
   // -- 其他 AI 标签（无子标签的独立标签） --
-  { id: "tag-ai-040", tagName: "人物", tagCode: "people", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "画面中包含人物", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
-  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "Kerry", createdAt: "2026/04/08 09:00:00", updatedAt: "2026/04/08 09:00:00" },
-  { id: "tag-ai-042", tagName: "活动", tagCode: "event", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "活动现场拍摄的素材", createdBy: "系统", createdAt: "2026/02/01 00:00:00", updatedAt: "2026/02/01 00:00:00" },
-  { id: "tag-ai-043", tagName: "横版", tagCode: "landscape", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "横版画幅素材", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
-  { id: "tag-ai-044", tagName: "竖版", tagCode: "portrait", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "竖版画幅素材", createdBy: "系统", createdAt: "2026/01/01 00:00:00", updatedAt: "2026/01/01 00:00:00" },
+  { id: "tag-ai-040", tagName: "人物", tagCode: "people", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "画面中包含人物", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "kerry", createdAt: "2026-04-08T09:00:00", updatedAt: "2026-04-08T09:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-042", tagName: "活动", tagCode: "event", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "活动现场拍摄的素材", createdBy: "system", createdAt: "2026-02-01T00:00:00", updatedAt: "2026-02-01T00:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-043", tagName: "横版", tagCode: "landscape", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "横版画幅素材", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
+  { id: "tag-ai-044", tagName: "竖版", tagCode: "portrait", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "竖版画幅素材", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
 ];
 
 const filterLabels = ["素材来源", "文件格式", "品牌", "车系", "车型", "内饰色", "外饰色", "权限范围", "业务标签", "AI标签", "素材状态", "上传时间", "素材失效日"];
@@ -420,13 +625,280 @@ const state = {
 };
 
 let currentUser = getStoredCurrentUser() || getAnonymousUser();
+const SUPER_ADMIN_ROLE_ID = "super_admin"; // 固定常量
 
 function isAdmin() {
-  return getUserRoleIds(currentUser).includes("admin") || currentUser.role === "admin";
+  return getUserRoleIds(currentUser).includes(SUPER_ADMIN_ROLE_ID);
 }
 
 function canManageAsset(asset) {
-  return isAdmin() || asset?.owner === currentUser.name;
+  return isAdmin() || asset?.ownedBy === currentUser.username;
+}
+
+function isPendingAsset(asset) {
+  if (!asset) return false;
+  const statusConfig = getAssetStatusConfig();
+  const auditConfig = getAuditStatusConfig();
+  const assetStatus = asset.assetStatus || asset.status;
+  const auditStatus = asset.auditStatus;
+  if (statusConfig.activeCodes.includes(assetStatus)) return false;
+  if (statusConfig.pendingCodes.includes(assetStatus)) return true;
+  return auditStatus && !auditConfig.passCodes.includes(auditStatus);
+}
+
+function getOrgAncestorIds(orgId) {
+  const ids = [];
+  let currentId = orgId;
+  while (currentId) {
+    const org = (db.organizations || []).find((item) => item.id === currentId);
+    const parentId = org?.parentId || "";
+    if (!parentId) break;
+    ids.push(parentId);
+    currentId = parentId;
+  }
+  return ids;
+}
+
+function aclMatchesCurrentUser(acl) {
+  if (!acl || !isLoggedIn()) return false;
+  if (acl.subjectType === "user") return acl.subjectId === currentUser.id;
+  if (acl.subjectType === "company") return acl.subjectId === "all";
+  if (acl.subjectType === "department") {
+    if (acl.subjectId === currentUser.organizationId) return true;
+    return !!acl.includeSubDept && getOrgAncestorIds(currentUser.organizationId).includes(acl.subjectId);
+  }
+  return false;
+}
+
+let groupPermissionCache = null;
+
+function buildUserGroupPermissionCache() {
+  groupPermissionCache = new Map();
+  (db.groups || []).forEach((group) => {
+    const effectiveAcl = getGroupEffectiveAcl(group.id);
+    let maxWeight = 0;
+    effectiveAcl.forEach((acl) => {
+      if (aclMatchesCurrentUser(acl)) {
+        const weight = getPermissionWeight(acl.permission, "group_permission_level");
+        if (weight > maxWeight) maxWeight = weight;
+      }
+    });
+    groupPermissionCache.set(group.id, maxWeight);
+  });
+}
+
+function invalidateGroupPermissionCache() {
+  groupPermissionCache = null;
+}
+
+function getPermissionWeight(code, dimCode) {
+  const dimNode = getTreeNodeByCode(dimCode);
+  if (!dimNode) return 0;
+  const valueNode = db.valueListTree.find((n) => n.parentId === dimNode.id && n.code === code);
+  return parseInt(valueNode?.attr1 || "0", 10);
+}
+
+function hasGroupPermissionLevel(groupId, requiredPerm) {
+  if (!groupPermissionCache) buildUserGroupPermissionCache();
+  const maxWeight = groupPermissionCache.get(groupId) || 0;
+  const requiredWeight = getPermissionWeight(requiredPerm, "group_permission_level");
+  return maxWeight >= requiredWeight;
+}
+
+function getGroupEffectiveAcl(groupId) {
+  const aclList = [];
+  let currentId = groupId;
+  while (currentId) {
+    const groupAcls = (db.groupAcl || []).filter((acl) => acl.groupId === currentId);
+    aclList.push(...groupAcls);
+    const group = (db.groups || []).find((g) => g.id === currentId);
+    currentId = group?.parentId || null;
+  }
+  return aclList;
+}
+
+function getEffectiveGroupPermissionLevel(groupId) {
+  const aclList = getGroupEffectiveAcl(groupId);
+  let maxWeight = 0;
+  let effectivePerm = "";
+  aclList.forEach((acl) => {
+    if (aclMatchesCurrentUser(acl)) {
+      const weight = getPermissionWeight(acl.permission, "group_permission_level");
+      if (weight > maxWeight) {
+        maxWeight = weight;
+        effectivePerm = acl.permission;
+      }
+    }
+  });
+  return effectivePerm;
+}
+
+function canViewGroup(groupId) {
+  if (isAdmin()) return true;
+  return hasGroupPermissionLevel(groupId, "view");
+}
+
+function canDownloadFromGroup(groupId) {
+  if (isAdmin()) return true;
+  return hasGroupPermissionLevel(groupId, "download");
+}
+
+function canContributeToGroup(groupId) {
+  if (isAdmin()) return true;
+  return hasGroupPermissionLevel(groupId, "contribute");
+}
+
+function canManageGroup(groupId) {
+  if (isAdmin()) return true;
+  return hasGroupPermissionLevel(groupId, "manage");
+}
+
+const ASSET_PERMISSION_MAP = {
+  view: ["view"],
+  edit: ["view", "edit"],
+  download: ["view", "download"],
+  full: ["view", "edit", "download"],
+};
+
+function hasAssetAclPermission(assetId, targetPerm) {
+  const assetAcls = (db.assetAcl || []).filter((acl) => acl.assetId === assetId);
+  const now = new Date();
+  for (const acl of assetAcls) {
+    if (acl.expiresAt) {
+      const expireDate = toJsDate(acl.expiresAt);
+      if (now > expireDate) continue;
+    }
+    if (aclMatchesCurrentUser(acl)) {
+      const perms = ASSET_PERMISSION_MAP[acl.permission] || [];
+      if (perms.includes(targetPerm)) return true;
+    }
+  }
+  return false;
+}
+
+function getAssetEffectivePermissions(assetId) {
+  const assetAcls = (db.assetAcl || []).filter((acl) => acl.assetId === assetId);
+  const effective = new Set();
+  const now = new Date();
+  for (const acl of assetAcls) {
+    if (acl.expiresAt) {
+      const expireDate = toJsDate(acl.expiresAt);
+      if (now > expireDate) continue;
+    }
+    if (aclMatchesCurrentUser(acl)) {
+      const perms = ASSET_PERMISSION_MAP[acl.permission] || [];
+      perms.forEach((p) => effective.add(p));
+    }
+  }
+  return Array.from(effective);
+}
+
+function canViewAsset(asset) {
+  if (isAdmin()) return true;
+  if (asset?.ownedBy === currentUser.username) return true;
+  if (canViewGroup(asset?.groupId)) return true;
+  return hasAssetAclPermission(asset?.id, "view");
+}
+
+function canEditAsset(asset) {
+  if (isAdmin()) return true;
+  if (asset?.ownedBy === currentUser.username) return true;
+  if (canContributeToGroup(asset?.groupId)) return true;
+  return hasAssetAclPermission(asset?.id, "edit");
+}
+
+function canDownloadAsset(asset) {
+  if (isAdmin()) return true;
+  if (asset?.ownedBy === currentUser.username) return true;
+  if (canDownloadFromGroup(asset?.groupId)) return true;
+  return hasAssetAclPermission(asset?.id, "download");
+}
+
+function canDeleteAsset(asset) {
+  if (isAdmin()) return true;
+  if (asset?.ownedBy === currentUser.username) return true;
+  return canContributeToGroup(asset?.groupId);
+}
+
+function canRestoreAsset(asset) {
+  return canDeleteAsset(asset);
+}
+
+function canMoveAsset(asset, targetGroupId) {
+  if (isAdmin()) return true;
+  return canContributeToGroup(asset?.groupId) && canContributeToGroup(targetGroupId);
+}
+
+function canUploadToGroup(groupId) {
+  if (isAdmin()) return true;
+  return canContributeToGroup(groupId);
+}
+
+function canPurgeAsset(asset) {
+  if (isAdmin()) return true;
+  return asset?.ownedBy === currentUser.username;
+}
+
+function isGroupDescendant(descendantGroupId, ancestorGroupId) {
+  let currentId = descendantGroupId;
+  while (currentId) {
+    if (currentId === ancestorGroupId) return true;
+    const group = (db.groups || []).find((g) => g.id === currentId);
+    currentId = group?.parentId || null;
+  }
+  return false;
+}
+
+function canMoveGroup(sourceGroupId, targetGroupId) {
+  if (isAdmin()) {
+    return !isGroupDescendant(sourceGroupId, targetGroupId);
+  }
+  if (!canManageGroup(sourceGroupId)) return false;
+  if (!canManageGroup(targetGroupId)) return false;
+  return !isGroupDescendant(sourceGroupId, targetGroupId);
+}
+
+function isShareRecordExpired(share) {
+  if (!share.expiresAt || share.expiresAt === "永久有效") return false;
+  const expireDate = toJsDate(share.expiresAt);
+  return new Date() > expireDate;
+}
+
+function canCreateShare(target, contentPermission) {
+  if (isAdmin()) return true;
+  if (target.type === "group") {
+    if (contentPermission === "view") return canViewGroup(target.id);
+    if (contentPermission === "download") return canDownloadFromGroup(target.id);
+  }
+  if (target.type === "asset") {
+    if (contentPermission === "view") return canViewAsset(target);
+    if (contentPermission === "download") return canDownloadAsset(target);
+  }
+  return false;
+}
+
+function canManageShare(share) {
+  if (isAdmin()) return true;
+  if (share.ownedBy === currentUser.username) return true;
+  if (share.targetType === "group") return canManageGroup(share.targetId);
+  if (share.targetType === "asset") return canManageAsset({ id: share.targetId, ownedBy: share.ownedBy, groupId: "" });
+  return false;
+}
+
+function canManageTag(tag) {
+  if (isAdmin()) return true;
+  return tag?.ownedBy === currentUser.username;
+}
+
+function canManageCollect(task) {
+  if (isAdmin()) return true;
+  return task?.ownedBy === currentUser.username;
+}
+
+function getVisibleAssets() {
+  return (db.assets || [])
+    .filter((asset) => getAssetStatusConfig().activeCodes.includes(asset.assetStatus) && canViewAsset(asset))
+    .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0));
 }
 
 function getRootMenu() {
@@ -526,8 +998,13 @@ function isLoggedIn() {
   return !!currentUser?.id;
 }
 
+function getUserNameByUsername(username) {
+  const user = (db.users || []).find((item) => item.username === username);
+  return user?.name || username;
+}
+
 function getUserSessionInfo(userId) {
-  const user = (db.users || []).find((item) => item.id === userId && item.status === "启用");
+  const user = (db.users || []).find((item) => item.id === userId && item.status === getUserStatusConfig().enabled);
   if (!user) return null;
   const roleIds = getUserRoleIds(user);
   const roles = (db.roles || []).filter((item) => roleIds.includes(item.id));
@@ -666,25 +1143,26 @@ function normalizeMenuPermissions(permissions = {}, defaultVisible = false, defa
 
 function getDefaultOrganizations() {
   return [
-    { id: "org-brand", name: "品牌中心", parentId: "", manager: "康明", status: "启用" },
-    { id: "org-market", name: "市场部", parentId: "", manager: "陈然", status: "启用" },
-    { id: "org-support", name: "经销商支持", parentId: "", manager: "李想", status: "启用" },
+    { id: "org-brand", name: "品牌中心", parentId: "", manager: "康明", status: "enabled" },
+    { id: "org-market", name: "市场部", parentId: "", manager: "陈然", status: "enabled" },
+    { id: "org-support", name: "经销商支持", parentId: "", manager: "李想", status: "enabled" },
   ];
 }
 
 function getDefaultRoles() {
   return [
-    { id: "admin", name: "超级管理员", status: "启用", description: "系统全量管理权限", permissions: createMenuPermissions(true, true) },
-    { id: "tag-viewer", name: "标签只读", status: "启用", description: "仅查看标签，不允许维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: false } } },
-    { id: "material-operator", name: "素材运营", status: "启用", description: "素材与标签日常维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: true }, collect: { visible: true, editable: true }, share: { visible: true, editable: true }, validity: { visible: true, editable: true } } },
+    { id: "super_admin", name: "超级管理员", status: "enabled", description: "系统全量管理权限", permissions: createMenuPermissions(true, true) },
+    { id: "tag-viewer", name: "标签只读", status: "enabled", description: "仅查看标签，不允许维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: false } } },
+    { id: "material-operator", name: "素材运营", status: "enabled", description: "素材与标签日常维护", permissions: { ...createMenuPermissions(false, false), tags: { visible: true, editable: true }, collect: { visible: true, editable: true }, share: { visible: true, editable: true }, validity: { visible: true, editable: true } } },
   ];
 }
 
 function getDefaultUsers() {
   return [
-    { id: "user-admin", username: "admin", password: "admin123", name: "系统管理员", organizationId: "org-brand", roleId: "admin", roleIds: ["admin"], status: "启用", lastLogin: "" },
-    { id: "user-kerry", username: "kerry", password: "kerry123", name: "Kerry", organizationId: "org-market", roleId: "material-operator", roleIds: ["material-operator"], status: "启用", lastLogin: "" },
-    { id: "user-tag-view", username: "tagview", password: "tag123", name: "标签查看员", organizationId: "org-support", roleId: "tag-viewer", roleIds: ["tag-viewer"], status: "启用", lastLogin: "" },
+    { id: "user-admin", username: "admin", password: "admin123", name: "系统管理员", organizationId: "org-brand", roleId: "super_admin", roleIds: ["super_admin"], status: "enabled", lastLogin: "" },
+    { id: "user-kerry", username: "kerry", password: "kerry123", name: "Kerry", organizationId: "org-market", roleId: "material-operator", roleIds: ["material-operator"], status: "enabled", lastLogin: "" },
+    { id: "user-yangwt", username: "yangwt", password: "yang123", name: "杨文婷", organizationId: "org-market", roleId: "material-operator", roleIds: ["material-operator"], status: "enabled", lastLogin: "" },
+    { id: "user-tag-view", username: "tagview", password: "tag123", name: "标签查看员", organizationId: "org-support", roleId: "tag-viewer", roleIds: ["tag-viewer"], status: "enabled", lastLogin: "" },
   ];
 }
 
@@ -761,14 +1239,53 @@ function ensureSystemData() {
     db.userPermissions = {};
     changed = true;
   }
+  if (!Array.isArray(db.groupAcl)) {
+    db.groupAcl = [];
+    changed = true;
+  }
+  (db.groups || []).forEach((group) => {
+    if (group.system) return;
+    const existingAcl = (db.groupAcl || []).find(
+      (acl) => acl.groupId === group.id && acl.subjectType === "user" && acl.permission === "manage"
+    );
+    if (!existingAcl && group.ownedBy) {
+      const user = (db.users || []).find((u) => u.username === group.ownedBy);
+      if (user) {
+        db.groupAcl.push({
+          id: `acl-group-${group.id}-${user.id}`,
+          groupId: group.id,
+          subjectType: "user",
+          subjectId: user.id,
+          subjectName: user.username,
+          permission: "manage",
+          includeSubDept: true,
+          grantedBy: "system",
+          grantedAt: group.createdAt || "2026-01-01T00:00:00",
+        });
+        changed = true;
+      }
+    }
+  });
+  if (!Array.isArray(db.assetAcl)) {
+    db.assetAcl = [];
+    changed = true;
+  }
+  if (!Array.isArray(db.permissionRequests)) {
+    db.permissionRequests = [];
+    changed = true;
+  }
+  if (!Array.isArray(db.operationLogs)) {
+    db.operationLogs = [];
+    changed = true;
+  }
   (db.roles || []).forEach((role) => {
-    const normalized = normalizeMenuPermissions(role.permissions, role.id === "admin", role.id === "admin");
+    const normalized = normalizeMenuPermissions(role.permissions, role.id === "super_admin", role.id === "super_admin");
     if (JSON.stringify(role.permissions || {}) !== JSON.stringify(normalized)) changed = true;
     role.permissions = normalized;
   });
   (db.users || []).forEach((user) => {
     if (!user.status) {
-      user.status = "启用";
+      user.status = getUserStatusConfig().enabled;
       changed = true;
     }
     const roleIds = getUserRoleIds(user);
@@ -794,16 +1311,49 @@ function ensureSystemData() {
   if (changed) saveDb();
 }
 
+function logOperation(targetType, targetId, targetName, action, detail) {
+  const actionNode = getTreeNodeByCode(action);
+  const actionName = actionNode?.name || action;
+  const createdAt = nowText();
+  const logEntry = {
+    operator: currentUser.username,
+    operatorDept: currentUser.department || "",
+    action: action,
+    actionName: actionName,
+    detail: detail,
+    createdAt: createdAt,
+  };
+  const entityMap = {
+    asset: db.assets,
+    group: db.groups,
+    tag: db.tags,
+    share: db.shares,
+    collect: db.collectTasks,
+  };
+  const entities = entityMap[targetType];
+  if (entities && targetId) {
+    const entity = entities.find((e) => e.id === targetId);
+    if (entity && Array.isArray(entity.logs)) {
+      entity.logs.unshift(logEntry);
+    }
+  }
+  db.operationLogs.unshift({
+    id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    ...logEntry,
+    targetType: targetType,
+    targetId: targetId,
+    targetName: targetName,
+    ip: "",
+  });
+}
 
 function bootstrap() {
   localStorage.removeItem("dp-material-library-detail-dock");
   ensureRuntimeElements();
   ensureSystemData();
+  normalizeDbDates(db);
   currentUser = getStoredCurrentUser() || getAnonymousUser();
-  migrateVehicleModels();
-  migrateAssetMetadata();
-  migrateShareExpiresAt();
-  migrateCollectTaskSecurity();
+  buildUserGroupPermissionCache();
   renderShell();
   initValueListModalEvents();
   const collectCode = new URLSearchParams(window.location.search).get("collect");
@@ -850,43 +1400,24 @@ function applyHashState() {
   }
 }
 
-function migrateVehicleModels() {
-  let changed = false;
-  const models = getVehicleModels();
-  db.assets.forEach((asset, index) => {
-    if (!models.includes(asset.model)) {
-      asset.model = detectVehicleModel(asset.name) || models[index % models.length];
-      changed = true;
-    }
-  });
-  if (changed) saveDb();
-}
-
 function calculateExpireTime(relativeExpires) {
+  const pad = (n) => String(n).padStart(2, "0");
+  const buildDate = (date) => { const p = (n) => String(n).padStart(2, "0"); return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}T23:59:00`; };
   if (!relativeExpires || relativeExpires === "永久有效") {
     const date = new Date();
     date.setFullYear(date.getFullYear() + 100);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}/${month}/${day} 23:59`;
+    return buildDate(date);
   }
   const match = relativeExpires.match(/(\d+)/);
   if (!match) {
     const date = new Date();
     date.setFullYear(date.getFullYear() + 100);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}/${month}/${day} 23:59`;
+    return buildDate(date);
   }
   const days = parseInt(match[1], 10);
   const date = new Date();
   date.setDate(date.getDate() + days);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}/${month}/${day} 23:59`;
+  return buildDate(date);
 }
 
 function isShareExpired(expiresAt) {
@@ -894,30 +1425,6 @@ function isShareExpired(expiresAt) {
   const now = Date.now();
   const expireTimestamp = dateTimeTextToTimestamp(expiresAt || "");
   return expireTimestamp > 0 ? now > expireTimestamp : false;
-}
-
-function migrateShareExpiresAt() {
-  let changed = false;
-  db.shares.forEach((share) => {
-    if (!share.targetType) {
-      share.targetType = "group";
-      share.targetId = "all";
-      share.code = share.code || Math.random().toString(36).slice(2, 8);
-      share.link = share.link || getShareLink(share.targetType, share.targetId, share.code);
-      changed = true;
-    }
-    if (share.expiresAt === "已关闭") {
-      share.expiresAt = "已关闭";
-    } else if (!/^\d{4}-\d{2}-\d{2}/.test(share.expiresAt)) {
-      share.expiresAt = calculateExpireTime(share.expiresAt);
-      changed = true;
-    }
-    const originalRequirePassword = share.requirePassword;
-    const originalPassword = share.password;
-    normalizeShareSecurity(share);
-    if (share.requirePassword !== originalRequirePassword || share.password !== originalPassword) changed = true;
-  });
-  if (changed) saveDb();
 }
 
 function normalizeShareSecurity(share) {
@@ -942,68 +1449,13 @@ function normalizeCollectTaskSecurity(task) {
   if (!task) return task;
   task.password = typeof task.password === "string" && task.password ? task.password : String(task.code || "");
   task.requirePassword = true;
+  if (!task.auditStatus) {
+    task.auditStatus = getAuditStatusConfig().pendingSubmit;
+  }
+  if (task.status === "closed") {
+    task.status = getCollectTaskStatusConfig().expired;
+  }
   return task;
-}
-
-function migrateCollectTaskSecurity() {
-  let changed = false;
-  (db.collectTasks || []).forEach((task) => {
-    const originalRequirePassword = task.requirePassword;
-    const originalPassword = task.password;
-    normalizeCollectTaskSecurity(task);
-    if (task.requirePassword !== originalRequirePassword || task.password !== originalPassword) changed = true;
-  });
-  if (changed) saveDb();
-}
-
-function migrateAssetMetadata() {
-  let changed = false;
-  db.assets.forEach((asset) => {
-    const uploadDate = normalizeDateText(asset.uploadDate || asset.createdAt || asset.updatedAt);
-    if (!asset.uploadDate) {
-      asset.uploadDate = uploadDate;
-      changed = true;
-    }
-    if (!asset.validStart) {
-      asset.validStart = normalizeDateTimeText(asset.createdAt || asset.updatedAt || uploadDate, "00:00");
-      changed = true;
-    }
-    if (asset.validUntil && !asset.validUntilDate) {
-      if (/^\d{4}[-/]\d{2}[-/]\d{2}/.test(String(asset.validUntil))) {
-        asset.validUntilDate = normalizeDateTimeText(asset.validUntil, "23:59");
-      } else {
-        asset.validUntilDate = calculateExpireTime(asset.validUntil);
-      }
-      changed = true;
-    }
-    if (asset.validUntilDate && asset.validUntil !== asset.validUntilDate) {
-      asset.validUntil = asset.validUntilDate;
-      changed = true;
-    }
-    if (!asset.validUntilDate && !asset.validUntil) {
-      const defaultExpire = calculateExpireTime("永久有效");
-      asset.validUntil = defaultExpire;
-      asset.validUntilDate = defaultExpire;
-      changed = true;
-    }
-    if (!asset.validUntil) {
-      asset.validUntil = asset.validUntilDate || calculateExpireTime("永久有效");
-      changed = true;
-    }
-    if (!asset.validUntilDate) {
-      asset.validUntilDate = asset.validUntil;
-      changed = true;
-    }
-    if (!asset.owner) {
-      asset.owner = currentUser.name;
-      changed = true;
-    }
-    if (!asset.department) {
-      asset.department = currentUser.department;
-      changed = true;
-    }
-  });
-  if (changed) saveDb();
 }
 
 function loadDb() {
@@ -1018,13 +1470,13 @@ function loadDb() {
   }
   return { groups: defaultGroups, assets: seedAssets, tags: seedTags,
     collectTasks: [
-      { id: "collect-1", theme: "上海车展活动素材", desc: "", group: "上海车展活动素材", status: "已失效", code: "apym", creator: "杨文婷", createdAt: "2026/06/09 20:15", expiresAt: "2026/06/09 20:25", requirePassword: false, password: "", types: [], link: "" },
-      { id: "collect-2", theme: "小红书", desc: "", group: "小红书平台素材", status: "已失效", code: "oq9v", creator: "杨文婷", createdAt: "2026/05/25 08:58", expiresAt: "2026/06/01 08:58", requirePassword: false, password: "", types: [], link: "" },
-      { id: "collect-3", theme: "凡尔赛 618车展", desc: "", group: "凡尔赛 618车展", status: "生效中", code: "4vlw", creator: "Kerry", createdAt: "2026/05/22 17:15", expiresAt: "2026/08/20 17:15", requirePassword: false, password: "", types: [], link: "" },
-      { id: "collect-seed", theme: "系统初始化素材", desc: "系统初始化时导入的素材", group: "测试素材组", status: "已完成", code: "seed", creator: "Kerry", createdAt: "2026/05/26 00:00", expiresAt: "2027/05/26 00:00", requirePassword: false, password: "", types: [], link: "" },
+      { id: "collect-1", theme: "上海车展活动素材", desc: "", group: "上海车展活动素材", status: "expired", code: "apym", creator: "yangwt", createdAt: "2026-06-09T20:15:00", expiresAt: "2026-06-09T20:25:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-09T20:25:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「上海车展活动素材」", createdAt: "2026-06-09T20:15:00" }, { operator: "yangwt", operatorDept: "org-market", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务已失效", createdAt: "2026-06-09T20:25:00" }] },
+      { id: "collect-2", theme: "小红书", desc: "", group: "小红书平台素材", status: "expired", code: "oq9v", creator: "yangwt", createdAt: "2026-05-25T08:58:00", expiresAt: "2026-06-01T08:58:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-01T08:58:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「小红书」", createdAt: "2026-05-25T08:58:00" }, { operator: "system", operatorDept: "", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务过期", createdAt: "2026-06-01T08:58:00" }] },
+      { id: "collect-3", theme: "凡尔赛 618车展", desc: "", group: "凡尔赛 618车展", status: "active", code: "4vlw", creator: "kerry", createdAt: "2026-05-22T17:15:00", expiresAt: "2026-08-20T17:15:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-22T17:15:00", auditStatus: "pending_submit", logs: [{ operator: "kerry", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「凡尔赛 618车展」", createdAt: "2026-05-22T17:15:00" }] },
+      { id: "collect-seed", theme: "系统初始化素材", desc: "系统初始化时导入的素材", group: "测试素材组", status: "completed", code: "seed", creator: "kerry", createdAt: "2026-05-26T00:00:00", expiresAt: "2027-05-26T00:00:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-26T00:00:00", auditStatus: "human_pass", logs: [{ operator: "kerry", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建系统初始化素材收集任务", createdAt: "2026-05-26T00:00:00" }] },
     ],
     shares: [
-      { group: "凡尔赛 618车展", user: "杨文婷", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026/03/31 18:06:55", expiresAt: "2026/04/07 18:06", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "" },
+      { id: "share-1", group: "凡尔赛 618车展", user: "yangwt", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026-03-31T18:06:55", expiresAt: "2026-04-07T18:06:00", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "", accessScope: "internal", contentPermission: "view", maxVisits: null, status: "active", ownedBy: "yangwt", ownedByDept: "org-market", createdBy: "yangwt", updatedAt: "2026-03-31T18:06:55", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "share.create", actionName: "创建分享", detail: "分享素材组「凡尔赛 618车展」", createdAt: "2026-03-31T18:06:55" }] },
     ],
   };
 }
@@ -1078,10 +1530,25 @@ function renderCollectorPortal(code) {
   const task = db.collectTasks.find((item) => item.code === code);
   document.body.className = "collector-body";
   if (!task) {
-    document.body.innerHTML = `<main class="collector-page"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>收集链接无效</h1><p>请确认访问密码或联系素材库管理员重新发送链接。</p></section></main>`;
+    document.body.innerHTML = `<main class="collector-page collector-page--centered"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>收集链接无效</h1><p>请确认访问密码或联系素材库管理员重新发送链接。</p></section></main>`;
     return;
   }
   normalizeCollectTaskSecurity(task);
+  const taskStatusConfig = getCollectTaskStatusConfig();
+  if (isShareExpired(task.expiresAt) && task.status === taskStatusConfig.active) {
+    task.status = taskStatusConfig.expired;
+    saveDb();
+  }
+  if (task.status !== taskStatusConfig.active) {
+    document.body.innerHTML = `<main class="collector-page collector-page--centered"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>收集任务已结束</h1><p>该收集任务已过期或已关闭，无法继续上传素材。</p></section></main>`;
+    return;
+  }
+  const auditConfig = getAuditStatusConfig();
+  const allowedAuditStatuses = [auditConfig.pendingSubmit, auditConfig.pendingAudit];
+  if (!allowedAuditStatuses.includes(task.auditStatus)) {
+    document.body.innerHTML = `<main class="collector-page collector-page--centered"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>素材审核中</h1><p>该收集任务的素材正在审核中，暂无法上传或编辑内容。</p></section></main>`;
+    return;
+  }
   if (task.requirePassword && task.password && sessionStorage.getItem(getCollectPasswordKey(task)) !== task.password) {
     renderCollectorPasswordGate(code, task);
     return;
@@ -1142,8 +1609,8 @@ function renderCollectorPortalContent(code, task) {
               <label><span class="required">*</span>公司/部门<input name="department" placeholder="请输入公司或部门" required /></label>
             </div>
             <div class="collector-form-row">
-              <label><span class="required">*</span>联系方式<input name="phone" placeholder="请输入手机号" required /></label>
-              <label><span class="required">*</span>邮箱<input name="email" placeholder="请输入邮箱" required /></label>
+              <label><span class="required">*</span>联系方式<input name="phone" placeholder="请输入手机号" /></label>
+              <label><span class="required">*</span>邮箱<input name="email" placeholder="请输入邮箱" /></label>
             </div>
           </div>
           <div class="collector-form-section">
@@ -1285,10 +1752,13 @@ function renderCollectorPortalContent(code, task) {
     showToast(`正在上传 ${fileCount} 个文件...`);
     
     for (const staged of stagedFiles) {
+      const auditConfig = getAuditStatusConfig();
+      const assetStatusConfig = getAssetStatusConfig();
       const asset = await createAssetFromFile(staged.file, { 
         validUntilDate: "", 
         customTags: selectedTags,
-        status: 2,
+        auditStatus: auditConfig.pendingAudit,
+        assetStatus: assetStatusConfig.pending,
         asset_source: "external",
         collect_id: task.id,
         collect_link: task.link
@@ -1298,13 +1768,15 @@ function renderCollectorPortalContent(code, task) {
       asset.creator = task.creator;
       asset.owner = data.author.trim();
       asset.department = data.department.trim();
-      asset.contact = data.contact.trim();
+      asset.contact = data.phone.trim();
       asset.email = data.email.trim();
       asset.desc = data.note.trim();
-      asset.logs.unshift(`${asset.owner} 通过收集链接由${asset.department}-${asset.owner}上传素材`);
       db.assets.unshift(asset);
+      logOperation('asset', asset.id, asset.name, 'asset.upload', `${asset.owner} 通过收集链接上传素材`);
     }
     
+    const auditConfig = getAuditStatusConfig();
+    task.auditStatus = auditConfig.pendingAudit;
     saveDb();
     clearStagedFiles();
     stagedFiles.length = 0;
@@ -1370,18 +1842,86 @@ function renderSharePortal(token) {
   const [targetType, targetId, code] = token.split(":");
   const share = db.shares.find((item) => item.code === code && item.targetId === targetId && item.targetType === targetType);
   document.body.className = "collector-body";
+  
   if (!share) {
-    document.body.innerHTML = `<main class="collector-page"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>分享链接无效</h1><p>请确认链接是否完整，或联系素材库管理员重新分享。</p></section></main>`;
+    renderShareLandingError("分享链接无效", "请确认链接是否完整，或联系素材库管理员重新分享。");
     return;
   }
+  
   normalizeShareSecurity(share);
-  share.visits += 1;
-  saveDb();
+  const shareStatusConfig = getShareStatusConfig();
+  
+  if (!share.status || !shareStatusConfig.activeCodes.includes(share.status)) {
+    renderShareLandingError("分享已失效", "该分享链接已被创建者终止或已过期。");
+    return;
+  }
+  
+  if (isShareRecordExpired(share)) {
+    share.status = shareStatusConfig.expired;
+    saveDb();
+    renderShareLandingError("分享已过期", "该分享链接的有效期已结束。");
+    return;
+  }
+  
+  if (share.maxVisits != null && share.visits >= share.maxVisits) {
+    share.status = shareStatusConfig.expired;
+    saveDb();
+    renderShareLandingError("访问次数已达上限", "该分享链接的访问次数已用完。");
+    return;
+  }
+  
+  if (share.accessScope === "internal") {
+    if (!currentUser || currentUser.id === "anonymous") {
+      renderShareLandingLogin(token);
+      return;
+    }
+    if (share.ownedByDept && currentUser.department !== share.ownedByDept && !isAdmin()) {
+      renderShareLandingError("无权访问", "该分享仅限内部人员访问");
+      return;
+    }
+  }
+  
   if (share.requirePassword && share.password && sessionStorage.getItem(getSharePasswordKey(share)) !== share.password) {
     renderSharePasswordGate(token, share);
     return;
   }
+  
   renderSharePortalContent(token, share);
+}
+
+function renderShareLandingError(title, message) {
+  document.body.innerHTML = `<main class="collector-page collector-page--centered"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>${escapeHtml(title)}</h1><p>${escapeHtml(message)}</p></section></main>`;
+}
+
+function renderShareLandingLogin(token) {
+  document.body.innerHTML = `
+    <main class="collector-page collector-page--centered">
+      <section class="collector-card">
+        <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
+        <h1>请登录后访问</h1>
+        <p>该分享仅限企业内部成员访问，请先登录您的账号。</p>
+        <form id="shareLoginForm">
+          <label>用户名<input name="username" required /></label>
+          <label>密码<input name="password" type="password" required /></label>
+          <div class="collector-actions"><button type="submit" class="primary">登录</button></div>
+        </form>
+        <div class="collector-result hidden" id="shareLoginError">用户名或密码错误</div>
+      </section>
+    </main>`;
+  
+  document.querySelector("#shareLoginForm").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const data = Object.fromEntries(new FormData(event.currentTarget));
+    const user = (db.users || []).find((item) => item.username === data.username && item.password === data.password);
+    if (!user) {
+      document.querySelector("#shareLoginError")?.classList.remove("hidden");
+      return;
+    }
+    localStorage.setItem(SESSION_USER_KEY, user.id);
+    currentUser = getUserSessionInfo(user.id) || getAnonymousUser();
+    buildUserGroupPermissionCache();
+    renderSharePortal(token);
+  });
 }
 
 function getSharePasswordKey(share) {
@@ -1389,14 +1929,16 @@ function getSharePasswordKey(share) {
 }
 
 function getSharePortalAssets(targetType, targetId) {
-  if (targetType === "asset") return db.assets.filter((asset) => asset.id === targetId);
-  if (targetType === "basket") return db.assets.filter((asset) => targetId.split(",").includes(asset.id));
-  return db.assets.filter((asset) => targetId === "all" ? asset.status !== "deleted" : asset.groupId === targetId);
+  const statusConfig = getAssetStatusConfig();
+  const isActive = (asset) => !statusConfig.deletedCodes.includes(asset.assetStatus);
+  if (targetType === "asset") return db.assets.filter((asset) => asset.id === targetId && isActive(asset));
+  if (targetType === "basket") return db.assets.filter((asset) => targetId.split(",").includes(asset.id) && isActive(asset));
+  return db.assets.filter((asset) => targetId === "all" ? isActive(asset) : asset.groupId === targetId && isActive(asset));
 }
 
 function renderSharePasswordGate(token, share) {
   document.body.innerHTML = `
-    <main class="collector-page">
+    <main class="collector-page collector-page--centered">
       <section class="collector-card share-password-card">
         <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
         <h1>${escapeHtml(share.group || "分享素材")}</h1>
@@ -1421,15 +1963,27 @@ function renderSharePasswordGate(token, share) {
 }
 
 function renderSharePortalContent(token, share) {
+  const nextVisits = (share.visits || 0) + 1;
+  if (share.maxVisits != null && nextVisits > share.maxVisits) {
+    share.status = getShareStatusConfig().expired;
+    saveDb();
+    renderShareLandingError("访问次数已达上限", "该分享链接的访问次数已用完。");
+    return;
+  }
+  share.visits = nextVisits;
+  saveDb();
+  
   const [targetType, targetId] = token.split(":");
   const assets = getSharePortalAssets(targetType, targetId);
+  const canDownload = share.contentPermission === "download";
+  
   document.body.innerHTML = `
     <main class="share-page">
       <header class="share-hero">
         <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
         <h1>${escapeHtml(share.group || "分享素材")}</h1>
-        <p>${escapeHtml(share.access)} · ${share.requirePassword ? "需要访问密码" : "无需访问密码"} · 有效期：${escapeHtml(share.expiresAt)}</p>
-        <div class="share-download-toolbar">
+        <p>${escapeHtml(share.access)} · ${share.requirePassword ? "需要访问密码" : "无需访问密码"} · 有效期：${escapeHtml(formatDateTimeDisplay(share.expiresAt))}</p>
+        <div class="share-download-toolbar ${canDownload ? "" : "hidden"}">
           <span id="shareSelectedCount">已选择 0 项</span>
           <button id="shareBatchDownload" type="button">批量下载</button>
           <button class="primary" id="shareDownloadAll" type="button">一键全部下载</button>
@@ -1438,11 +1992,11 @@ function renderSharePortalContent(token, share) {
       <section class="share-grid">
         ${assets.map((asset) => `
           <article class="share-card" data-share-asset="${escapeAttr(asset.id)}">
-            <label class="share-card-check"><input class="share-asset-check" type="checkbox" value="${escapeAttr(asset.id)}" /> 选择</label>
+            <label class="share-card-check"><input class="share-asset-check" type="checkbox" value="${escapeAttr(asset.id)}" ${canDownload ? "" : "disabled"} /> 选择</label>
             <div class="thumb">${asset.mime?.startsWith("image/") ? `<img src="${escapeAttr(asset.src)}" alt="${escapeAttr(asset.name)}" />` : `<div class="file-tile"><b>${escapeHtml(asset.format)}</b></div>`}</div>
             <h2>${escapeHtml(asset.name)}</h2>
             <p>${escapeHtml(asset.format)} · ${formatBytes(asset.sizeBytes)}</p>
-            <a download="${escapeAttr(asset.name)}.${escapeAttr(asset.format.toLowerCase())}" href="${escapeAttr(asset.src)}">下载素材</a>
+            ${canDownload ? `<a download="${escapeAttr(asset.name)}.${escapeAttr(asset.format.toLowerCase())}" href="${escapeAttr(asset.src)}">下载素材</a>` : ""}
           </article>`).join("") || renderEmpty("暂无可分享素材")}
       </section>
     </main>`;
@@ -1566,7 +2120,7 @@ function handleLoginSubmit(event) {
     showToast("用户名或密码错误");
     return;
   }
-  if (user.status !== "启用") {
+  if (user.status !== getUserStatusConfig().enabled) {
     showToast("该账号已停用，请联系管理员");
     return;
   }
@@ -2023,7 +2577,13 @@ function bindEvents() {
   document.querySelector("#deleteSelectedTop")?.addEventListener("click", deleteSelectedAssets);
   document.querySelector("#deleteSelectedPending")?.addEventListener("click", deleteSelectedAssets);
   document.querySelector("#shareCurrent")?.addEventListener("click", openShareCurrentModal);
-  document.querySelector("#collectCurrent")?.addEventListener("click", () => openCollectTaskModal(getGroupName(state.groupId)));
+  document.querySelector("#collectCurrent")?.addEventListener("click", () => {
+    const canBatch = state.groupId ? canContributeToGroup(state.groupId) : canContributeToGroup(null);
+    if (!canBatch) {
+      return showToast("权限不足，无法创建收集任务。请联系管理员申请权限。");
+    }
+    openCollectTaskModal(getGroupName(state.groupId));
+  });
   document.querySelector("#approveSelected")?.addEventListener("click", approveSelectedAssets);
 
   // 权限模态框取消按钮
@@ -2039,14 +2599,19 @@ function bindEvents() {
   });
   document.querySelector("#basketDelete")?.addEventListener("click", () => {
     if (!state.selectedIds.size) return;
-    const count = state.selectedIds.size;
-    db.assets.forEach((asset) => {
-      if (state.selectedIds.has(asset.id)) {
-        asset.status = "deleted";
-        asset.updatedAt = nowText();
-        asset.deletedAt = asset.updatedAt;
-        asset.logs.unshift(`${currentUser.name} 删除了素材`);
-      }
+    const assets = getSelectedAssets();
+    const canDeleteAll = assets.every((asset) => canDeleteAsset(asset));
+    if (!canDeleteAll) {
+      showToast("部分素材没有删除权限");
+      return;
+    }
+    const count = assets.length;
+    const assetStatusConfig = getAssetStatusConfig();
+    assets.forEach((asset) => {
+      asset.assetStatus = assetStatusConfig.deleted;
+      asset.updatedAt = nowText();
+      asset.deletedAt = asset.updatedAt;
+      logOperation('asset', asset.id, asset.name, 'asset.delete', '删除了素材（软删除）');
     });
     state.selectedIds.clear();
     saveDb();
@@ -2073,6 +2638,11 @@ function bindEvents() {
   basketValidityForm?.addEventListener("submit", (event) => {
     event.preventDefault();
     const assets = getSelectedAssets();
+    const canEditAll = assets.every((asset) => canEditAsset(asset));
+    if (!canEditAll) {
+      showToast("部分素材没有编辑权限");
+      return;
+    }
     const date = document.querySelector("#basketValidityDate").value;
     const time = document.querySelector("#basketValidityTime").value || "23:59";
     const validUntil = date ? joinDateTime(date, time) : calculateExpireTime("永久有效");
@@ -2080,7 +2650,7 @@ function bindEvents() {
       asset.validUntilDate = validUntil;
       asset.validUntil = validUntil;
       asset.updatedAt = nowText();
-      asset.logs.unshift(`${currentUser.name} 通过素材篮批量修改了有效期`);
+      logOperation('asset', asset.id, asset.name, 'asset.edit', '设置了有效期');
     });
     saveDb();
     closeBasketValidityModal();
@@ -2097,24 +2667,59 @@ function bindEvents() {
     event.preventDefault();
     if (createdBasketLink) return;
     
+    const formData = getShareFormData("basket");
+    if (!formData) {
+      showToast("请设置访问密码");
+      return;
+    }
+    
     const assets = getSelectedAssets();
+    const canShareAll = assets.every((asset) => canCreateShare(asset, formData.contentPermission));
+    if (!canShareAll) {
+      showToast("部分素材没有分享权限");
+      return;
+    }
     const targetId = assets.map((asset) => asset.id).join(",");
-    const data = Object.fromEntries(new FormData(basketShareForm));
     const code = Math.random().toString(36).slice(2, 8);
     const link = getShareLink("basket", targetId, code);
-    const shareName = data.shareName.trim() || `素材篮 ${assets.length} 项`;
-    const security = buildShareSecurity(data);
+    const shareName = formData.shareName.trim() || `素材篮 ${assets.length} 项`;
     
-    db.shares.unshift({ group: shareName, user: currentUser.name, access: data.access, visits: 0, views: 0, downloads: 0, sharedAt: nowText(), expiresAt: calculateExpireTime(data.expiresAt), targetType: "basket", targetId, code, link, ...security });
+    const share = { 
+      id: `share-${Date.now()}`,
+      group: shareName, 
+      user: currentUser.username, 
+      access: shareName, 
+      visits: 0, 
+      views: 0, 
+      downloads: 0, 
+      sharedAt: nowText(), 
+      expiresAt: formData.expiresAt, 
+      targetType: "basket", 
+      targetId, 
+      code, 
+      link, 
+      requirePassword: formData.requirePassword,
+      password: formData.password,
+      accessScope: formData.accessScope,
+      contentPermission: formData.contentPermission,
+      maxVisits: formData.maxVisits,
+      status: "active",
+      ownedBy: currentUser.username,
+      ownedByDept: currentUser.department || "",
+      createdBy: currentUser.username,
+      updatedAt: nowText(),
+      logs: []
+    };
+    db.shares.unshift(share);
+    logOperation('share', share.id, shareName, 'share.create', '创建了分享链接');
     assets.forEach((asset) => {
       asset.share += 1;
-      asset.logs.unshift(`${currentUser.name} 通过素材篮分享了素材`);
     });
     saveDb();
     render();
     createdBasketLink = link;
     document.querySelector("#basketShareLink").value = link;
-    document.querySelector("#basketSharePassword").value = security.password;
+    document.querySelector("#basketSharePassword").value = formData.password;
     document.querySelector("#basketShareCopy").disabled = false;
     showToast("素材篮分享记录已创建，链接已生成");
   });

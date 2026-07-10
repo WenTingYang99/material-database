@@ -8,6 +8,7 @@ function getPageMenus() {
 }
 
 function render() {
+  buildUserGroupPermissionCache();
   updateGroupCounts();
   renderGroups();
   renderFilterChips();
@@ -42,10 +43,10 @@ function render() {
 
 function initProjectDatePickers(root = document) {
   const scope = root instanceof Element ? root : document;
-  window.initDatePicker(scope.querySelectorAll('input[type="date"]'), { minDate: "2020/01/01", maxDate: "2036/12/31" });
+  window.initDatePicker(scope.querySelectorAll('input[type="date"]'), { minDate: "2020-01-01", maxDate: "2036-12-31" });
   window.initDatePicker(scope.querySelectorAll('input[type="time"]'), { minTime: "00:00", maxTime: "23:59" });
-  window.initDatePicker(scope.querySelectorAll("#uploadDateFilter"), { minDate: "2020/01/01", maxDate: "today" });
-  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036/12/31" });
+  window.initDatePicker(scope.querySelectorAll("#uploadDateFilter"), { minDate: "2020-01-01", maxDate: "today" });
+  window.initDatePicker(scope.querySelectorAll("#basketValidityDate, #editAssetValidStartDate, #editAssetValidUntilDate, #collectTaskDeadline, [name='expiresAtDate'], [name='validUntilDate'], [name='validStartDate'], .inline-date"), { minDate: "today", maxDate: "2036-12-31" });
   window.initDatePicker(scope.querySelectorAll("#basketValidityTime, #editAssetValidStartTime, #editAssetValidUntilTime, [name='validUntilTime'], [name='validStartTime'], .inline-time"), { minTime: "00:00", maxTime: "23:59" });
 }
 
@@ -159,14 +160,19 @@ function applyDetailPanelLayout() {
 
 function renderGroups() {
   syncGroupDepths();
-  els.groupTree.innerHTML = getOrderedGroups().filter((group) => !isGroupHiddenByCollapsedAncestor(group)).map((group) => {
+  els.groupTree.innerHTML = getOrderedGroups()
+    .filter((group) => !isGroupHiddenByCollapsedAncestor(group))
+    .filter((group) => canViewGroup(group.id))
+    .map((group) => {
     const hasChildren = hasChildGroups(group.id);
     const collapsed = state.collapsedGroupIds.has(group.id);
     const toggleTitle = collapsed ? "展开子素材组" : "收起子素材组";
     const toggleIcon = collapsed ? "›" : "⌄";
+    const canManage = canManageGroup(group.id);
+    const actionsHtml = canManage ? `<span class="group-actions"><i data-group-menu="${group.id}" title="素材组操作">...</i><i data-delete-group="${group.id}" title="删除素材组">×</i></span>` : "";
     return `
     <button class="tree-row ${state.groupId === group.id ? "active" : ""}" style="--depth:${group.depth || 0}" data-group="${group.id}" type="button">
-      <span ${hasChildren ? `data-group-toggle="${group.id}" title="${toggleTitle}"` : ""}>${hasChildren ? toggleIcon : ""}</span><span data-icon="folder"></span><span>${escapeHtml(group.name)}</span><span class="count">${group.count || ""}</span><span class="group-actions"><i data-group-menu="${group.id}" title="素材组操作">...</i><i data-delete-group="${group.id}" title="删除素材组">×</i></span>
+      <span ${hasChildren ? `data-group-toggle="${group.id}" title="${toggleTitle}"` : ""}>${hasChildren ? toggleIcon : ""}</span><span data-icon="folder"></span><span>${escapeHtml(group.name)}</span><span class="count">${group.count || ""}</span>${actionsHtml}
     </button>
   `;
   }).join("");
@@ -184,11 +190,13 @@ function openAllMaterials() {
 }
 
 function hasChildGroups(groupId) {
-  return db.groups.some((group) => group.parentId === groupId && group.status !== "deleted");
+  const groupStatusConfig = getGroupStatusConfig();
+  return db.groups.some((group) => group.parentId === groupId && !groupStatusConfig.deletedCodes.includes(group.status));
 }
 
 function getOrderedGroups() {
-  const groups = db.groups.filter((group) => !group.system && group.status !== "deleted");
+  const groupStatusConfig = getGroupStatusConfig();
+  const groups = db.groups.filter((group) => !group.system && !groupStatusConfig.deletedCodes.includes(group.status));
   const byParent = new Map();
   groups.forEach((group, index) => {
     group._treeIndex = index;
@@ -255,7 +263,13 @@ function renderActions() {
   document.querySelectorAll(".page-actions-inner").forEach((el) => el.classList.add("hidden"));
 
   const actionRenderers = {
-    all: () => { document.querySelector('.page-actions-inner[data-page-type="all"]')?.classList.remove("hidden"); },
+    all: () => {
+      const container = document.querySelector('.page-actions-inner[data-page-type="all"]');
+      if (!container) return;
+      container.classList.remove("hidden");
+      const canUpload = state.groupId ? canUploadToGroup(state.groupId) : canContributeToGroup(null);
+      document.querySelector("#uploadButton").classList.toggle("hidden", !canUpload);
+    },
     pending: () => { document.querySelector('.page-actions-inner[data-page-type="pending"]')?.classList.remove("hidden"); },
     tags: () => { if (canEditMenu("tags")) document.querySelector('.page-actions-inner[data-page-type="tags"]')?.classList.remove("hidden"); },
     collect: () => { document.querySelector('.page-actions-inner[data-page-type="collect"]')?.classList.remove("hidden"); },
@@ -266,10 +280,10 @@ function renderActions() {
 }
 
 function renderAssets() {
-  const filterStrategies = {
-    pending: () => db.assets.filter((asset) => asset.status === 2),
-  };
-  const filtered = (filterStrategies[state.page] || getFilteredAssets)();
+  let filtered = getFilteredAssets();
+  if (state.page === "all" || state.page === "pending") {
+    filtered = filtered.filter((asset) => canViewAsset(asset));
+  }
   const body = state.view === "list" ? renderMetadataList(filtered) : renderCompactAssets(filtered);
   els.contentPanel.innerHTML = `<p class="count-line">共 ${filtered.length} 项</p>${body || renderEmpty("暂无素材")}`;
   els.viewSwitch.querySelectorAll("button").forEach((button) => button.classList.toggle("active", button.dataset.view === state.view));
@@ -300,6 +314,18 @@ function renderDateGroupedAssets(items) {
 }
 
 function renderAssetCard(asset) {
+  const canEdit = canEditAsset(asset);
+  const canDownload = canDownloadAsset(asset);
+  const canShare = canCreateShare({ type: "asset", id: asset.id }, "view");
+  const canMove = canContributeToGroup(asset.groupId);
+  
+  const quickActions = [];
+  if (canEdit) quickActions.push(`<button data-similar="${asset.id}" type="button" title="查找相似图"><span data-icon="search"></span></button>`);
+  if (canMove) quickActions.push(`<button data-add-group="${asset.id}" type="button" title="添加到组"><span data-icon="briefcase"></span></button>`);
+  if (canEdit || canDownload || canShare) quickActions.push(`<button data-more="${asset.id}" type="button" title="更多"><span data-icon="more"></span></button>`);
+  
+  const actionsHtml = quickActions.length ? `<div class="quick-actions">${quickActions.join("")}</div>` : "";
+  
   return `
     <article class="asset-card ${state.selectedIds.has(asset.id) ? "selected" : ""}" data-id="${asset.id}">
       <div class="thumb" data-preview="${asset.id}">
@@ -307,11 +333,7 @@ function renderAssetCard(asset) {
         <label class="select-dot"><input data-select-asset="${asset.id}" type="checkbox" ${state.selectedIds.has(asset.id) ? "checked" : ""} /></label>
         <span class="file-badge">${asset.format}</span>
         <span class="size-badge">${formatBytes(asset.sizeBytes)}</span>
-        <div class="quick-actions">
-          <button data-similar="${asset.id}" type="button" title="查找相似图"><span data-icon="search"></span></button>
-          <button data-add-group="${asset.id}" type="button" title="添加到组"><span data-icon="briefcase"></span></button>
-          <button data-more="${asset.id}" type="button" title="更多"><span data-icon="more"></span></button>
-        </div>
+        ${actionsHtml}
       </div>
       <div class="asset-info">
         <p class="asset-name">${escapeHtml(asset.name)}</p>
@@ -348,23 +370,29 @@ function renderMetadataList(items) {
           const aiTags = (asset.aiTags || []).join("、") || "-";
           const validStartParts = splitDateTimeText(asset.validStart || asset.uploadDate || "");
           const validUntilParts = splitDateTimeText(asset.validUntilDate || asset.validUntil || "");
-          const status = getAssetStatusText(asset.status);
-          const statusClass = getAssetStatusClass(asset.status);
+          const status = getAssetStatusText(asset);
+          const statusClass = getAssetStatusClass(asset);
+          const canEdit = canEditAsset(asset);
+          const canDownload = canDownloadAsset(asset);
+          const canShare = canCreateShare({ type: "asset", id: asset.id }, "view");
+          const canDelete = canDeleteAsset(asset);
+          const hasAction = canEdit || canDownload || canShare || canDelete;
+          const actionButton = hasAction ? `<button class="op-button" data-more="${asset.id}" type="button"><span data-icon="more"></span></button>` : "";
           return `
             <tr data-id="${asset.id}">
               <td><input data-select-asset="${asset.id}" type="checkbox" ${state.selectedIds.has(asset.id) ? "checked" : ""} /></td>
               <td><div class="table-name" data-preview="${asset.id}">${renderTableThumb(asset)}<span class="cell-ellipsis" title="${escapeAttr(asset.name)}">${escapeHtml(asset.name)}</span></div></td>
-              <td>${escapeHtml(asset.owner || "-")}</td>
+              <td>${escapeHtml(getUserNameByUsername(asset.owner) || "-")}</td>
               <td>${escapeHtml(asset.uploadDate || normalizeDateText(asset.createdAt))}</td>
               <td>${formatBytes(asset.sizeBytes)}</td>
               <td>${escapeHtml(asset.format || "-")}</td>
-              <td><div class="date-time-row"><input class="inline-date" data-valid-start-date="${asset.id}" type="date" value="${escapeAttr(validStartParts.date)}" readonly inputmode="none" /><input class="inline-time" data-valid-start-time="${asset.id}" type="time" value="${escapeAttr(validStartParts.time)}" readonly inputmode="none" /></div></td>
-              <td><div class="date-time-row"><input class="inline-date" data-valid-until-date="${asset.id}" type="date" value="${escapeAttr(validUntilParts.date)}" readonly inputmode="none" /><input class="inline-time" data-valid-until-time="${asset.id}" type="time" value="${escapeAttr(validUntilParts.time || "23:59")}" readonly inputmode="none" /></div></td>
+              <td><div class="date-time-row"><input class="inline-date" data-valid-start-date="${asset.id}" type="date" value="${escapeAttr(toInputDateValue(validStartParts.date))}" readonly inputmode="none" /><input class="inline-time" data-valid-start-time="${asset.id}" type="time" value="${escapeAttr(validStartParts.time)}" readonly inputmode="none" /></div></td>
+              <td><div class="date-time-row"><input class="inline-date" data-valid-until-date="${asset.id}" type="date" value="${escapeAttr(toInputDateValue(validUntilParts.date))}" readonly inputmode="none" /><input class="inline-time" data-valid-until-time="${asset.id}" type="time" value="${escapeAttr(validUntilParts.time || "23:59")}" readonly inputmode="none" /></div></td>
               <td><span class="status-dot ${statusClass}"></span>${status}</td>
               <td>${dimension}</td>
               <td><span class="cell-ellipsis" title="${escapeAttr(aiTags)}">${escapeHtml(aiTags)}</span></td>
               <td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(asset.groupId))}">${escapeHtml(getAssetGroupName(asset.groupId))}</span></td>
-              <td><button class="op-button" data-more="${asset.id}" type="button"><span data-icon="more"></span></button></td>
+              <td>${actionButton}</td>
             </tr>`;
         }).join("")}</tbody>
       </table>
@@ -385,38 +413,40 @@ function formatAssetValidUntil(asset) {
 
 function getValidityStatus(asset) {
   const now = new Date();
-  const expireDate = new Date((asset.validUntilDate || asset.validUntil || "").replace(/-/g, "/"));
-  if (isNaN(expireDate.getTime())) return "生效中";
-  if (now > expireDate) return "已过期";
+  const expireDate = toJsDate(asset.validUntilDate || asset.validUntil);
+  const validityConfig = getValidityStatusConfig();
+  if (isNaN(expireDate.getTime())) return validityConfig.names[validityConfig.codes.indexOf(validityConfig.valid)] || "生效中";
+  if (now > expireDate) return validityConfig.names[validityConfig.codes.indexOf(validityConfig.expired)] || "已过期";
   const diffDays = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24));
   if (diffDays <= 7) return "即将过期";
-  return "生效中";
+  return validityConfig.names[validityConfig.codes.indexOf(validityConfig.valid)] || "生效中";
 }
 
-function getAssetStatusText(status) {
-  const statusMap = {
-    1: "待提交",
-    2: "待审核",
-    3: "机审中",
-    4: "机审通过",
-    5: "机审拒绝",
-    6: "待人审",
-    7: "人审中",
-    8: "人审通过",
-    9: "人审拒绝",
-    10: "未入库",
-    active: "人审通过",
-    pending: "待审核",
-    deleted: "已删除",
-  };
-  return statusMap[status] || "未知状态";
+function getAssetStatusText(asset) {
+  const auditConfig = getAuditStatusConfig();
+  const assetStatusConfig = getAssetStatusConfig();
+  const auditStatus = asset.auditStatus;
+  const assetStatus = asset.assetStatus;
+  if (assetStatusConfig.deletedCodes.includes(assetStatus)) return "已删除";
+  const auditValues = getAllLeafValues("audit_status");
+  const auditValue = auditValues.find(v => v.code === auditStatus);
+  if (auditValue) return auditValue.name;
+  const assetStatusValues = getAllLeafValues("asset_status");
+  const assetStatusValue = assetStatusValues.find(v => v.code === assetStatus);
+  if (assetStatusValue) return assetStatusValue.name;
+  return "未知状态";
 }
 
-function getAssetStatusClass(status) {
-  if (status === 8 || status === "active") return "ok";
-  if (status === 2 || status === "pending") return "warn";
-  if (status === 3 || status === 4 || status === 6 || status === 7) return "info";
-  if (status === 5 || status === 9 || status === "deleted") return "off";
+function getAssetStatusClass(asset) {
+  const auditConfig = getAuditStatusConfig();
+  const assetStatusConfig = getAssetStatusConfig();
+  const auditStatus = asset.auditStatus;
+  const assetStatus = asset.assetStatus;
+  if (assetStatusConfig.deletedCodes.includes(assetStatus)) return "off";
+  if (auditConfig.rejectCodes.includes(auditStatus)) return "off";
+  if (auditConfig.pendingCodes.includes(auditStatus)) return "warn";
+  if (auditConfig.auditingCodes.includes(auditStatus)) return "info";
+  if (auditConfig.finalPassCode === auditStatus) return "ok";
   return "ok";
 }
 
@@ -433,13 +463,21 @@ function renderList(items) {
   return `
     <table class="list-table">
       <thead><tr><th style="width:44px"><input data-select-all type="checkbox" /></th><th>名称</th><th>描述</th><th>业务标签</th><th>AI标签</th><th>版本</th><th>素材组</th><th>操作</th></tr></thead>
-      <tbody>${items.map((asset) => `
+      <tbody>${items.map((asset) => {
+        const canRestore = canRestoreAsset(asset);
+        const canPurge = canPurgeAsset(asset);
+        let actionButtons = "";
+        if (canRestore) actionButtons += `<button class="op-button" data-restore="${asset.id}" type="button" title="恢复"><span data-icon="undo"></span></button>`;
+        if (canPurge) actionButtons += `<button class="op-button danger" data-hard-delete="${asset.id}" type="button" title="彻底删除"><span data-icon="trash"></span></button>`;
+        if (!actionButtons) actionButtons = "-";
+        return `
         <tr data-id="${asset.id}">
           <td><input data-select-asset="${asset.id}" type="checkbox" ${state.selectedIds.has(asset.id) ? "checked" : ""} /></td>
           <td><div class="table-name" data-preview="${asset.id}">${asset.mime?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(asset.src) ? `<img src="${asset.src}" alt="" />` : `<span class="mini-file">${asset.format}</span>`}${escapeHtml(asset.name)}<b>.${asset.format}</b></div></td>
           <td>${escapeHtml(asset.desc || "-")}</td><td>${escapeHtml((asset.customTags || []).join("、") || "-")}</td><td>${escapeHtml((asset.aiTags || []).join("、") || "-")}</td><td>${asset.version}</td><td>${escapeHtml(getAssetGroupName(asset.groupId))}</td>
-          <td><button class="op-button" data-more="${asset.id}" type="button"><span data-icon="more"></span></button></td>
-        </tr>`).join("")}</tbody>
+          <td>${actionButtons}</td>
+        </tr>`;
+      }).join("")}</tbody>
     </table>`;
 }
 
@@ -480,7 +518,7 @@ function bindAssetEvents() {
         asset.validUntilDate = validUntil;
       }
       asset.updatedAt = nowText();
-      asset.logs.unshift(`${currentUser.name} 更新了素材有效期`);
+      logOperation('asset', asset.id, asset.name, 'asset.edit', '更新了素材有效期');
       saveDb();
       showToast("日期已保存");
       render();
@@ -560,13 +598,14 @@ function renderActivityPage() {
     <div class="table-scroll"><table class="records-table manage-table">
       <colgroup><col style="width:150px"><col style="width:90px"><col style="width:260px"><col style="width:260px"><col style="width:180px"><col style="width:96px"></colgroup>
       <thead><tr><th>时间</th><th>用户</th><th>动态内容</th><th>关联素材</th><th>素材组</th><th>操作</th></tr></thead>
-      <tbody>${rows.map((row) => `<tr><td>${row.time}</td><td>${escapeHtml(currentUser.name)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
+      <tbody>${rows.map((row) => `<tr><td>${row.time}</td><td>${escapeHtml(row.operator)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
     </table></div>
   `);
   els.contentPanel.querySelectorAll("[data-open-activity]").forEach((button) => button.addEventListener("click", () => openViewer(button.dataset.openActivity)));
 }
 
 function renderSharePage() {
+  const manageableShares = db.shares.filter((share) => canManageShare(share));
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="asset-toolbar inline-toolbar">
       <label>素材组<input id="shareGroupQuery" placeholder="输入素材组名称搜索" /></label>
@@ -575,9 +614,13 @@ function renderSharePage() {
     <div class="table-scroll"><table class="records-table manage-table">
       <colgroup><col style="width:180px"><col style="width:90px"><col style="width:200px"><col style="width:78px"><col style="width:78px"><col style="width:78px"><col style="width:150px"><col style="width:120px"><col style="width:90px"><col style="width:180px"></colgroup>
       <thead><tr><th>素材组</th><th>分享人</th><th>链接权限</th><th>访问</th><th>浏览</th><th>下载</th><th>分享时间</th><th>过期时间</th><th>状态</th><th>操作</th></tr></thead>
-      <tbody>${db.shares.map((item, index) => {
-        const expired = isShareExpired(item.expiresAt);
-        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(item.user)}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${item.sharedAt}</td><td>${item.expiresAt}</td><td><span class="status-dot ${expired ? "off" : "ok"}"></span>${expired ? "已过期" : "生效中"}</td><td><button class="link-button" data-open-share-record="${index}" type="button">管理分享</button></td></tr>`;
+      <tbody>${manageableShares.map((item, index) => {
+        const shareStatusConfig = getShareStatusConfig();
+        const canManage = canManageShare(item);
+        const actionButton = canManage ? `<button class="link-button" data-open-share-record="${index}" type="button">管理分享</button>` : "";
+        const statusName = getTreeNodeByCode(item.status, "share_status")?.name || item.status;
+        const isActive = shareStatusConfig.activeCodes.includes(item.status);
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(getUserNameByUsername(item.user))}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${formatDateTimeDisplay(item.sharedAt)}</td><td>${formatDateTimeDisplay(item.expiresAt)}</td><td><span class="status-dot ${isActive ? "ok" : "off"}"></span>${escapeHtml(statusName)}</td><td>${actionButton}</td></tr>`;
       }).join("")}</tbody>
     </table></div>
   `);
@@ -587,30 +630,48 @@ function renderSharePage() {
 }
 
 function renderRecyclePage() {
-  const deletedAssets = sortRecycleItems(db.assets.filter((asset) => asset.status === "deleted" || asset.status === -1));
+  const assetStatusConfig = getAssetStatusConfig();
+  const groupStatusConfig = getGroupStatusConfig();
+  const deletedAssets = sortRecycleItems(db.assets.filter((asset) => assetStatusConfig.deletedCodes.includes(asset.assetStatus) && canViewAsset(asset)));
+  const deletedGroups = db.groups.filter((group) => groupStatusConfig.deletedCodes.includes(group.status));
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="manage-list-wrap">
-      ${deletedAssets.length ? renderList(deletedAssets) : renderEmpty("暂无素材")}
+      ${deletedAssets.length ? renderList(deletedAssets) : ""}
+      ${deletedGroups.length ? `<div class="section-title">已删除素材组</div><div class="table-scroll"><table class="records-table manage-table"><colgroup><col style="width:200px"><col style="width:150px"><col style="width:150px"><col style="width:100px"></colgroup><thead><tr><th>素材组名称</th><th>创建人</th><th>删除时间</th><th>操作</th></tr></thead><tbody>${deletedGroups.map((group) => `<tr><td>${escapeHtml(group.name)}</td><td>${escapeHtml(getUserNameByUsername(group.createdBy))}</td><td>${escapeHtml(formatDateTimeDisplay(group.deletedAt) || "")}</td><td><button class="link-button" data-restore-group="${group.id}" type="button">恢复</button></td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${!deletedAssets.length && !deletedGroups.length ? renderEmpty("暂无素材") : ""}
     </div>
   `);
   bindAssetEvents();
+  bindRecycleGroupEvents();
+}
+
+function bindRecycleGroupEvents() {
+  els.contentPanel.querySelectorAll("[data-restore-group]").forEach((button) => {
+    button.addEventListener("click", () => {
+      restoreGroup(button.dataset.restoreGroup);
+    });
+  });
 }
 
 function renderCollectPage() {
+  const manageableTasks = db.collectTasks.filter((task) => canManageCollect(task));
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="asset-toolbar inline-toolbar"><label>主题<input placeholder="输入收集主题" /></label><label>状态<input placeholder="生效中 / 已失效" /></label></div>
     <div class="table-scroll"><table class="records-table manage-table">
-      <colgroup><col style="width:180px"><col style="width:180px"><col style="width:110px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:220px"></colgroup>
-      <thead><tr><th>主题</th><th>存放素材组</th><th>状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
-      <tbody>${db.collectTasks.map((task) => {
-        const taskAssets = db.assets.filter((asset) => asset.collect_id === task.id);
-        const hasPendingAssets = taskAssets.some((asset) => asset.status === 2);
-        const hasMachineAuditAssets = taskAssets.some((asset) => asset.status >= 3 && asset.status <= 5);
-        const hasHumanAuditAssets = taskAssets.some((asset) => asset.status >= 6 && asset.status <= 7);
-        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === "生效中" ? "ok" : task.status === "已完成" ? "info" : "off"}"></span>${task.status}</td><td>${task.code}</td><td>${task.createdAt}</td><td>${task.expiresAt}</td><td>${escapeHtml(task.creator)}</td><td>-</td><td>
-          ${hasPendingAssets ? `<button class="link-button" data-machine-audit="${escapeAttr(task.id)}" type="button">发起机审</button>` : ""}
-          ${hasMachineAuditAssets || hasHumanAuditAssets ? `<button class="link-button" data-human-audit="${escapeAttr(task.id)}" type="button">发起审核</button>` : ""}
-          <button class="link-button" data-open-collect="${escapeAttr(task.id)}" type="button">${isAdmin() || task.creator === currentUser.name ? "管理邀请" : "查看"}</button>
+      <colgroup><col style="width:180px"><col style="width:180px"><col style="width:100px"><col style="width:100px"><col style="width:90px"><col style="width:150px"><col style="width:150px"><col style="width:90px"><col style="width:100px"><col style="width:220px"></colgroup>
+      <thead><tr><th>主题</th><th>存放素材组</th><th>任务状态</th><th>审核状态</th><th>访问密码</th><th>创建时间</th><th>失效时间</th><th>创建人</th><th>备注</th><th>操作</th></tr></thead>
+      <tbody>${manageableTasks.map((task) => {
+        const auditConfig = getAuditStatusConfig();
+        const taskStatusConfig = getCollectTaskStatusConfig();
+        const canManage = canManageCollect(task);
+        const taskStatusName = getTreeNodeByCode(task.status, "collect_task_status")?.name || "未知状态";
+        const auditStatusName = getTreeNodeByCode(task.auditStatus, "audit_status")?.name || task.auditStatus || "待提交";
+        const showMachineAudit = canManage && task.auditStatus === auditConfig.pendingAudit;
+        const showHumanAudit = canManage && [auditConfig.machinePass, auditConfig.pendingHuman, auditConfig.humanAuditing].includes(task.auditStatus);
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === taskStatusConfig.active ? "ok" : task.status === taskStatusConfig.completed ? "info" : "off"}"></span>${escapeHtml(taskStatusName)}</td><td>${escapeHtml(auditStatusName)}</td><td>${task.code}</td><td>${formatDateTimeDisplay(task.createdAt)}</td><td>${formatDateTimeDisplay(task.expiresAt)}</td><td>${escapeHtml(getUserNameByUsername(task.creator))}</td><td>-</td><td>
+          ${showMachineAudit ? `<button class="link-button" data-machine-audit="${escapeAttr(task.id)}" type="button">发起机审</button>` : ""}
+          ${showHumanAudit ? `<button class="link-button" data-human-audit="${escapeAttr(task.id)}" type="button">发起审核</button>` : ""}
+          <button class="link-button" data-open-collect="${escapeAttr(task.id)}" type="button">${canManage ? "管理邀请" : "查看"}</button>
         </td></tr>`;
       }).join("")}</tbody>
     </table></div>
@@ -623,9 +684,9 @@ function renderCollectPage() {
 function renderValidityPage() {
   const now = new Date();
   const assets = db.assets.filter((asset) => {
-    if (asset.status === "deleted" || asset.status === -1) return false;
+    if (getAssetStatusConfig().deletedCodes.includes(asset.assetStatus)) return false;
     if (state.manageValidity === "全部") return true;
-    const expireDate = new Date((asset.validUntilDate || asset.validUntil || "").replace(/-/g, "/"));
+    const expireDate = toJsDate(asset.validUntilDate || asset.validUntil);
     if (isNaN(expireDate.getTime())) return false;
     const diffDays = Math.ceil((expireDate - now) / (1000 * 60 * 60 * 24));
     switch (state.manageValidity) {
@@ -1056,33 +1117,35 @@ function openValueListItemFormModal(itemId = null) {
 function saveValueList(data) {
   const editId = document.querySelector("#valueListId").value;
   const tree = db.valueListTree || [];
-
-  if (!editId) {
-    // 新增：检查编码唯一性
-    if (tree.find(n => n.code === data.code)) {
-      showToast("编码已存在");
-      return;
-    }
-  }
-
   const root = tree.find(n => n.type === "root") || tree[0];
   const fallbackParentId = root?.id || "";
   // 父级下拉已禁用，直接从 select 元素读取值
   const parentSelect = document.querySelector("#valueListParentId");
   const explicitParentId = parentSelect ? parentSelect.value : (data.parentId || "");
+  const currentNode = editId ? tree.find(n => n.id === editId) : null;
+  const parentId = editId ? (explicitParentId || currentNode?.parentId || fallbackParentId) : (explicitParentId || fallbackParentId);
+  const duplicate = tree.find((n) => n.parentId === parentId && n.code === data.code && n.id !== editId);
+  if (duplicate) {
+    showToast("同级编码已存在");
+    return;
+  }
+  if (editId && collectValueListDescendantIds(tree, editId, { includeDeleted: true }).has(parentId)) {
+    showToast("不能将节点移动到自己的子节点下");
+    return;
+  }
 
   const node = {
     id: editId || `vl_${Date.now()}`,
     code: data.code,
     name: data.name,
     type: data.type || "value",
-    parentId: editId ? (explicitParentId || tree.find(n => n.id === editId)?.parentId || fallbackParentId) : (explicitParentId || fallbackParentId),
+    parentId,
     refId: data.refId || null,
     description: data.description || "",
     attr1: data.attr1 || "",
     attr2: data.attr2 || "",
     status: data.status || "enabled",
-    sortOrder: editId ? (tree.find(n => n.id === editId)?.sortOrder || 0) : tree.filter(n => n.parentId === (explicitParentId || fallbackParentId)).length + 1,
+    sortOrder: editId ? (currentNode?.sortOrder || 0) : tree.filter(n => n.parentId === parentId).length + 1,
   };
 
   if (editId) {
@@ -1111,12 +1174,16 @@ function saveValueListItem(data) {
     return;
   }
 
-  if (!editId) {
-    // 新增：检查编码唯一性
-    if (tree.find(n => n.code === data.code)) {
-      showToast("编码已存在");
-      return;
-    }
+  const currentNode = editId ? tree.find(n => n.id === editId) : null;
+  const parentId = data.parentId || currentNode?.parentId || dimNodeId;
+  const duplicate = tree.find((n) => n.parentId === parentId && n.code === data.code && n.id !== editId);
+  if (duplicate) {
+    showToast("同级编码已存在");
+    return;
+  }
+  if (editId && collectValueListDescendantIds(tree, editId, { includeDeleted: true }).has(parentId)) {
+    showToast("不能将节点移动到自己的子节点下");
+    return;
   }
 
   const node = {
@@ -1124,13 +1191,13 @@ function saveValueListItem(data) {
     code: data.code,
     name: data.name,
     type: data.type || "value",
-    parentId: data.parentId || dimNodeId,
+    parentId,
     refId: data.refId || null,
     description: "",
     attr1: data.attr1 || "",
     attr2: data.attr2 || "",
     status: data.status || "enabled",
-    sortOrder: tree.filter(n => n.parentId === dimNodeId).length + 1,
+    sortOrder: editId ? (currentNode?.sortOrder || 0) : tree.filter(n => n.parentId === parentId).length + 1,
   };
 
   if (editId) {
@@ -1404,6 +1471,11 @@ function saveMenu(data) {
     showToast("功能编号已存在");
     return;
   }
+  const existingByPage = data.page ? menus.find((m) => m.page === data.page && m.id !== editId) : null;
+  if (existingByPage) {
+    showToast("页面标识已被其他菜单使用");
+    return;
+  }
 
   if (isNew) {
     const parentId = state.menuManageSelectedId;
@@ -1472,16 +1544,35 @@ function deleteMenu(menuId) {
         idsToDelete.add(id);
         menus.filter((m) => m.parentId === id).forEach((m) => collect(m.id));
       };
-      collect(menuId);
+        collect(menuId);
+        const pagesToDelete = menus
+          .filter((m) => idsToDelete.has(m.id) && m.page)
+          .map((m) => m.page);
+  
+        db.menus = menus.filter((m) => !idsToDelete.has(m.id));
+        removeMenuPermissionKeys(pagesToDelete);
+        saveDb();
+        showToast("已删除");
+        state.menuManageSelectedId = menu.parentId || "";
+        state.menuManageEditingId = menu.parentId || "";
+        normalizePageState();
+        renderMenuManagePage();
+        renderShell();
+      }
+    });
+  }
 
-      db.menus = menus.filter((m) => !idsToDelete.has(m.id));
-      saveDb();
-      showToast("已删除");
-      state.menuManageSelectedId = menu.parentId || "";
-      state.menuManageEditingId = menu.parentId || "";
-      renderMenuManagePage();
-      renderShell();
-    }
+function removeMenuPermissionKeys(pageKeys = []) {
+  const keys = new Set(pageKeys.filter(Boolean));
+  if (!keys.size) return;
+  (db.roles || []).forEach((role) => {
+    keys.forEach((key) => delete role.permissions?.[key]);
+  });
+  Object.values(db.orgPermissions || {}).forEach((permissions) => {
+    keys.forEach((key) => delete permissions?.[key]);
+  });
+  Object.values(db.userPermissions || {}).forEach((permissions) => {
+    keys.forEach((key) => delete permissions?.[key]);
   });
 }
 
@@ -1655,7 +1746,7 @@ function renderUserManagePage() {
       <td>${escapeHtml(user.name)}</td>
       <td>${escapeHtml(getOrgName(user.organizationId))}</td>
       <td>${escapeHtml(getRoleNames(getUserRoleIds(user)))}</td>
-      <td><span class="status-dot ${user.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(user.status)}</td>
+      <td><span class="status-dot ${user.status === getUserStatusConfig().enabled ? "ok" : "off"}"></span>${escapeHtml(getTreeNodeByCode(user.status, "user_status")?.name || user.status)}</td>
       <td>${escapeHtml(user.lastLogin || "-")}</td>
     </tr>`).join("");
   els.contentPanel.innerHTML = renderManageShell(`
@@ -1747,7 +1838,7 @@ function renderRoleManagePage() {
       <td><strong>${escapeHtml(role.name)}</strong><small>${escapeHtml(role.description || "-")}</small></td>
       <td>${members}</td>
       <td>可见 ${visibleCount} 项 / 可编辑 ${editCount} 项</td>
-      <td><span class="status-dot ${role.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(role.status)}</td>
+      <td><span class="status-dot ${role.status === getRoleStatusConfig().enabled ? "ok" : "off"}"></span>${escapeHtml(getTreeNodeByCode(role.status, "role_status")?.name || role.status)}</td>
       <td class="row-actions">
         ${canEditMenu("roles") ? `<button class="link-button" data-edit-role="${escapeAttr(role.id)}" type="button">编辑</button>` : ""}
         ${canEditMenu("permissions") ? `<button class="link-button" data-role-permission="${escapeAttr(role.id)}" type="button">角色权限</button>` : ""}
@@ -1772,7 +1863,7 @@ function renderOrganizationManagePage() {
       <td>${escapeHtml(getOrgName(org.parentId))}</td>
       <td>${members}</td>
       <td>${escapeHtml(org.manager || "-")}</td>
-      <td><span class="status-dot ${org.status === "启用" ? "ok" : "off"}"></span>${escapeHtml(org.status)}</td>
+      <td><span class="status-dot ${org.status === getOrgStatusConfig().enabled ? "ok" : "off"}"></span>${escapeHtml(getTreeNodeByCode(org.status, "org_status")?.name || org.status)}</td>
       <td>${canEditMenu("organizations") ? `<button class="link-button" data-edit-org="${escapeAttr(org.id)}" type="button">编辑</button>` : "-"}</td>
     </tr>`;
   }).join("");
@@ -1791,16 +1882,64 @@ function renderPermissionManagePage() {
   const selectedMenu = pageMenus.find((menu) => menu.id === state.permissionMenuId) || pageMenus[0];
   const subjectType = state.permissionSubjectType || "organization";
   const subject = getPermissionSubject(subjectType, state.permissionSubjectId);
-  const body = view === "subject"
-    ? renderPermissionSubjectView(subjectType, subject)
-    : renderPermissionMenuView(selectedMenu);
+  let body;
+  switch (view) {
+    case "subject": body = renderPermissionSubjectView(subjectType, subject); break;
+    case "requests": body = renderPermissionRequestsView(); break;
+    default: body = renderPermissionMenuView(selectedMenu);
+  }
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="permission-view-switch">
       <button class="${view === "menu" ? "active" : ""}" data-permission-view="menu" type="button">按菜单授权</button>
       <button class="${view === "subject" ? "active" : ""}" data-permission-view="subject" type="button">按组织个人授权</button>
+      <button class="${view === "requests" ? "active" : ""}" data-permission-view="requests" type="button">权限申请审批</button>
     </div>
     ${body}`);
   bindSystemManageEvents();
+}
+
+function renderPermissionRequestsView() {
+  const requestStatusConfig = getPermissionRequestStatusConfig();
+  const pendingRequests = (db.permissionRequests || []).filter((r) => r.status === requestStatusConfig.pending);
+  const approvedRequests = (db.permissionRequests || []).filter((r) => r.status === requestStatusConfig.approved);
+  const rejectedRequests = (db.permissionRequests || []).filter((r) => r.status === requestStatusConfig.rejected);
+  const filter = state.permissionRequestFilter || requestStatusConfig.pending;
+  let requests = pendingRequests;
+  if (filter === requestStatusConfig.approved) requests = approvedRequests;
+  if (filter === requestStatusConfig.rejected) requests = rejectedRequests;
+  return `
+    <div class="permission-workspace">
+      <div class="tool-bar">
+        <div class="inline-toolbar">
+          <label><button class="${filter === requestStatusConfig.pending ? "active" : ""}" data-permission-request-filter="${requestStatusConfig.pending}" type="button">待审批 (${pendingRequests.length})</button></label>
+          <label><button class="${filter === requestStatusConfig.approved ? "active" : ""}" data-permission-request-filter="${requestStatusConfig.approved}" type="button">已通过 (${approvedRequests.length})</button></label>
+          <label><button class="${filter === requestStatusConfig.rejected ? "active" : ""}" data-permission-request-filter="${requestStatusConfig.rejected}" type="button">已拒绝 (${rejectedRequests.length})</button></label>
+        </div>
+      </div>
+      <div class="table-scroll"><table class="records-table">
+        <colgroup><col style="width:120px"><col style="width:180px"><col style="width:120px"><col style="width:150px"><col style="width:200px"><col style="width:150px"><col style="width:100px"></colgroup>
+        <thead><tr><th>申请人</th><th>申请对象</th><th>申请权限</th><th>申请时间</th><th>申请理由</th><th>处理人</th><th>操作</th></tr></thead>
+        <tbody>${requests.map((req) => {
+          const targetName = req.targetType === "asset" 
+            ? (findAsset(req.targetId)?.name || "")
+            : (db.groups.find((g) => g.id === req.targetId)?.name || "");
+          const permName = getTreeNodeByCode(req.requestedPermission, 
+            req.targetType === "asset" ? "asset_permission_level" : "group_permission_level")?.name || req.requestedPermission;
+          return `<tr>
+            <td><span class="tag">${escapeHtml(req.applicant)}</span><span class="hint">${escapeHtml(req.applicantDept)}</span></td>
+            <td><span class="tag ${req.targetType === "asset" ? "asset-tag" : "group-tag"}">${req.targetType === "asset" ? "素材" : "素材组"}</span>${escapeHtml(targetName)}</td>
+            <td><span class="tag permission-tag">${escapeHtml(permName)}</span></td>
+            <td>${escapeAttr(formatDateTimeDisplay(req.createdAt))}</td>
+            <td><span class="cell-ellipsis" title="${escapeAttr(req.reason)}">${escapeHtml(req.reason)}</span></td>
+            <td>${escapeHtml(req.handledBy || "-")}</td>
+            <td>${req.status === requestStatusConfig.pending ? `
+              <button class="link-button" data-approve-request="${escapeAttr(req.id)}" type="button">通过</button>
+              <button class="link-button" data-reject-request="${escapeAttr(req.id)}" type="button">拒绝</button>
+            ` : `<span class="status-dot ${req.status === requestStatusConfig.approved ? "ok" : "off"}"></span>${req.status === requestStatusConfig.approved ? "已通过" : "已拒绝"}`}</td>
+          </tr>`;
+        }).join("") || `<tr><td colspan="7" class="empty">暂无权限申请记录</td></tr>`}</tbody>
+      </table></div>
+    </div>`;
 }
 
 function getSubjectPermissions(type, id) {
@@ -2062,6 +2201,12 @@ function bindSystemManageEvents() {
     state.permissionSubjectId = "";
     renderPermissionManagePage();
   }));
+  els.contentPanel.querySelectorAll("[data-permission-request-filter]").forEach((button) => button.addEventListener("click", () => {
+    state.permissionRequestFilter = button.dataset.permissionRequestFilter;
+    renderPermissionManagePage();
+  }));
+  els.contentPanel.querySelectorAll("[data-approve-request]").forEach((button) => button.addEventListener("click", () => approvePermissionRequest(button.dataset.approveRequest)));
+  els.contentPanel.querySelectorAll("[data-reject-request]").forEach((button) => button.addEventListener("click", () => rejectPermissionRequest(button.dataset.rejectRequest)));
   els.contentPanel.querySelectorAll("[data-select-permission-menu]").forEach((button) => button.addEventListener("click", () => {
     state.permissionMenuId = button.dataset.selectPermissionMenu;
     renderPermissionManagePage();
@@ -2215,7 +2360,7 @@ function openUserManageModal(userId = "") {
     <label>邮箱<input name="email" value="${escapeAttr(user.email || "")}" placeholder="请输入邮箱" /></label>
     <label>所属组织<select name="organizationId">${buildOptions(db.organizations || [], user.organizationId || "")}</select></label>
     <label>所属角色<select name="roleIds" multiple size="4">${buildMultiOptions(db.roles || [], roleIds)}</select></label>
-    <label>状态<select name="status"><option ${user.status !== "停用" ? "selected" : ""}>启用</option><option ${user.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <label>状态<select name="status"><option ${user.status !== getUserStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getUserStatusConfig().enabled, "user_status")?.name || "启用")}</option><option ${user.status === getUserStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getUserStatusConfig().disabled, "user_status")?.name || "停用")}</option></select></label>
     <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
   `, (form) => {
     const formData = new FormData(form);
@@ -2230,6 +2375,7 @@ function openUserManageModal(userId = "") {
       showToast("登录用户名已存在");
       return;
     }
+    const userStatusConfig = getUserStatusConfig();
     const next = {
       id: userId || `user-${Date.now()}`,
       username,
@@ -2240,7 +2386,7 @@ function openUserManageModal(userId = "") {
       organizationId: data.organizationId,
       roleId: nextRoleIds[0] || "",
       roleIds: nextRoleIds,
-      status: data.status,
+      status: data.status === getTreeNodeByCode(userStatusConfig.enabled, "user_status")?.name ? userStatusConfig.enabled : userStatusConfig.disabled,
       lastLogin: user.lastLogin || "",
     };
     if (userId) db.users = db.users.map((item) => item.id === userId ? next : item);
@@ -2269,7 +2415,7 @@ function openRoleManageModal(roleId = "") {
     <label>角色ID<input name="id" value="${escapeAttr(role.id || "")}" ${roleId ? "readonly" : ""} required /></label>
     <label>角色名称<input name="name" value="${escapeAttr(role.name || "")}" required /></label>
     <label>角色说明<textarea name="description">${escapeHtml(role.description || "")}</textarea></label>
-    <label>状态<select name="status"><option ${role.status !== "停用" ? "selected" : ""}>启用</option><option ${role.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <label>状态<select name="status"><option ${role.status !== getRoleStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getRoleStatusConfig().enabled, "role_status")?.name || "启用")}</option><option ${role.status === getRoleStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getRoleStatusConfig().disabled, "role_status")?.name || "停用")}</option></select></label>
     <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
   `, (form) => {
     const data = Object.fromEntries(new FormData(form));
@@ -2282,11 +2428,12 @@ function openRoleManageModal(roleId = "") {
       showToast("角色ID已存在");
       return;
     }
+    const roleStatusConfig = getRoleStatusConfig();
     const next = {
       id: nextId,
       name: data.name.trim(),
       description: data.description.trim(),
-      status: data.status,
+      status: data.status === getTreeNodeByCode(roleStatusConfig.enabled, "role_status")?.name ? roleStatusConfig.enabled : roleStatusConfig.disabled,
       permissions: role.permissions || createMenuPermissions(false, false),
     };
     if (roleId) db.roles = db.roles.map((item) => item.id === roleId ? next : item);
@@ -2305,16 +2452,17 @@ function openOrganizationManageModal(orgId = "") {
     <label>组织名称<input name="name" value="${escapeAttr(org.name || "")}" required /></label>
     <label>上级组织<select name="parentId">${buildOptions((db.organizations || []).filter((item) => item.id !== orgId), org.parentId || "", "无")}</select></label>
     <label>负责人<input name="manager" value="${escapeAttr(org.manager || "")}" /></label>
-    <label>状态<select name="status"><option ${org.status !== "停用" ? "selected" : ""}>启用</option><option ${org.status === "停用" ? "selected" : ""}>停用</option></select></label>
+    <label>状态<select name="status"><option ${org.status !== getOrgStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getOrgStatusConfig().enabled, "org_status")?.name || "启用")}</option><option ${org.status === getOrgStatusConfig().disabled ? "selected" : ""}>${escapeHtml(getTreeNodeByCode(getOrgStatusConfig().disabled, "org_status")?.name || "停用")}</option></select></label>
     <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">保存</button></div>
   `, (form) => {
     const data = Object.fromEntries(new FormData(form));
+    const orgStatusConfig = getOrgStatusConfig();
     const next = {
       id: orgId || `org-${Date.now()}`,
       name: data.name.trim(),
       parentId: data.parentId || "",
       manager: data.manager.trim(),
-      status: data.status,
+      status: data.status === getTreeNodeByCode(orgStatusConfig.enabled, "org_status")?.name ? orgStatusConfig.enabled : orgStatusConfig.disabled,
     };
     if (orgId) db.organizations = db.organizations.map((item) => item.id === orgId ? next : item);
     else {
@@ -2373,16 +2521,29 @@ function openPermissionManageModal(roleId) {
 }
 
 function emptyRecycleBin() {
-  const count = db.assets.filter((asset) => asset.status === "deleted" || asset.status === -1).length + db.groups.filter((group) => group.status === "deleted").length;
-  if (!count) {
+  const assetStatusConfig = getAssetStatusConfig();
+  const groupStatusConfig = getGroupStatusConfig();
+  const assetCount = db.assets.filter((asset) => assetStatusConfig.deletedCodes.includes(asset.assetStatus)).length;
+  const groupCount = db.groups.filter((group) => groupStatusConfig.deletedCodes.includes(group.status)).length;
+  if (!assetCount && !groupCount) {
     showToast("回收站暂无内容");
     return;
   }
-  db.assets = db.assets.filter((asset) => asset.status !== "deleted" && asset.status !== -1);
-  db.groups = db.groups.filter((group) => group.status !== "deleted");
+  db.assets.forEach((asset) => {
+    if (assetStatusConfig.deletedCodes.includes(asset.assetStatus)) {
+      asset.assetStatus = assetStatusConfig.disabled;
+      asset.updatedAt = nowText();
+    }
+  });
+  db.groups.forEach((group) => {
+    if (groupStatusConfig.deletedCodes.includes(group.status)) {
+      group.status = groupStatusConfig.disabled;
+      group.updatedAt = nowText();
+    }
+  });
   saveDb();
   render();
-  showToast("回收站已清空");
+  showToast(`已彻底删除 ${assetCount} 个素材和 ${groupCount} 个素材组`);
 }
 
 function toggleRecycleDeletedTimeSort() {
@@ -2529,7 +2690,7 @@ function getTagSummary() {
   });
 
   // Count tag usage from assets
-  db.assets.filter((asset) => asset.status !== "deleted").forEach((asset) => {
+  db.assets.filter((asset) => !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus)).forEach((asset) => {
     (asset.customTags || []).forEach((t) => {
       const n = (typeof t === "object" ? (t.name || t.tag || "") : String(t || "")).trim();
       if (n) businessTags.set(n, (businessTags.get(n) || 0) + 1);
@@ -2711,8 +2872,8 @@ function renderTagTableBody(tags, type) {
       const name   = tag.tagName || tag.name || "-";
       const code   = tag.tagCode || "-";
       const desc   = tag.description || "-";
-      const ctime  = tag.createdAt ? tag.createdAt.split(" ")[0] : "-";
-      const cby    = tag.createdBy || "-";
+      const ctime  = tag.createdAt ? formatDateTimeDisplay(tag.createdAt).split(" ")[0] : "-";
+      const cby    = getUserNameByUsername(tag.createdBy) || "-";
       const count  = tag.count || 0;
       const depth  = tag.level || 0;
       const indent = depth > 0 ? `<span class="tree-indent">${"├ ".repeat(depth)}</span>` : "";
@@ -2766,9 +2927,9 @@ function renderTagTableBody(tags, type) {
     <col style="width:100px">
     <col style="width:132px">
     <col style="width:110px">
-    ${canEditTags ? `<col style="width:86px">` : ""}`;
+    <col style="width:86px">`;
   thead.innerHTML = `<tr>
-    <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th>${canEditTags ? "<th>操作</th>" : ""}
+    <th>#</th><th>标签名称</th><th>标签编码</th><th>标签描述</th><th>父标签名称</th><th>AI来源</th><th>AI识别</th><th>创建时间</th><th>创建人</th><th>操作</th>
   </tr>`;
 
   const aiSourceLabel = { 1: "AI 自动识别", 2: "业务预定义" };
@@ -2782,10 +2943,12 @@ function renderTagTableBody(tags, type) {
     const src    = aiSourceLabel[tag.aiSource] || "—";
     const srcCls = aiSourceClass[tag.aiSource] || "";
     const recog  = tag.aiRecognitionEnabled ? `<span class="badge-on">启用</span>` : `<span class="badge-off">未启用</span>`;
-    const ctime  = tag.createdAt ? tag.createdAt.split(" ")[0] : "-";
-    const cby    = tag.createdBy || "-";
+    const ctime  = tag.createdAt ? formatDateTimeDisplay(tag.createdAt).split(" ")[0] : "-";
+    const cby    = getUserNameByUsername(tag.createdBy) || "-";
     const depth  = tag._depth || 0;
     const indent = depth > 0 ? `<span class="tree-indent">${"├ ".repeat(depth)}</span>` : "";
+    const canManage = canManageTag(tag);
+    const actionButtons = canManage ? `<div class="tag-table-actions"><button class="op-button" data-edit-tag="${escapeAttr(name)}" type="button" title="编辑"><span data-icon="edit"></span></button></div>` : "-";
 
     return `<tr>
       <td class="cell-mono">${escapeHtml(String(idx + 1))}</td>
@@ -2803,11 +2966,7 @@ function renderTagTableBody(tags, type) {
       <td>${recog}</td>
       <td>${escapeHtml(ctime)}</td>
       <td>${escapeHtml(cby)}</td>
-      ${canEditTags ? `<td>
-        <div class="tag-table-actions">
-          <button class="op-button" data-edit-tag="${escapeAttr(name)}" type="button" title="编辑"><span data-icon="edit"></span></button>
-        </div>
-      </td>` : ""}
+      <td>${actionButtons}</td>
     </tr>`;
   });
 
@@ -2948,7 +3107,7 @@ function handleAddTagSubmit(event) {
     status: 1,
     sortOrder: 0,
     description,
-    createdBy: currentUser.name,
+    createdBy: currentUser.username,
     createdAt: nowText(),
     updatedAt: nowText(),
   };
@@ -2972,6 +3131,7 @@ function createTagRecordFromUsage(tagName, tagType) {
   if (existing) return existing;
   const normalizedType = Number(tagType) === 2 ? 2 : 1;
   const now = nowText();
+  const isAiAutoTag = normalizedType === 2 && (tagType === 2 || tagType === "2");
   const tag = {
     id: `tag-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     tagName,
@@ -2985,11 +3145,15 @@ function createTagRecordFromUsage(tagName, tagType) {
     status: 1,
     sortOrder: 0,
     description: "",
-    createdBy: currentUser.name,
+    createdBy: isAiAutoTag ? "system" : currentUser.username,
+    ownedBy: isAiAutoTag ? "system" : currentUser.username,
+    ownedByDept: isAiAutoTag ? "" : (currentUser.department || ""),
     createdAt: now,
     updatedAt: now,
+    logs: [],
   };
   db.tags.push(tag);
+  logOperation('tag', tag.id, tagName, 'tag.create', '创建了标签');
   saveDb();
   return tag;
 }
@@ -3065,6 +3229,11 @@ function handleEditTagSubmit(event) {
   if (tagIdx === -1) { closeEditTagModal(); return; }
 
   const tag = db.tags[tagIdx];
+  if (!canManageTag(tag)) {
+    showToast("没有权限编辑标签");
+    return;
+  }
+
   const tagType = parseInt(data.tagType || "1", 10);
   db.tags[tagIdx] = {
     ...tag,
@@ -3079,18 +3248,20 @@ function handleEditTagSubmit(event) {
     updatedAt: nowText(),
   };
 
+  logOperation('tag', tag.id, newName, 'tag.edit', newName !== oldName ? `重命名为「${newName}」` : '修改了标签');
+
   // Rename tags on assets
   if (newName !== oldName) {
     db.assets.forEach((asset) => {
       if (asset.customTags && asset.customTags.includes(oldName)) {
         asset.customTags = asset.customTags.map((t) => t === oldName ? newName : t);
         asset.updatedAt = nowText();
-        asset.logs.unshift(`${currentUser.name} 将标签「${oldName}」修改为「${newName}」`);
+        logOperation('asset', asset.id, asset.name, 'asset.tag', `将标签「${oldName}」修改为「${newName}」`);
       }
       if (asset.aiTags && asset.aiTags.includes(oldName)) {
         asset.aiTags = asset.aiTags.map((t) => t === oldName ? newName : t);
         asset.updatedAt = nowText();
-        asset.logs.unshift(`${currentUser.name} 将AI标签「${oldName}」修改为「${newName}」`);
+        logOperation('asset', asset.id, asset.name, 'asset.tag', `将AI标签「${oldName}」修改为「${newName}」`);
       }
     });
   }
@@ -3106,23 +3277,30 @@ function closeEditTagModal() {
 }
 
 async function deleteTag(tagName) {
-  if (!canEditMenu("tags")) {
-    showToast("当前账号没有标签编辑权限");
+  const tag = db.tags?.find((t) => (t.tagName || t.name || "") === tagName);
+  if (!tag) {
+    showToast("标签不存在");
+    return;
+  }
+  if (!canManageTag(tag)) {
+    showToast("没有权限删除标签");
     return;
   }
   const count = getTagUsageCount(tagName);
   const ok = await window.Modal.confirm(`确定删除标签「${tagName}」吗？该标签当前被 ${count} 个素材使用，删除后将从所有素材中移除该标签。`);
   if (!ok) return;
 
+  logOperation('tag', tag.id, tagName, 'tag.delete', '删除了标签');
+  
   if (db.tags && Array.isArray(db.tags)) {
-    db.tags = db.tags.filter((tag) => (tag.tagName || tag.name || "") !== tagName);
+    db.tags = db.tags.filter((t) => (t.tagName || t.name || "") !== tagName);
   }
   
   db.assets.forEach((asset) => {
     if (asset.customTags && asset.customTags.includes(tagName)) {
       asset.customTags = asset.customTags.filter((t) => t !== tagName);
       asset.updatedAt = nowText();
-      asset.logs.unshift(`${currentUser.name} 删除了标签「${tagName}」`);
+      logOperation('asset', asset.id, asset.name, 'asset.tag', `移除了标签「${tagName}」`);
     }
   });
   saveDb();
@@ -3131,7 +3309,7 @@ async function deleteTag(tagName) {
 }
 
 function getTagUsageCount(tagName) {
-  return db.assets.filter((asset) => asset.status !== "deleted" && asset.customTags && asset.customTags.includes(tagName)).length;
+  return db.assets.filter((asset) => !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus) && asset.customTags && asset.customTags.includes(tagName)).length;
 }
 
 function openMergeTagModal(preselectTag) {
@@ -3189,7 +3367,7 @@ function handleMergeTagSubmit(event) {
       if (hasSourceTag) {
         asset.customTags = [...new Set([...asset.customTags.filter((tag) => !sourceTags.includes(tag)), targetTag])];
         asset.updatedAt = nowText();
-        asset.logs.unshift(`${currentUser.name} 将标签 ${sourceTags.join("、")} 合并到 ${targetTag}`);
+        logOperation('asset', asset.id, asset.name, 'asset.edit', `将标签 ${sourceTags.join("、")} 合并到 ${targetTag}`);
       }
     }
   });
@@ -3218,10 +3396,11 @@ function updateMergeTagSelectionCount() {
 
 function collectActivityRows() {
   return db.assets
-    .flatMap((asset) => (asset.logs || []).map((text, index) => ({
+    .flatMap((asset) => (asset.logs || []).map((logEntry) => ({
       asset,
-      text,
-      time: index === 0 ? asset.updatedAt : asset.createdAt,
+      operator: logEntry.operator || currentUser.username,
+      text: logEntry.detail || "",
+      time: logEntry.createdAt || asset.updatedAt,
     })))
     .sort((a, b) => String(b.time).localeCompare(String(a.time)))
     .slice(0, 50);

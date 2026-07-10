@@ -1,11 +1,12 @@
 function getFilteredAssets() {
+  const statusConfig = getAssetStatusConfig();
   let pool = db.assets.filter((asset) => {
-    const status = typeof asset.status === "number" ? asset.status : (asset.status === "deleted" ? -1 : asset.status === "pending" ? 2 : 8);
-    if (state.page === "recycle") return status === -1;
-    if (state.page === "pending") return status === 2;
-    return status === 8;
+    const assetStatus = asset.assetStatus || asset.status;
+    if (state.page === "recycle") return statusConfig.deletedCodes.includes(assetStatus) || assetStatus === -1;
+    if (state.page === "pending") return isPendingAsset(asset);
+    return statusConfig.activeCodes.includes(assetStatus);
   });
-  if (state.page === "created") pool = pool.filter((asset) => asset.owner === currentUser.name);
+  if (state.page === "created") pool = pool.filter((asset) => asset.owner === currentUser.username);
   if (state.groupId !== "all" && state.page === "all") {
     const groupIds = state.showGroupDescendants ? getGroupDescendantIds(state.groupId) : [state.groupId];
     pool = pool.filter((asset) => groupIds.includes(asset.groupId));
@@ -103,7 +104,7 @@ function matchFilter(asset, label, value) {
   if (label === "文件大小") return selections.some((item) => matchFileSizeFilter(asset, item));
   const haystack = {
     "创建者/创建部门": [asset.owner, asset.department],
-    "素材来源": ["内部上传", "AI生成", "外部导入"],
+    "素材来源": [getTreeNodeByCode(asset.asset_source, "source")?.name || asset.asset_source || ""],
     "文件格式": [asset.format],
     "品牌": [asset.brand],
     "车系": [asset.series || ""],
@@ -142,19 +143,23 @@ function matchFileSizeFilter(asset, value) {
 
 function matchStatusFilter(asset, value) {
   const now = new Date();
-  const startDate = new Date((asset.validStart || "").replace(/-/g, "/"));
-  const expireDate = new Date((asset.validUntilDate || asset.validUntil || "").replace(/-/g, "/"));
+  const startDate = toJsDate(asset.validStart);
+  const expireDate = toJsDate(asset.validUntilDate || asset.validUntil);
+  const validityConfig = getValidityStatusConfig();
+  const validName = getTreeNodeByCode(validityConfig.valid, "asset_validity")?.name || "有效";
+  const expiredName = getTreeNodeByCode(validityConfig.expired, "asset_validity")?.name || "已失效";
+  const pendingName = getTreeNodeByCode(validityConfig.pending, "asset_validity")?.name || "待生效";
   
-  if (value === "有效") {
+  if (value === validName) {
     if (isNaN(startDate.getTime())) return true;
     if (isNaN(expireDate.getTime())) return now >= startDate;
     return now >= startDate && now <= expireDate;
   }
-  if (value === "已失效") {
+  if (value === expiredName) {
     if (isNaN(expireDate.getTime())) return false;
     return now > expireDate;
   }
-  if (value === "待生效") {
+  if (value === pendingName) {
     if (isNaN(startDate.getTime())) return false;
     return now < startDate;
   }
@@ -166,16 +171,16 @@ function matchUploadTimeFilter(asset, value) {
   if (!uploadDate) return false;
   const [startDate, endDate] = value.split("~");
   if (!startDate && !endDate) return false;
-  const uploadTimestamp = new Date(uploadDate).getTime();
+  const uploadTimestamp = toJsDate(uploadDate).getTime();
   if (startDate && endDate) {
-    const startTimestamp = new Date(startDate).getTime();
-    const endTimestamp = new Date(endDate).getTime();
+    const startTimestamp = toJsDate(startDate).getTime();
+    const endTimestamp = toJsDate(endDate).getTime();
     return uploadTimestamp >= startTimestamp && uploadTimestamp <= endTimestamp;
   } else if (startDate) {
-    const startTimestamp = new Date(startDate).getTime();
+    const startTimestamp = toJsDate(startDate).getTime();
     return uploadTimestamp >= startTimestamp;
   } else {
-    const endTimestamp = new Date(endDate).getTime();
+    const endTimestamp = toJsDate(endDate).getTime();
     return uploadTimestamp <= endTimestamp;
   }
 }
@@ -195,10 +200,9 @@ function matchValidityFilter(asset, value) {
   const displayValue = formatAssetValidUntil(asset);
   if (value === "永久有效") return displayValue === "永久有效";
   if (asset.validUntil === value) return true;
-  const expireDate = normalizeDateText(asset.validUntilDate || asset.validUntil);
   if (!asset.validUntilDate && !/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(String(asset.validUntil || ""))) return false;
-  const today = new Date(`${todayText()}T00:00:00`);
-  const expire = new Date(`${expireDate}T00:00:00`);
+  const today = toJsDate(todayText());
+  const expire = toJsDate(asset.validUntilDate || asset.validUntil);
   const days = Math.ceil((expire - today) / 86400000);
   if (value === "30天内") return days >= 0 && days <= 30;
   if (value === "90天内") return days >= 0 && days <= 90;
@@ -207,7 +211,7 @@ function matchValidityFilter(asset, value) {
 
 function updateGroupCounts() {
   db.groups.forEach((group) => {
-    group.count = db.assets.filter((asset) => asset.status !== "deleted" && asset.groupId === group.id).length;
+    group.count = db.assets.filter((asset) => !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus) && asset.groupId === group.id).length;
   });
 }
 
@@ -221,7 +225,8 @@ function getGroupName(id) {
 }
 
 function getAssetGroupName(groupId) {
-  const group = db.groups.find((item) => item.id === groupId && !item.system && item.status !== "deleted");
+  const groupStatusConfig = getGroupStatusConfig();
+  const group = db.groups.find((item) => item.id === groupId && !item.system && !groupStatusConfig.deletedCodes.includes(item.status));
   return group ? group.name : "未分组";
 }
 
@@ -289,16 +294,43 @@ function formatBytes(bytes = 0) {
   return `${(bytes / 1024 / 1024).toFixed(2)}MB`;
 }
 
+// ===== 统一日期层：规范存储 = ISO 8601（YYYY-MM-DDTHH:mm:ss）=====
+// 显示统一 YYYY-MM-DD HH:mm（与存储一致，全程短横线，禁止 / 与 - 互转）；原生 <input type="date"> 的 value 同样 YYYY-MM-DD，无需转换。
+// 所有格式转换收敛到以下函数，禁止在业务代码里散写 replaceAll/replace。
+
 function nowText() {
-  const date = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
 function todayText() {
-  const date = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// 任意输入（YYYY/MM/DD HH:mm、YYYY-MM-DD HH:mm、ISO、永久有效、null）→ ISO 或原样透传
+function toISODate(value) {
+  if (value == null || typeof value !== "string") return value;
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(value)) return value; // 已是 ISO
+  const m = value.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (!m) return value; // 非日期字符串（如“永久有效”）原样返回
+  const [, y, mo, d, h, mi, s] = m;
+  const pad = (n) => String(Number(n)).padStart(2, "0");
+  return `${y}-${pad(mo)}-${pad(d)}T${pad(h || 0)}:${pad(mi || 0)}:${pad(s || 0)}`;
+}
+
+// 用于 new Date() 解析，统一走 ISO，规避浏览器对 YYYY/MM/DD 的解析差异
+function toJsDate(value) {
+  const iso = toISODate(value);
+  return iso ? new Date(iso) : new Date(NaN);
+}
+
+// 原生 <input type="date"> 的 value（YYYY-MM-DD）
+function toInputDateValue(value) {
+  const iso = toISODate(value);
+  return iso ? iso.slice(0, 10) : "";
 }
 
 function parseDateTimeText(value = "", defaultTime = "00:00") {
@@ -306,9 +338,11 @@ function parseDateTimeText(value = "", defaultTime = "00:00") {
   const dateMatch = text.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
   if (!dateMatch) return null;
   const [, year, month, day] = dateMatch;
-  const date = `${year.padStart(4, "0")}/${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`;
+  const date = `${year.padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const timeMatch = text.match(/(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
-  const time = timeMatch ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}${timeMatch[3] ? `:${String(timeMatch[3]).padStart(2, "0")}` : ""}` : defaultTime;
+  const time = timeMatch
+    ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}`
+    : defaultTime;
   return { date, time };
 }
 
@@ -317,21 +351,18 @@ function normalizeDateText(value = "") {
   return parsed ? parsed.date : todayText();
 }
 
-function normalizeDateTimeText(value = "", defaultTime = "23:59") {
-  const parsed = parseDateTimeText(value, defaultTime);
-  if (!parsed) return joinDateTime(todayText(), defaultTime);
-  return joinDateTime(parsed.date, parsed.time);
-}
-
 function splitDateTimeText(value = "") {
   const parsed = parseDateTimeText(value, "23:59");
   if (!parsed) return { date: todayText(), time: "23:59" };
   return parsed;
 }
 
+// 组合为 ISO 存储串（入参 date 已是 YYYY-MM-DD，全程无转换）
 function joinDateTime(date, time = "23:59") {
   if (!date) return "";
-  return `${date} ${time || "23:59"}`;
+  const d = String(date);
+  const t = String(time || "23:59").slice(0, 5);
+  return `${d}T${t}:00`;
 }
 
 function formDateTimeValue(data, prefix, defaultTime = "23:59") {
@@ -340,16 +371,34 @@ function formDateTimeValue(data, prefix, defaultTime = "23:59") {
 
 function formatDateTimeDisplay(value = "") {
   if (!value) return "";
-  const parts = splitDateTimeText(value);
-  return `${parts.date.replaceAll("-", "/")} ${parts.time}`;
+  const parts = parseDateTimeText(value);
+  if (!parts) return value; // 非日期（如“永久有效”）原样显示
+  return `${parts.date} ${parts.time}`;
 }
 
 function dateTimeTextToTimestamp(value = "") {
-  const parsed = parseDateTimeText(value, "00:00");
-  if (!parsed) return 0;
-  const iso = `${parsed.date}T${parsed.time}`;
-  const timestamp = Date.parse(iso);
+  const iso = toISODate(value);
+  if (!iso || typeof iso !== "string") return 0;
+  const timestamp = new Date(iso).getTime();
   return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+// 启动时对整库日期字段归一化为 ISO（自愈历史上误存为 YYYY-MM-DD 的数据）
+function normalizeDbDates(db) {
+  if (!db || typeof db !== "object") return db;
+  const fix = (o, fields) => {
+    if (!o) return;
+    fields.forEach((f) => { if (o[f] != null) o[f] = toISODate(o[f]); });
+  };
+  (db.assets || []).forEach((a) => { fix(a, ["validStart", "validUntil", "validUntilDate", "createdAt", "updatedAt", "deletedAt", "uploadDate"]); (a.logs || []).forEach((l) => fix(l, ["createdAt"])); });
+  (db.groups || []).forEach((g) => { fix(g, ["createdAt", "updatedAt", "deletedAt"]); (g.logs || []).forEach((l) => fix(l, ["createdAt"])); });
+  (db.shares || []).forEach((s) => fix(s, ["expiresAt", "createdAt", "updatedAt"]));
+  (db.assetAcl || []).forEach((a) => fix(a, ["expiresAt", "grantedAt", "createdAt", "updatedAt"]));
+  (db.groupAcl || []).forEach((a) => fix(a, ["expiresAt", "grantedAt", "createdAt", "updatedAt"]));
+  (db.collectTasks || []).forEach((t) => fix(t, ["expiresAt", "deadline", "createdAt", "updatedAt"]));
+  (db.tags || []).forEach((t) => fix(t, ["createdAt", "updatedAt"]));
+  (db.operationLogs || []).forEach((l) => fix(l, ["createdAt"]));
+  return db;
 }
 
 function splitTags(value) {
