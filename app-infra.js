@@ -161,7 +161,6 @@
     nodes.forEach((node) => {
       if (!node || node.dataset.datePickerReady === "true") return;
       node.dataset.datePickerReady = "true";
-      const isReadOnly = node.readOnly || node.hasAttribute("readonly");
       node.setAttribute("autocomplete", "off");
       node.setAttribute("inputmode", "none");
       if (window.flatpickr && node.type !== "time") {
@@ -171,7 +170,6 @@
           disableMobile: true,
           ...options,
         };
-        if (isReadOnly) fpOptions.clickOpens = false;
         node.removeAttribute("min");
         node.removeAttribute("max");
         window.flatpickr(node, fpOptions);

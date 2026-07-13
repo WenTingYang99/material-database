@@ -10,3 +10,6 @@ Thumbs.db
 
 # WorkBuddy
 .workbuddy/
+
+# 开发中框架（Vue3/NestJS 新框架，未完成，不打包进仓库）
+project/

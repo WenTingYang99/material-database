@@ -24,13 +24,17 @@ function openUploadSettingsModal(fileList, mode = "file") {
     SOURCE_LABEL: sourceLabel,
     FILE_COUNT: String(files.length),
     GROUP_OPTIONS: getUploadGroupOptions(),
+    BUSINESS_TAG_OPTIONS: getTagSummary().businessTags.filter((tag) => tag.tagCode).map((tag) =>
+      `<option value="${escapeAttr(tag.tagCode)}">${escapeHtml(tag.tagName || tag.name)}</option>`
+    ).join(""),
   });
   openFormModal("上传设置", html, (form) => {
-    const data = Object.fromEntries(new FormData(form));
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
     closeFormModal();
     handleFiles(files, {
       groupId: data.groupId || "",
-      customTags: splitTags(data.businessTags || ""),
+      customTags: formData.getAll("businessTags").filter(Boolean),
       validUntilDate: formDateTimeValue(data, "validUntil") || "",
     });
   });
@@ -63,7 +67,8 @@ async function handleFiles(fileList, options = {}) {
   }
   
   const incomingFiles = [...fileList];
-  const files = incomingFiles.filter(isAllowedUploadFile);
+  const internalCollectTask = { types: ["其他"] };
+  const files = incomingFiles.filter((file) => isAllowedCollectTaskFile(file, internalCollectTask));
   const rejectedCount = incomingFiles.length - files.length;
   if (!files.length) {
     if (rejectedCount) showToast("所选文件格式暂不支持上传");
@@ -76,29 +81,31 @@ async function handleFiles(fileList, options = {}) {
   const collectTaskId = `collect-${Date.now()}`;
   const collectLink = getCollectLink(collectTaskCode);
   const groupName = getGroupName(groupId);
+  const createdTime = nowText();
   
   db.collectTasks.unshift({
     id: collectTaskId,
     theme: `${currentUser.username} 的内部上传任务`,
     desc: options.desc || "",
     group: groupName,
-    status: getCollectTaskStatusConfig().completed,
+    groupId,
+    status: getCollectTaskStatusConfig().active,
     code: collectTaskCode,
     creator: currentUser.username,
     createdBy: currentUser.username,
     ownedBy: currentUser.username,
     ownedByDept: currentUser.department || "",
-    createdAt: nowText(),
-    updatedAt: nowText(),
+    createdAt: createdTime,
+    updatedAt: createdTime,
     expiresAt: calculateExpireTime("永久有效"),
     requirePassword: false,
     password: "",
-    types: options.types || [],
+    types: ["其他"],
     link: collectLink,
-    auditStatus: getAuditStatusConfig().humanPass,
+    auditStatus: getAuditStatusConfig().pendingAudit,
     logs: []
   });
-  logOperation('collect', collectTaskId, `${currentUser.username} 的内部上传任务`, 'collect.create', '创建了收集任务');
+  logOperation('collect', collectTaskId, `${currentUser.username} 的内部上传任务`, 'collect.create', '系统自动创建内部上传收集任务');
   
   const created = [];
   for (const file of files) {
@@ -116,6 +123,7 @@ async function handleFiles(fileList, options = {}) {
     created.push(asset);
     logOperation('asset', asset.id, asset.name, 'asset.upload', '上传了素材');
   }
+  addCollectHistory(db.collectTasks.find((task) => task.id === collectTaskId), "collect.submit", `内部上传提交 ${created.length} 个素材到待审核`, { stage: "submit" });
   saveDb();
   state.page = "pending";
   state.groupId = created[0]?.groupId || "all";
@@ -129,7 +137,7 @@ async function handleFiles(fileList, options = {}) {
 async function createAssetFromFile(file, options = {}) {
   const dataUrl = await readFileAsDataUrl(file);
   const format = getFormat(file);
-  const info = await getMediaInfo(file, dataUrl);
+  const info = await withTimeout(getMediaInfo(file, dataUrl), 5000, { width: 0, height: 0 });
   const tags = recognizeTags(file, info);
   ensureRecognizedAiTagsInLibrary(tags);
   const uploadDate = todayText();
@@ -294,9 +302,25 @@ function rerunSelectedRecognition() {
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
+    const timer = setTimeout(() => reject(new Error("file_read_timeout")), 15000);
     reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
+    reader.onerror = () => reject(reader.error || new Error("file_read_failed"));
+    reader.onabort = () => reject(new Error("file_read_aborted"));
+    reader.onloadend = () => clearTimeout(timer);
     reader.readAsDataURL(file);
+  });
+}
+
+function withTimeout(promise, timeoutMs, fallback) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(fallback), timeoutMs);
+    promise.then((value) => {
+      clearTimeout(timer);
+      resolve(value);
+    }).catch((error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
   });
 }
 
@@ -452,7 +476,8 @@ function showFilterMenu(anchor, label) {
 function renderFilterTree(nodes, selected) {
   const renderNode = (node, depth = 0) => {
     const name = node.tagName || node.name;
-    const active = selected.has(name);
+    const value = node.value || node.tagCode || node.code || name;
+    const active = selected.has(value);
     const hasChildren = node.children && node.children.length > 0;
     const selectable = node.selectable !== false;
     const indentStyle = depth > 0 ? `style="padding-left: ${depth * 24}px"` : "";
@@ -462,7 +487,7 @@ function renderFilterTree(nodes, selected) {
       childrenHtml = `<div class="tree-children">${node.children.map((child) => renderNode(child, depth + 1)).join("")}</div>`;
     }
     
-    const filterValueAttr = selectable ? `data-filter-value="${escapeAttr(name)}"` : "";
+    const filterValueAttr = selectable ? `data-filter-value="${escapeAttr(value)}"` : "";
     const checkbox = selectable ? `<span class="tree-checkbox">${active ? "✓" : ""}</span>` : "";
     const className = `tree-item ${active ? "active-side" : ""} ${!selectable ? "tree-category" : ""}`;
     
@@ -542,7 +567,11 @@ function getFilterValues(label) {
   const modelFilter = state.filters["车型"] || [];
   
   const buildFlatTree = (items) => {
-    return [...new Set(items)].map((item) => ({ name: item, selectable: true, children: [] }));
+    const seen = new Set();
+    return items.map((item) => typeof item === "object"
+      ? { value: item.code || item.value || item.name, name: item.name, selectable: true, children: [] }
+      : { value: item, name: item, selectable: true, children: [] })
+      .filter((item) => item.name && !seen.has(item.value) && seen.add(item.value));
   };
   
   // Build cascaded tree (eg. series filtered by selected brands)
@@ -551,34 +580,34 @@ function getFilterValues(label) {
     if (!dim) return [];
     const allItems = getTreeChildren(dim.id);
     if (!parentFilter || !parentFilter.length) {
-      return allItems.map(item => ({ name: item.name, selectable: true, children: [] }));
+      return allItems.map(item => ({ value: item.code, name: item.name, selectable: true, children: [] }));
     }
     const parentDim = getTreeNodeByCode(parentDimCode);
-    if (!parentDim) return allItems.map(item => ({ name: item.name, selectable: true, children: [] }));
-    const parentItems = getTreeChildren(parentDim.id).filter(p => parentFilter.includes(p.name));
+    if (!parentDim) return allItems.map(item => ({ value: item.code, name: item.name, selectable: true, children: [] }));
+    const parentItems = getTreeChildren(parentDim.id).filter(p => parentFilter.includes(p.code));
     const parentIds = parentItems.map(p => p.id);
     return allItems.filter(item => !item.refId || parentIds.includes(item.refId))
-      .map(item => ({ name: item.name, selectable: true, children: [] }));
+      .map(item => ({ value: item.code, name: item.name, selectable: true, children: [] }));
   };
   
   const map = {
     "创建者/创建部门": buildFlatTree(active.flatMap((asset) => [asset.owner, asset.department])),
-    "素材来源": buildFlatTree(getAllLeafValues("source").map(n => n.name).filter(Boolean)),
+    "素材来源": buildFilterTree("source"),
     "文件格式": buildFilterTree("file_format"),
     "品牌": buildFilterTree("brand"),
     "车系": buildCascadeTree("series", brandFilter, "brand"),
     "车型": buildCascadeTree("model", seriesFilter, "series"),
     "内饰色": buildCascadeTree("interior_color", modelFilter, "model"),
     "外饰色": buildCascadeTree("exterior_color", modelFilter, "model"),
-    "权限范围": buildFlatTree(getAllLeafValues("permission_scope").map(n => n.name)),
-    "业务标签": getTagSummary().businessTagTree.map(t => ({ ...t, selectable: true })),
-    "AI标签": getTagSummary().aiTagTree.map(t => ({ ...t, selectable: true })),
-    "素材状态": buildFlatTree(getAllLeafValues("asset_status").map(n => n.name)),
-    "素材失效日": buildFlatTree(["永久有效", "30天内", "90天内"]),
+    "权限范围": buildFilterTree("permission_scope"),
+    "业务标签": getTagSummary().businessTagTree.map(t => ({ ...t, value: t.tagCode, selectable: true })),
+    "AI标签": getTagSummary().aiTagTree.map(t => ({ ...t, value: t.tagCode, selectable: true })),
+    "素材状态": buildFilterTree("asset_status"),
+    "素材失效日": buildFilterTree("asset_validity_filter"),
     "时长": buildFlatTree(["图片", "短视频", "长视频"]),
     "创建时间": buildFlatTree(["今天", "近7天", "近30天"]),
-    "宽高比": buildFlatTree(getAllLeafValues("aspect_ratio").map(n => n.name)),
-    "文件大小": buildFlatTree(getAllLeafValues("file_size").map(n => n.name)),
+    "宽高比": buildFilterTree("aspect_ratio"),
+    "文件大小": buildFilterTree("file_size"),
   };
   
   return map[label] || [];
@@ -813,7 +842,7 @@ function handleGroupAction(action, groupId) {
   if (action === "child") openGroupModal(groupId);
   if (action === "sort") sortChildGroups(groupId);
   if (action === "edit") openGroupEditModal(groupId);
-  if (action === "collect") openCollectTaskModal(getGroupName(groupId));
+  if (action === "collect") openCollectTaskModal(groupId);
   if (action === "download") downloadGroup(groupId);
   if (action === "share") createGroupShare(groupId);
   if (action === "shareRecord") {
@@ -1258,8 +1287,6 @@ function openEditAssetModal(id) {
 
   document.querySelector("#editAssetName").value = escapeAttr(asset.name);
   document.querySelector("#editAssetDesc").value = escapeHtml(asset.desc || "");
-  document.querySelector("#editAssetCustomTags").value = escapeAttr((asset.customTags || []).join(", "));
-  document.querySelector("#editAssetBrand").value = escapeAttr(asset.brand || "");
   const validStartParts = splitDateTimeText(asset.validStart || asset.uploadDate || "");
   document.querySelector("#editAssetValidStartDate").value = escapeAttr(toInputDateValue(asset.validStart || asset.uploadDate));
   document.querySelector("#editAssetValidStartTime").value = escapeAttr(validStartParts.time);
@@ -1267,148 +1294,59 @@ function openEditAssetModal(id) {
   document.querySelector("#editAssetValidUntilDate").value = escapeAttr(toInputDateValue(asset.validUntilDate || asset.validUntil));
   document.querySelector("#editAssetValidUntilTime").value = escapeAttr(validUntilParts.time || "23:59");
 
-  document.querySelector("#editAssetSeries").value = asset.series || "";
-  document.querySelector("#editAssetModel").value = asset.model || "";
-  document.querySelector("#editAssetInteriorColors").value = Array.isArray(asset.interiorColors) ? (asset.interiorColors[0] || "") : (asset.interiorColors || "");
-  document.querySelector("#editAssetExteriorColors").value = Array.isArray(asset.exteriorColors) ? (asset.exteriorColors[0] || "") : (asset.exteriorColors || "");
-  document.querySelector("#editAssetPermission").value = asset.permission;
-
-  setupAssetEditCascades();
+  setupAssetEditCascades(asset);
 
   document.querySelector("#editAssetModal").classList.remove("hidden");
 }
 
-function setupAssetEditCascades() {
-  const brandInput = document.querySelector("#editAssetBrand");
-  const seriesInput = document.querySelector("#editAssetSeries");
-  const modelInput = document.querySelector("#editAssetModel");
+function setupAssetEditCascades(asset) {
+  const brandSelect = document.querySelector("#editAssetBrand");
+  const seriesSelect = document.querySelector("#editAssetSeries");
+  const modelSelect = document.querySelector("#editAssetModel");
+  const interiorSelect = document.querySelector("#editAssetInteriorColors");
+  const exteriorSelect = document.querySelector("#editAssetExteriorColors");
   const allBrands = getAllLeafValues("brand");
   const allSeries = getAllLeafValues("series");
   const allModels = getAllLeafValues("model");
   const allInteriorColors = getAllLeafValues("interior_color");
   const allExteriorColors = getAllLeafValues("exterior_color");
 
-  const renderSeriesOptions = () => {
-    const brand = brandInput.value.trim();
-    let filteredSeries = allSeries;
-    if (brand) {
-      const brandNode = allBrands.find((node) => node.name === brand);
-      if (brandNode) filteredSeries = allSeries.filter((node) => node.refId === brandNode.id);
-    }
-    setupAssetEditDropdown("editAssetSeries", filteredSeries.map((node) => node.name), {
-      onPick: renderModelOptions,
-      onInput: renderModelOptions,
-    });
-    renderModelOptions();
+  const optionsHtml = (items, selectedValues, includeEmpty = false) => {
+    const selected = new Set(Array.isArray(selectedValues) ? selectedValues : [selectedValues]);
+    return `${includeEmpty ? '<option value="">请选择</option>' : ""}${items.map((node) =>
+      `<option value="${escapeAttr(node.code)}" ${selected.has(node.code) ? "selected" : ""}>${escapeHtml(node.name)}</option>`
+    ).join("")}`;
   };
-
-  const renderModelOptions = () => {
-    const series = seriesInput.value.trim();
-    let filteredModels = allModels;
-    if (series) {
-      const seriesNode = allSeries.find((node) => node.name === series);
-      if (seriesNode) filteredModels = allModels.filter((node) => node.refId === seriesNode.id);
-    }
-    setupAssetEditDropdown("editAssetModel", filteredModels.map((node) => node.name), {
-      onPick: renderColorOptions,
-      onInput: renderColorOptions,
-    });
-    renderColorOptions();
+  const renderColors = (selectedInterior = [], selectedExterior = []) => {
+    const modelNode = allModels.find((node) => node.code === modelSelect.value);
+    const interiors = modelNode ? allInteriorColors.filter((node) => !node.refId || node.refId === modelNode.id) : allInteriorColors;
+    const exteriors = modelNode ? allExteriorColors.filter((node) => !node.refId || node.refId === modelNode.id) : allExteriorColors;
+    interiorSelect.innerHTML = optionsHtml(interiors, selectedInterior);
+    exteriorSelect.innerHTML = optionsHtml(exteriors, selectedExterior);
   };
-
-  const renderColorOptions = () => {
-    const model = modelInput.value.trim();
-    let filteredInterior = allInteriorColors;
-    let filteredExterior = allExteriorColors;
-    if (model) {
-      const modelNode = allModels.find((node) => node.name === model);
-      if (modelNode) {
-        filteredInterior = allInteriorColors.filter((node) => node.refId === modelNode.id);
-        filteredExterior = allExteriorColors.filter((node) => node.refId === modelNode.id);
-      }
-    }
-    setupAssetEditDropdown("editAssetInteriorColors", filteredInterior.map((node) => node.name));
-    setupAssetEditDropdown("editAssetExteriorColors", filteredExterior.map((node) => node.name));
+  const renderModels = (selectedModel = "", selectedInterior = [], selectedExterior = []) => {
+    const seriesNode = allSeries.find((node) => node.code === seriesSelect.value);
+    const models = seriesNode ? allModels.filter((node) => !node.refId || node.refId === seriesNode.id) : allModels;
+    modelSelect.innerHTML = optionsHtml(models, selectedModel, true);
+    renderColors(selectedInterior, selectedExterior);
   };
-
-  setupAssetEditDropdown("editAssetCustomTags", getTagSummary().businessTags.map((tag) => tag.tagName || tag.name).filter(Boolean), { multiple: true });
-  setupAssetEditDropdown("editAssetBrand", allBrands.map((node) => node.name), {
-    onPick: renderSeriesOptions,
-    onInput: renderSeriesOptions,
-  });
-  renderSeriesOptions();
-}
-
-function closeAssetEditDropdowns(exceptPanel) {
-  document.querySelectorAll(".asset-edit-combo-panel").forEach((panel) => {
-    if (panel !== exceptPanel) panel.classList.add("hidden");
-  });
-}
-
-function getAssetEditCurrentToken(value) {
-  return String(value || "").split(/[,，]/).pop().trim().toLowerCase();
-}
-
-function getSingleAssetEditValue(value) {
-  return splitTags(value)[0] || "";
-}
-
-function setupAssetEditDropdown(inputId, options, config = {}) {
-  const input = document.querySelector(`#${inputId}`);
-  const panel = document.querySelector(`#${inputId}Panel`);
-  const toggle = document.querySelector(`[data-asset-edit-toggle="${inputId}"]`);
-  if (!input || !panel) return;
-  const uniqueOptions = [...new Set((options || []).filter(Boolean))];
-  const multiple = Boolean(config.multiple);
-
-  const renderOptions = (query = "", forceAll = false) => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const visibleOptions = forceAll || !normalizedQuery
-      ? uniqueOptions
-      : uniqueOptions.filter((option) => option.toLowerCase().includes(normalizedQuery));
-    panel.innerHTML = visibleOptions.length
-      ? visibleOptions.map((option) => `<button type="button" data-asset-edit-option="${escapeAttr(option)}">${escapeHtml(option)}</button>`).join("")
-      : `<div class="asset-edit-combo-empty">暂无可选项</div>`;
-    closeAssetEditDropdowns(panel);
-    panel.classList.remove("hidden");
+  const renderSeries = (selectedSeries = "", selectedModel = "", selectedInterior = [], selectedExterior = []) => {
+    const brandNode = allBrands.find((node) => node.code === brandSelect.value);
+    const series = brandNode ? allSeries.filter((node) => !node.refId || node.refId === brandNode.id) : allSeries;
+    seriesSelect.innerHTML = optionsHtml(series, selectedSeries, true);
+    renderModels(selectedModel, selectedInterior, selectedExterior);
   };
-
-  input.onfocus = () => renderOptions("", true);
-  input.oninput = () => {
-    renderOptions(multiple ? getAssetEditCurrentToken(input.value) : input.value, false);
-    if (typeof config.onInput === "function") config.onInput(input.value);
-  };
-  if (toggle) {
-    toggle.onclick = (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      renderOptions("", true);
-      input.focus();
-    };
-  }
-  panel.onclick = (event) => {
-    const optionButton = event.target.closest("[data-asset-edit-option]");
-    if (!optionButton) return;
-    const value = optionButton.dataset.assetEditOption || "";
-    if (multiple) {
-      const current = splitTags(input.value);
-      if (!current.includes(value)) current.push(value);
-      input.value = current.join(", ");
-      renderOptions("", true);
-    } else {
-      input.value = value;
-      panel.classList.add("hidden");
-    }
-    if (typeof config.onPick === "function") config.onPick(value);
-    if (multiple) input.focus();
-  };
-
-  if (!setupAssetEditDropdown.boundDocumentClick) {
-    document.addEventListener("click", (event) => {
-      if (!event.target.closest(".asset-edit-combo")) closeAssetEditDropdowns();
-    });
-    setupAssetEditDropdown.boundDocumentClick = true;
-  }
+  const businessTags = getTagSummary().businessTags.filter((tag) => tag.tagCode);
+  document.querySelector("#editAssetCustomTags").innerHTML = optionsHtml(
+    businessTags.map((tag) => ({ code: tag.tagCode, name: tag.tagName || tag.name })),
+    asset.customTags || []
+  );
+  document.querySelector("#editAssetPermission").innerHTML = optionsHtml(getAllLeafValues("permission_scope"), asset.permission);
+  brandSelect.innerHTML = optionsHtml(allBrands, asset.brand, true);
+  renderSeries(asset.series, asset.model, asset.interiorColors || [], asset.exteriorColors || []);
+  brandSelect.onchange = () => renderSeries();
+  seriesSelect.onchange = () => renderModels();
+  modelSelect.onchange = () => renderColors();
 }
 
 function handleEditAssetSubmit(event) {
@@ -1421,19 +1359,18 @@ function handleEditAssetSubmit(event) {
   }
 
   const form = event.target;
-  const data = Object.fromEntries(new FormData(form));
+  const formData = new FormData(form);
+  const data = Object.fromEntries(formData);
   const validUntil = data.validUntilDate ? joinDateTime(data.validUntilDate, data.validUntilTime || "23:59") : calculateExpireTime("永久有效");
-  const interiorColor = getSingleAssetEditValue(data.interiorColors);
-  const exteriorColor = getSingleAssetEditValue(data.exteriorColors);
   Object.assign(asset, {
     name: data.name.trim(),
     desc: data.desc.trim(),
-    customTags: splitTags(data.customTags),
-    brand: data.brand.trim(),
-    series: data.series.trim(),
-    model: data.model.trim(),
-    interiorColors: interiorColor ? [interiorColor] : [],
-    exteriorColors: exteriorColor ? [exteriorColor] : [],
+    customTags: formData.getAll("customTags").filter(Boolean),
+    brand: data.brand || "",
+    series: data.series || "",
+    model: data.model || "",
+    interiorColors: formData.getAll("interiorColors").filter(Boolean),
+    exteriorColors: formData.getAll("exteriorColors").filter(Boolean),
     validStart: data.validStartDate ? joinDateTime(data.validStartDate, data.validStartTime || "00:00") : "",
     validUntil: validUntil,
     validUntilDate: validUntil,
@@ -1652,13 +1589,20 @@ function closeAddToGroupModal() {
   document.querySelector("#addToGroupModal").classList.add("hidden");
 }
 
-function openCollectTaskModal(defaultGroupName = "") {
-  if (typeof defaultGroupName !== "string") defaultGroupName = "";
+function openCollectTaskModal(defaultGroupId = "") {
+  if (typeof defaultGroupId !== "string") defaultGroupId = "";
+  const selectedGroupId = db.groups.some((group) => group.id === defaultGroupId) ? defaultGroupId : "";
   
   document.querySelector("#collectTaskName").value = "";
   document.querySelector("#collectTaskDesc").value = "";
-  document.querySelector("#collectTaskTypes").innerHTML = getAllCollectTaskTypes().map((type) => `<option>${escapeHtml(type)}</option>`).join("");
-  document.querySelector("#collectTaskGroup").value = defaultGroupName;
+  document.querySelector("#collectTaskTypes").innerHTML = getCollectTaskTypeOptions();
+  document.querySelector("#collectTaskGroup").innerHTML = getManageableCollectGroupOptions(selectedGroupId);
+  const expiresDateInput = document.querySelector("#collectTaskForm [name='expiresAtDate']");
+  const expiresTimeInput = document.querySelector("#collectTaskForm [name='expiresAtTime']");
+  expiresDateInput.value = "";
+  expiresDateInput.min = todayText();
+  expiresDateInput.max = "2036-12-31";
+  expiresTimeInput.value = "23:59";
   
   document.querySelector("#collectTaskModal").classList.remove("hidden");
   initProjectDatePickers(document.querySelector("#collectTaskModal"));
@@ -1674,6 +1618,8 @@ function handleCollectTaskSubmit(event) {
     return;
   }
   
+  const groupId = data.groupId || "";
+  const groupName = groupId ? getGroupName(groupId) : "";
   const code = Math.random().toString(36).slice(2, 6);
   const id = `collect-${Date.now()}`;
   const link = getCollectLink(code);
@@ -1681,7 +1627,8 @@ function handleCollectTaskSubmit(event) {
     id,
     theme: data.name, 
     desc: data.desc,
-    group: data.group || "",
+    group: groupName,
+    groupId,
     deadline: joinDateTime(data.expiresAtDate, data.expiresAtTime),
     types: [...document.querySelector("#collectTaskTypes").selectedOptions].map(opt => opt.value),
     status: getCollectTaskStatusConfig().active, 

@@ -3966,6 +3966,48 @@ body.resizing-detail-panel:has(.viewer.detail-bottom) {
   padding: 12px;
 }
 
+.collector-result.error {
+  border-color: #ffc9c9;
+  background: #fff5f5;
+  color: #d64545;
+}
+
+.collector-history-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.35);
+  padding: 24px;
+}
+
+.collector-history-dialog__card {
+  width: min(920px, 100%);
+  max-height: 82vh;
+  overflow: auto;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.24);
+  padding: 22px;
+}
+
+.collector-history-dialog__card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.collector-history-dialog__card header button {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 28px;
+  cursor: pointer;
+}
+
 .collector-result a {
   display: inline-flex;
   align-items: center;

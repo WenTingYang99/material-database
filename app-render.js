@@ -598,7 +598,7 @@ function renderActivityPage() {
     <div class="table-scroll"><table class="records-table manage-table">
       <colgroup><col style="width:150px"><col style="width:90px"><col style="width:260px"><col style="width:260px"><col style="width:180px"><col style="width:96px"></colgroup>
       <thead><tr><th>时间</th><th>用户</th><th>动态内容</th><th>关联素材</th><th>素材组</th><th>操作</th></tr></thead>
-      <tbody>${rows.map((row) => `<tr><td>${row.time}</td><td>${escapeHtml(row.operator)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
+      <tbody>${rows.map((row) => `<tr><td>${escapeHtml(formatDateTimeDisplay(row.time, true))}</td><td>${escapeHtml(row.operator)}</td><td><span class="cell-ellipsis" title="${escapeAttr(row.text)}">${escapeHtml(row.text)}</span></td><td><span class="cell-ellipsis mono" title="${escapeAttr(row.asset.name)}">${escapeHtml(row.asset.name)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(getAssetGroupName(row.asset.groupId))}">${escapeHtml(getAssetGroupName(row.asset.groupId))}</span></td><td><button class="link-button" data-open-activity="${row.asset.id}" type="button">查看</button></td></tr>`).join("")}</tbody>
     </table></div>
   `);
   els.contentPanel.querySelectorAll("[data-open-activity]").forEach((button) => button.addEventListener("click", () => openViewer(button.dataset.openActivity)));
@@ -620,7 +620,8 @@ function renderSharePage() {
         const actionButton = canManage ? `<button class="link-button" data-open-share-record="${index}" type="button">管理分享</button>` : "";
         const statusName = getTreeNodeByCode(item.status, "share_status")?.name || item.status;
         const isActive = shareStatusConfig.activeCodes.includes(item.status);
-        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(getUserNameByUsername(item.user))}</td><td><span class="cell-ellipsis" title="${escapeAttr(item.access)}">${escapeHtml(item.access)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${formatDateTimeDisplay(item.sharedAt)}</td><td>${formatDateTimeDisplay(item.expiresAt)}</td><td><span class="status-dot ${isActive ? "ok" : "off"}"></span>${escapeHtml(statusName)}</td><td>${actionButton}</td></tr>`;
+        const permissionText = getSharePermissionText(item);
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(item.group)}">${escapeHtml(item.group)}</span></td><td>${escapeHtml(getUserNameByUsername(item.user))}</td><td><span class="cell-ellipsis" title="${escapeAttr(permissionText)}">${escapeHtml(permissionText)}</span></td><td>${item.visits}人</td><td>${item.views}次</td><td>${item.downloads}个</td><td>${formatDateTimeDisplay(item.sharedAt)}</td><td>${formatDateTimeDisplay(item.expiresAt)}</td><td><span class="status-dot ${isActive ? "ok" : "off"}"></span>${escapeHtml(statusName)}</td><td>${actionButton}</td></tr>`;
       }).join("")}</tbody>
     </table></div>
   `);
@@ -666,18 +667,20 @@ function renderCollectPage() {
         const canManage = canManageCollect(task);
         const taskStatusName = getTreeNodeByCode(task.status, "collect_task_status")?.name || "未知状态";
         const auditStatusName = getTreeNodeByCode(task.auditStatus, "audit_status")?.name || task.auditStatus || "待提交";
+        const groupName = getCollectTaskGroupName(task) || "未指定";
         const showMachineAudit = canManage && task.auditStatus === auditConfig.pendingAudit;
         const showHumanAudit = canManage && [auditConfig.machinePass, auditConfig.pendingHuman, auditConfig.humanAuditing].includes(task.auditStatus);
-        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(task.group)}">${escapeHtml(task.group)}</span></td><td><span class="status-dot ${task.status === taskStatusConfig.active ? "ok" : task.status === taskStatusConfig.completed ? "info" : "off"}"></span>${escapeHtml(taskStatusName)}</td><td>${escapeHtml(auditStatusName)}</td><td>${task.code}</td><td>${formatDateTimeDisplay(task.createdAt)}</td><td>${formatDateTimeDisplay(task.expiresAt)}</td><td>${escapeHtml(getUserNameByUsername(task.creator))}</td><td>-</td><td>
-          ${showMachineAudit ? `<button class="link-button" data-machine-audit="${escapeAttr(task.id)}" type="button">发起机审</button>` : ""}
-          ${showHumanAudit ? `<button class="link-button" data-human-audit="${escapeAttr(task.id)}" type="button">发起审核</button>` : ""}
+        return `<tr><td><span class="cell-ellipsis" title="${escapeAttr(task.theme)}">${escapeHtml(task.theme)}</span></td><td><span class="cell-ellipsis" title="${escapeAttr(groupName)}">${escapeHtml(groupName)}</span></td><td><span class="status-dot ${task.status === taskStatusConfig.active ? "ok" : task.status === taskStatusConfig.completed ? "info" : "off"}"></span>${escapeHtml(taskStatusName)}</td><td>${escapeHtml(auditStatusName)}</td><td>${task.code}</td><td>${formatDateTimeDisplay(task.createdAt)}</td><td>${formatDateTimeDisplay(task.expiresAt)}</td><td>${escapeHtml(getUserNameByUsername(task.creator))}</td><td>-</td><td>
+          ${showMachineAudit ? `<button class="link-button" data-collect-audit="${escapeAttr(task.id)}" data-stage="machine" data-result="pass" type="button">机审通过</button><button class="link-button" data-collect-audit="${escapeAttr(task.id)}" data-stage="machine" data-result="reject" type="button">机审驳回</button>` : ""}
+          ${showHumanAudit ? `<button class="link-button" data-collect-audit="${escapeAttr(task.id)}" data-stage="human" data-result="pass" type="button">人审通过</button><button class="link-button" data-collect-audit="${escapeAttr(task.id)}" data-stage="human" data-result="reject" type="button">人审驳回</button>` : ""}
+          <button class="link-button" data-collect-progress="${escapeAttr(task.id)}" type="button">查看进度</button>
           <button class="link-button" data-open-collect="${escapeAttr(task.id)}" type="button">${canManage ? "管理邀请" : "查看"}</button>
         </td></tr>`;
       }).join("")}</tbody>
     </table></div>
   `);
-  els.contentPanel.querySelectorAll("[data-machine-audit]").forEach((button) => button.addEventListener("click", () => simulateMachineAudit(button.dataset.machineAudit)));
-  els.contentPanel.querySelectorAll("[data-human-audit]").forEach((button) => button.addEventListener("click", () => simulateHumanAudit(button.dataset.humanAudit)));
+  els.contentPanel.querySelectorAll("[data-collect-audit]").forEach((button) => button.addEventListener("click", () => openCollectAuditModal(button.dataset.collectAudit, button.dataset.stage, button.dataset.result)));
+  els.contentPanel.querySelectorAll("[data-collect-progress]").forEach((button) => button.addEventListener("click", () => openCollectProgressModal(button.dataset.collectProgress)));
   els.contentPanel.querySelectorAll("[data-open-collect]").forEach((button) => button.addEventListener("click", () => openCollectTaskConfigModal(button.dataset.openCollect)));
 }
 
@@ -1621,7 +1624,7 @@ function renderLoginLogPage() {
         <tr>
           <td>${escapeHtml(item.username)}</td>
           <td>${escapeHtml(item.name)}</td>
-          <td>${escapeHtml(item.loginAt)}</td>
+          <td>${escapeHtml(formatDateTimeDisplay(item.loginAt, true))}</td>
           <td>${escapeHtml(item.ip)}</td>
           <td>${escapeHtml(item.entry)}</td>
         </tr>`).join("") || `<tr><td colspan="5" class="empty-cell">暂无登录记录</td></tr>`}</tbody>
@@ -1747,7 +1750,7 @@ function renderUserManagePage() {
       <td>${escapeHtml(getOrgName(user.organizationId))}</td>
       <td>${escapeHtml(getRoleNames(getUserRoleIds(user)))}</td>
       <td><span class="status-dot ${user.status === getUserStatusConfig().enabled ? "ok" : "off"}"></span>${escapeHtml(getTreeNodeByCode(user.status, "user_status")?.name || user.status)}</td>
-      <td>${escapeHtml(user.lastLogin || "-")}</td>
+      <td>${escapeHtml(formatDateTimeDisplay(user.lastLogin, true) || "-")}</td>
     </tr>`).join("");
   els.contentPanel.innerHTML = renderManageShell(`
     <div class="user-manage-layout">

@@ -189,7 +189,7 @@ function openShareRecordConfigModal(index) {
   const html = renderHtmlTemplate("tplShareRecordConfigForm", {
     QR_URL: escapeAttr(getQrImageUrl(link)),
     GROUP: escapeHtml(share.group),
-    ACCESS: escapeAttr(share.access),
+    ACCESS: escapeAttr(getSharePermissionText(share)),
     LINK: escapeAttr(link),
     EXPIRE_DATE: escapeAttr(toInputDateValue(expiresAtParts.date)),
     EXPIRE_TIME: escapeAttr(expiresAtParts.time),
@@ -204,6 +204,8 @@ function openShareRecordConfigModal(index) {
     const shareId = share.id || share.code || `share-${Date.now()}`;
     const security = buildShareSecurity(data);
     Object.assign(share, security);
+    share.accessScope = data.accessScope || share.accessScope || "internal";
+    share.contentPermission = data.contentPermission || share.contentPermission || "view";
     if (newStatus === shareStatusConfig.revoked || newStatus === shareStatusConfig.expired) {
       share.expiresAt = nowText();
       share.status = newStatus;
@@ -225,6 +227,18 @@ function openShareRecordConfigModal(index) {
     const statusOptions = getAllLeafValues("share_status");
     statusSelect.innerHTML = statusOptions.map((opt) => `<option value="${opt.code}">${escapeHtml(opt.name)}</option>`).join("");
     statusSelect.value = share.status || shareStatusConfig.active;
+  }
+  const accessScopeSelect = document.querySelector("#formModal")?.querySelector("[name='accessScope']");
+  if (accessScopeSelect) {
+    const accessScopeOptions = getAllLeafValues("share_access_scope");
+    accessScopeSelect.innerHTML = accessScopeOptions.map((opt) => `<option value="${opt.code}">${escapeHtml(opt.name)}</option>`).join("");
+    accessScopeSelect.value = share.accessScope || "internal";
+  }
+  const contentPermissionSelect = document.querySelector("#formModal")?.querySelector("[name='contentPermission']");
+  if (contentPermissionSelect) {
+    const contentPermissionOptions = getAllLeafValues("share_content_permission");
+    contentPermissionSelect.innerHTML = contentPermissionOptions.map((opt) => `<option value="${opt.code}">${escapeHtml(opt.name)}</option>`).join("");
+    contentPermissionSelect.value = share.contentPermission || "view";
   }
   document.querySelector("#copyShareRecordLink")?.addEventListener("click", () => copyText(link));
   document.querySelector("#openShareRecordLink")?.addEventListener("click", () => window.open(link, "_blank"));
@@ -434,11 +448,14 @@ function openCollectTaskConfigModal(taskId) {
   const link = getCollectLink(task.code);
   const expiresAtParts = splitDateTimeText(task.expiresAt);
   const auditStatusName = getTreeNodeByCode(task.auditStatus, "audit_status")?.name || task.auditStatus || "待提交";
+  const selectedGroupId = getCollectTaskGroupId(task);
   const html = renderHtmlTemplate("tplCollectTaskConfigForm", {
     QR_URL: escapeAttr(getQrImageUrl(link)),
     THEME: escapeHtml(task.theme),
     CODE: escapeAttr(task.code),
     LINK: escapeAttr(link),
+    GROUP_OPTIONS: getManageableCollectGroupOptions(selectedGroupId),
+    TYPE_OPTIONS: getCollectTaskTypeOptions(task.types || []),
     EXPIRE_DATE: escapeAttr(toInputDateValue(expiresAtParts.date)),
     EXPIRE_TIME: escapeAttr(expiresAtParts.time),
     REQUIRED_ATTR: task.status === getCollectTaskStatusConfig().active ? "required" : "",
@@ -452,13 +469,17 @@ function openCollectTaskConfigModal(taskId) {
     const data = Object.fromEntries(new FormData(form));
     const oldStatus = task.status;
     const taskStatusConfig = getCollectTaskStatusConfig();
+    const groupId = data.groupId || "";
     task.status = data.status || taskStatusConfig.active;
+    task.groupId = groupId;
+    task.group = groupId ? getGroupName(groupId) : "";
+    task.types = new FormData(form).getAll("types").filter(Boolean);
     task.updatedAt = nowText();
     if (task.status === taskStatusConfig.expired) {
       task.expiresAt = nowText();
       logOperation('collect', task.id, task.theme, 'collect.close', '关闭了收集任务');
     } else if (data.expiresAtDate && data.expiresAtTime) {
-      task.expiresAt = `${data.expiresAtDate} ${data.expiresAtTime}`;
+      task.expiresAt = joinDateTime(data.expiresAtDate, data.expiresAtTime);
     }
     saveDb();
     closeFormModal();
@@ -506,15 +527,24 @@ function openCollectTaskConfigModal(taskId) {
 
 function openCollectorUploadModal(taskId) {
   const task = db.collectTasks.find((t) => t.id === taskId) || db.collectTasks[taskId];
+  if (!task) return;
+  if (task.auditStatus !== getAuditStatusConfig().pendingSubmit) {
+    showToast("当前收集任务已发起审核，请等待审核结果");
+    return;
+  }
   closeFormModal();
   const html = renderHtmlTemplate("tplCollectorUploadForm", {
-    GROUP_NAME: escapeHtml(task.group),
-    UPLOAD_ACCEPT: getAllUploadAccept(),
+    GROUP_NAME: escapeHtml(getCollectTaskGroupName(task) || "未指定"),
+    UPLOAD_ACCEPT: getCollectTaskAccept(task),
+    BUSINESS_TAG_OPTIONS: getTagSummary().businessTags.filter((tag) => tag.tagCode).map((tag) =>
+      `<option value="${escapeAttr(tag.tagCode)}">${escapeHtml(tag.tagName || tag.name)}</option>`
+    ).join(""),
   });
   openFormModal("外部提交素材", html, async (form) => {
-    const data = Object.fromEntries(new FormData(form));
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
     const incomingFiles = [...form.querySelector("[name='files']").files];
-    const files = incomingFiles.filter(isAllowedUploadFile);
+    const files = incomingFiles.filter((file) => isAllowedCollectTaskFile(file, task));
     const rejectedCount = incomingFiles.length - files.length;
     if (!files.length) {
       showToast(rejectedCount ? "所选文件格式暂不支持上传" : "请选择文件后再上传");
@@ -523,9 +553,8 @@ function openCollectorUploadModal(taskId) {
     if (rejectedCount) showToast(`已跳过 ${rejectedCount} 个不支持的文件格式`);
     for (const file of files) {
       const auditConfig = getAuditStatusConfig();
-      const asset = await createAssetFromFile(file, { validUntilDate: formDateTimeValue(data, "validUntil") || "", customTags: splitTags(data.businessTags || ""), auditStatus: auditConfig.pendingAudit });
-      const targetGroup = db.groups.find((group) => group.name === task.group);
-      asset.groupId = targetGroup?.id || "all";
+      const asset = await createAssetFromFile(file, { validUntilDate: formDateTimeValue(data, "validUntil") || "", customTags: formData.getAll("businessTags").filter(Boolean), auditStatus: auditConfig.pendingAudit });
+      asset.groupId = getCollectTargetGroupId(task);
       asset.collect_id = task.id;
       asset.collect_link = task.link;
       asset.creator = task.creator;
@@ -538,12 +567,125 @@ function openCollectorUploadModal(taskId) {
       db.assets.unshift(asset);
       logOperation('asset', asset.id, asset.name, 'asset.upload', `${data.author || "外部用户"} 通过收集任务上传素材`);
     }
+    task.auditStatus = getAuditStatusConfig().pendingAudit;
+    task.updatedAt = nowText();
+    addCollectHistory(task, "collect.submit", `提交 ${files.length} 个素材到待入库`, { stage: "submit" });
     saveDb();
     closeFormModal();
     state.page = "pending";
     render();
     showToast(`已提交 ${files.length} 个素材到待审核`);
   });
+}
+
+function openCollectProgressModal(taskId) {
+  const task = db.collectTasks.find((t) => t.id === taskId);
+  if (!task) return;
+  const statusName = getTreeNodeByCode(task.auditStatus, "audit_status")?.name || task.auditStatus || "-";
+  openFormModal("收集任务进度", `
+    <div class="request-summary"><span>收集任务</span><strong>${escapeHtml(task.theme)}</strong></div>
+    <label>当前审核状态<input readonly value="${escapeAttr(statusName)}" /></label>
+    <div class="table-scroll">
+      <table class="records-table manage-table">
+        <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>备注</th></tr></thead>
+        <tbody>${renderCollectHistoryRows(task)}</tbody>
+      </table>
+    </div>
+    <div class="form-actions"><button type="button" data-cancel>关闭</button></div>
+  `, () => closeFormModal());
+}
+
+function openCollectAuditModal(taskId, stage, result) {
+  const task = db.collectTasks.find((t) => t.id === taskId);
+  if (!task) return;
+  const auditConfig = getAuditStatusConfig();
+  const canMachine = stage === "machine" && task.auditStatus === auditConfig.pendingAudit;
+  const canHuman = stage === "human" && [auditConfig.machinePass, auditConfig.pendingHuman, auditConfig.humanAuditing].includes(task.auditStatus);
+  if (!canMachine && !canHuman) {
+    showToast("当前收集任务状态不允许执行该审核动作");
+    return;
+  }
+  const isReject = result === "reject";
+  const actionTitle = `${stage === "machine" ? "机审" : "人审"}${isReject ? "驳回" : "通过"}`;
+  const reasonOptions = getAllLeafValues("collect_audit_remark")
+    .map((item) => `<option value="${escapeAttr(item.code)}">${escapeHtml(item.attr1 ? `${item.attr1} - ${item.name}` : item.name)}</option>`)
+    .join("");
+  openFormModal(actionTitle, `
+    <div class="request-summary"><span>收集任务</span><strong>${escapeHtml(task.theme)}</strong></div>
+    <label>备注原因<select name="reasonCode" ${isReject ? "required" : ""}><option value="">${isReject ? "请选择驳回原因" : "可选择备注原因"}</option>${reasonOptions}</select></label>
+    <label>补充备注<textarea name="remark" rows="3" placeholder="可填写审核说明；选择其他时请填写具体原因"></textarea></label>
+    <div class="form-actions"><button type="button" data-cancel>取消</button><button class="primary" type="submit">${escapeHtml(actionTitle)}</button></div>
+  `, (form) => {
+    const data = Object.fromEntries(new FormData(form));
+    const reasonCode = data.reasonCode || "";
+    const remark = (data.remark || "").trim();
+    if (isReject && !reasonCode) {
+      showToast("请选择驳回原因");
+      return;
+    }
+    if (reasonCode === "other" && !remark) {
+      showToast("选择其他时请填写补充备注");
+      return;
+    }
+    applyCollectAudit(task, stage, result, reasonCode, remark);
+    closeFormModal();
+    render();
+  });
+}
+
+function applyCollectAudit(task, stage, result, reasonCode = "", remark = "") {
+  const auditConfig = getAuditStatusConfig();
+  const assetStatusConfig = getAssetStatusConfig();
+  const taskStatusConfig = getCollectTaskStatusConfig();
+  const isMachine = stage === "machine";
+  const isReject = result === "reject";
+  const sourceStatuses = isMachine
+    ? [auditConfig.pendingAudit]
+    : [auditConfig.machinePass, auditConfig.pendingHuman, auditConfig.humanAuditing];
+  const assets = db.assets.filter((asset) => asset.collect_id === task.id && sourceStatuses.includes(asset.auditStatus));
+  if (!assets.length) {
+    showToast("该任务没有可审核的素材");
+    return;
+  }
+  const nextStatus = isMachine
+    ? (isReject ? auditConfig.machineReject : auditConfig.machinePass)
+    : (isReject ? auditConfig.humanReject : auditConfig.humanPass);
+  assets.forEach((asset) => {
+    asset.auditStatus = nextStatus;
+    asset.updatedAt = nowText();
+    asset.lastUpdate = currentUser.username;
+    if (!isMachine && !isReject) asset.assetStatus = assetStatusConfig.active;
+    logOperation("asset", asset.id, asset.name, isReject ? "asset.edit" : "asset.edit", `${isMachine ? "机审" : "人审"}${isReject ? "驳回" : "通过"}`);
+  });
+  task.auditStatus = isReject ? auditConfig.pendingSubmit : nextStatus;
+  task.updatedAt = nowText();
+  if (isReject) {
+    task.status = taskStatusConfig.active;
+    const firstAsset = assets[0] || {};
+    task.draft = {
+      author: firstAsset.owner || "",
+      department: firstAsset.department || "",
+      phone: firstAsset.contact || "",
+      email: firstAsset.email || "",
+      note: firstAsset.desc || "",
+      businessTags: firstAsset.customTags || [],
+    };
+    task.draftItems = assets.map((asset) => ({
+      id: `draft-${asset.id}`,
+      assetId: asset.id,
+      name: asset.name ? `${asset.name}.${asset.format || ""}`.replace(/\.$/, "") : asset.id,
+      size: asset.sizeBytes || 0,
+      type: asset.mime || "application/octet-stream",
+    }));
+    task.draftCount = task.draftItems.length;
+  }
+  if (!isMachine && !isReject) task.status = taskStatusConfig.completed;
+  const action = isMachine
+    ? (isReject ? "collect.machine_reject" : "collect.machine_pass")
+    : (isReject ? "collect.human_reject" : "collect.human_pass");
+  addCollectHistory(task, action, remark, { reasonCode, stage, result });
+  saveDb();
+  showToast(`${isMachine ? "机审" : "人审"}${isReject ? "驳回" : "通过"}已记录`);
 }
 
 function simulateMachineAudit(taskId) {

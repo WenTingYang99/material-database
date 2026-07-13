@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>素材库</title>
-    <link rel="stylesheet" href="styles.css?v=20260617-dynamicdata" />
+    <link rel="stylesheet" href="styles.css?v=20260713-collectflow7" />
     <link rel="stylesheet" href="vendor/flatpickr/flatpickr.min.css?v=20260710" />
     <link rel="stylesheet" href="vendor/flatpickr/flatpickr-theme.css?v=20260710" />
   </head>
@@ -325,7 +325,7 @@
             <label class="checkbox-label"><input id="basketShareRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
             <div id="basketSharePasswordField" class="hidden">
               <label>访问密码
-                <input id="basketSharePassword" name="password" placeholder="设置访问密码" required />
+                <input id="basketSharePassword" name="password" placeholder="设置访问密码" />
               </label>
             </div>
           </div>
@@ -446,47 +446,13 @@
           <label>素材名称<input id="editAssetName" name="name" required /></label>
           <label>描述<textarea id="editAssetDesc" name="desc"></textarea></label>
           <label>业务标签
-            <div class="asset-edit-combo">
-              <input id="editAssetCustomTags" name="customTags" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetCustomTags" aria-label="展开业务标签候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetCustomTagsPanel"></div>
-            </div>
+            <select id="editAssetCustomTags" name="customTags" multiple size="5"></select>
           </label>
-          <label>品牌
-            <div class="asset-edit-combo">
-              <input id="editAssetBrand" name="brand" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetBrand" aria-label="展开品牌候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetBrandPanel"></div>
-            </div>
-          </label>
-          <label>车系
-            <div class="asset-edit-combo">
-              <input id="editAssetSeries" name="series" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetSeries" aria-label="展开车系候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetSeriesPanel"></div>
-            </div>
-          </label>
-          <label>车型
-            <div class="asset-edit-combo">
-              <input id="editAssetModel" name="model" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetModel" aria-label="展开车型候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetModelPanel"></div>
-            </div>
-          </label>
-          <label>内饰色
-            <div class="asset-edit-combo">
-              <input id="editAssetInteriorColors" name="interiorColors" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetInteriorColors" aria-label="展开内饰色候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetInteriorColorsPanel"></div>
-            </div>
-          </label>
-          <label>外饰色
-            <div class="asset-edit-combo">
-              <input id="editAssetExteriorColors" name="exteriorColors" autocomplete="off" />
-              <button class="asset-edit-combo-toggle" type="button" data-asset-edit-toggle="editAssetExteriorColors" aria-label="展开外饰色候选">▾</button>
-              <div class="asset-edit-combo-panel hidden" id="editAssetExteriorColorsPanel"></div>
-            </div>
-          </label>
+          <label>品牌<select id="editAssetBrand" name="brand"></select></label>
+          <label>车系<select id="editAssetSeries" name="series"></select></label>
+          <label>车型<select id="editAssetModel" name="model"></select></label>
+          <label>内饰色<select id="editAssetInteriorColors" name="interiorColors" multiple size="4"></select></label>
+          <label>外饰色<select id="editAssetExteriorColors" name="exteriorColors" multiple size="4"></select></label>
           <label>素材生效时间
             <div class="date-time-row">
               <input id="editAssetValidStartDate" name="validStartDate" type="date" readonly inputmode="none" />
@@ -500,8 +466,6 @@
             </div>
           </label>
           <label>权限范围<select id="editAssetPermission" name="permission">
-            <option>可下载</option>
-            <option>可分享</option>
           </select></label>
           <div class="form-actions">
             <button id="editAssetCancel" type="button">取消</button>
@@ -530,7 +494,7 @@
             <label class="checkbox-label"><input id="shareAssetRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
             <div id="shareAssetPasswordField" class="hidden">
               <label>访问密码
-                <input id="shareAssetPassword" name="password" placeholder="设置访问密码" required />
+                <input id="shareAssetPassword" name="password" placeholder="设置访问密码" />
               </label>
             </div>
           </div>
@@ -682,9 +646,13 @@
         <form id="collectTaskForm">
           <label>任务名称<input id="collectTaskName" name="name" placeholder="例如：收集618活动素材" required /></label>
           <label>收集说明<textarea id="collectTaskDesc" name="desc" rows="3" placeholder="说明收集要求、格式规范等"></textarea></label>
-          <label>存放素材组<input id="collectTaskGroup" name="group" placeholder="素材上传后存放的目标素材组" /></label>
-          <label>截止时间          <input name="expiresAtDate" type="date" value="" readonly inputmode="none" />
-          <input name="expiresAtTime" type="time" value="" readonly inputmode="none" /></label>
+          <label>存放素材组<select id="collectTaskGroup" name="groupId"></select></label>
+          <label>截止时间
+            <div class="date-time-row">
+              <input name="expiresAtDate" type="date" value="" inputmode="none" />
+              <input name="expiresAtTime" type="time" value="" inputmode="none" />
+            </div>
+          </label>
           <label>允许上传的文件类型<select id="collectTaskTypes" name="types" multiple size="8">
             <option>图片</option>
             <option>视频</option>
@@ -724,7 +692,7 @@
             <label class="checkbox-label"><input id="shareGroupRequirePassword" name="requirePassword" type="checkbox" /> 设置访问密码</label>
             <div id="shareGroupPasswordField" class="hidden">
               <label>访问密码
-                <input id="shareGroupPassword" name="password" placeholder="设置访问密码" required />
+                <input id="shareGroupPassword" name="password" placeholder="设置访问密码" />
               </label>
             </div>
           </div>
@@ -897,7 +865,7 @@
     <template id="tplUploadSettingsForm">
       <div class="request-summary"><span>{{SOURCE_LABEL}}</span><strong>{{FILE_COUNT}} 个文件</strong></div>
       <label>目标素材组<select name="groupId">{{GROUP_OPTIONS}}</select></label>
-      <label>业务标签<input name="businessTags" placeholder="例如：618活动、夏日特辑，多个标签用逗号分隔" /></label>
+      <label>业务标签<select name="businessTags" multiple size="5">{{BUSINESS_TAG_OPTIONS}}</select></label>
       <label>素材失效时间
         <div class="date-time-row">
           <input name="validUntilDate" type="date" readonly inputmode="none" />
@@ -933,8 +901,10 @@
       </div>
       <label>任务状态<select name="status"></select></label>
       <label>审核状态<input readonly value="{{AUDIT_STATUS}}" /></label>
+      <label>存放素材组<select name="groupId">{{GROUP_OPTIONS}}</select></label>
+      <label>允许上传的文件类型<select name="types" multiple size="8">{{TYPE_OPTIONS}}</select></label>
       <label>失效时间
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
+        <div class="date-time-row">
           <input name="expiresAtDate" type="date" value="{{EXPIRE_DATE}}" {{REQUIRED_ATTR}} inputmode="none" />
           <input name="expiresAtTime" type="time" value="{{EXPIRE_TIME}}" {{REQUIRED_ATTR}} inputmode="none" />
         </div>
@@ -953,6 +923,8 @@
         </div>
       </div>
       <label>分享状态<select name="status"></select></label>
+      <label>访问范围<select name="accessScope"></select></label>
+      <label>内容权限<select name="contentPermission"></select></label>
       <label class="checkbox-label"><input name="requirePassword" type="checkbox" {{PASSWORD_CHECKED}} /> 需要访问密码</label>
       <label>访问密码<input name="password" value="{{PASSWORD}}" placeholder="可填写访问密码，留空则自动生成" /></label>
       <label>失效时间
@@ -968,7 +940,7 @@
       <div class="request-summary"><span>提交到</span><strong>{{GROUP_NAME}}</strong></div>
       <label>提交人<input name="author" placeholder="姓名或部门" required /></label>
       <label>备注<textarea name="note" placeholder="补充用途、活动或素材说明"></textarea></label>
-      <label>业务标签<input name="businessTags" placeholder="例如：618活动、经销商，多个标签用逗号分隔" /></label>
+      <label>业务标签<select name="businessTags" multiple size="5">{{BUSINESS_TAG_OPTIONS}}</select></label>
       <label>选择文件<input name="files" type="file" multiple accept="{{UPLOAD_ACCEPT}}" /></label>
       <label>素材失效时间（留空为永久有效）
         <div class="date-time-row">
@@ -1092,12 +1064,12 @@
     <!-- 死模板已删除：tplRecycleBin / tplGroupMoveSelector 无任何 JS 引用 -->
 
     <script src="vendor/flatpickr/flatpickr.min.js?v=20260710"></script>
-    <script src="app-infra.js?v=20260617-dynamicdata"></script>
-    <script src="app-core.js?v=20260617-dynamicdata"></script>
-    <script src="app-render.js?v=20260617-dynamicdata"></script>
-    <script src="app-actions.js?v=20260617-dynamicdata"></script>
-    <script src="app-workflows.js?v=20260617-dynamicdata"></script>
-    <script src="app-utils.js?v=20260617-dynamicdata"></script>
-    <script src="app.js?v=20260617-dynamicdata"></script>
+    <script src="app-infra.js?v=20260713-collectflow7"></script>
+    <script src="app-core.js?v=20260713-collectflow7"></script>
+    <script src="app-render.js?v=20260713-collectflow7"></script>
+    <script src="app-actions.js?v=20260713-collectflow7"></script>
+    <script src="app-workflows.js?v=20260713-collectflow7"></script>
+    <script src="app-utils.js?v=20260713-collectflow7"></script>
+    <script src="app.js?v=20260713-collectflow7"></script>
   </body>
 </html>

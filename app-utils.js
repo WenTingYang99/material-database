@@ -99,71 +99,43 @@ function matchFilter(asset, label, value) {
     return rangeStr ? matchUploadTimeFilter(asset, rangeStr) : true;
   }
   if (label === "素材失效日") return selections.some((item) => matchValidityFilter(asset, item));
-  if (label === "素材状态") return selections.some((item) => matchStatusFilter(asset, item));
+  if (label === "素材状态") return selections.includes(getValueListCode(asset.assetStatus || asset.status, "asset_status", asset.assetStatus || asset.status));
   if (label === "宽高比") return selections.some((item) => matchAspectRatioFilter(asset, item));
   if (label === "文件大小") return selections.some((item) => matchFileSizeFilter(asset, item));
   const haystack = {
     "创建者/创建部门": [asset.owner, asset.department],
-    "素材来源": [getTreeNodeByCode(asset.asset_source, "source")?.name || asset.asset_source || ""],
-    "文件格式": [asset.format],
-    "品牌": [asset.brand],
-    "车系": [asset.series || ""],
-    "车型": [asset.model],
-    "内饰色": asset.interiorColors || [],
-    "外饰色": asset.exteriorColors || [],
-    "权限范围": [asset.permission],
-    "业务标签": asset.customTags || [],
-    "AI标签": asset.aiTags || [],
+    "素材来源": [getValueListCode(asset.asset_source, "source", asset.asset_source)],
+    "文件格式": [getValueListCode(asset.format, "file_format", String(asset.format || "").toLowerCase())],
+    "品牌": [getValueListCode(asset.brand, "brand", asset.brand)],
+    "车系": [getValueListCode(asset.series, "series", asset.series)],
+    "车型": [getValueListCode(asset.model, "model", asset.model)],
+    "内饰色": (asset.interiorColors || []).map((item) => getValueListCode(item, "interior_color", item)),
+    "外饰色": (asset.exteriorColors || []).map((item) => getValueListCode(item, "exterior_color", item)),
+    "权限范围": [getValueListCode(asset.permission, "permission_scope", asset.permission)],
+    "业务标签": (asset.customTags || []).map((item) => getTagCode(item, 1, item)),
+    "AI标签": (asset.aiTags || []).map((item) => getTagCode(item, 2, item)),
     "时长": [asset.type],
     "创建时间": [asset.createdAt],
   }[label] || [];
-  return selections.some((selected) => haystack.some((item) => String(item).includes(selected)));
+  return selections.some((selected) => haystack.some((item) => String(item) === String(selected)));
 }
 
 function matchAspectRatioFilter(asset, value) {
   const ratio = asset.aspectRatio || (asset.width && asset.height ? asset.width / asset.height : null);
   if (!ratio) return false;
   const ratios = getAspectRatiosFromTree();
-  const targetRatio = ratios.find(r => r.label === value);
+  const targetRatio = ratios.find(r => r.code === value || r.label === value);
   if (!targetRatio) return false;
   return Math.abs(ratio - targetRatio.value) < 0.05;
 }
 
 function matchFileSizeFilter(asset, value) {
   const size = asset.sizeBytes || 0;
-  const MB = 1024 * 1024;
-  switch (value) {
-    case "<5MB": return size < 5 * MB;
-    case "5MB～10MB": return size >= 5 * MB && size <= 10 * MB;
-    case "10MB～50MB": return size > 10 * MB && size <= 50 * MB;
-    case ">50MB": return size > 50 * MB;
-    default: return false;
-  }
-}
-
-function matchStatusFilter(asset, value) {
-  const now = new Date();
-  const startDate = toJsDate(asset.validStart);
-  const expireDate = toJsDate(asset.validUntilDate || asset.validUntil);
-  const validityConfig = getValidityStatusConfig();
-  const validName = getTreeNodeByCode(validityConfig.valid, "asset_validity")?.name || "有效";
-  const expiredName = getTreeNodeByCode(validityConfig.expired, "asset_validity")?.name || "已失效";
-  const pendingName = getTreeNodeByCode(validityConfig.pending, "asset_validity")?.name || "待生效";
-  
-  if (value === validName) {
-    if (isNaN(startDate.getTime())) return true;
-    if (isNaN(expireDate.getTime())) return now >= startDate;
-    return now >= startDate && now <= expireDate;
-  }
-  if (value === expiredName) {
-    if (isNaN(expireDate.getTime())) return false;
-    return now > expireDate;
-  }
-  if (value === pendingName) {
-    if (isNaN(startDate.getTime())) return false;
-    return now < startDate;
-  }
-  return false;
+  const node = getValueListNode(value, "file_size");
+  if (!node) return false;
+  const min = node.attr1 === "" ? Number.NEGATIVE_INFINITY : Number(node.attr1);
+  const max = node.attr2 === "" ? Number.POSITIVE_INFINITY : Number(node.attr2);
+  return size >= min && size <= max;
 }
 
 function matchUploadTimeFilter(asset, value) {
@@ -191,22 +163,40 @@ function getFilterSelections(label) {
   return value ? [value] : [];
 }
 
-function formatFilterSelections(values = []) {
-  if (values.length <= 2) return values.join("、");
-  return `${values[0]} 等${values.length}项`;
+function getFilterSelectionName(label, value) {
+  const dimensions = {
+    "素材来源": "source",
+    "文件格式": "file_format",
+    "品牌": "brand",
+    "车系": "series",
+    "车型": "model",
+    "内饰色": "interior_color",
+    "外饰色": "exterior_color",
+    "权限范围": "permission_scope",
+    "素材状态": "asset_status",
+    "素材失效日": "asset_validity_filter",
+    "宽高比": "aspect_ratio",
+    "文件大小": "file_size",
+  };
+  if (label === "业务标签") return getTagName(value, 1);
+  if (label === "AI标签") return getTagName(value, 2);
+  return dimensions[label] ? getValueListName(value, dimensions[label]) : String(value || "");
+}
+
+function formatFilterSelections(values = [], label = "") {
+  const labels = values.map((value) => getFilterSelectionName(label, value));
+  if (labels.length <= 2) return labels.join("、");
+  return `${labels[0]} 等${labels.length}项`;
 }
 
 function matchValidityFilter(asset, value) {
-  const displayValue = formatAssetValidUntil(asset);
-  if (value === "永久有效") return displayValue === "永久有效";
-  if (asset.validUntil === value) return true;
-  if (!asset.validUntilDate && !/^\d{4}[-/]\d{1,2}[-/]\d{1,2}/.test(String(asset.validUntil || ""))) return false;
-  const today = toJsDate(todayText());
+  const now = new Date();
+  const start = toJsDate(asset.validStart);
   const expire = toJsDate(asset.validUntilDate || asset.validUntil);
-  const days = Math.ceil((expire - today) / 86400000);
-  if (value === "30天内") return days >= 0 && days <= 30;
-  if (value === "90天内") return days >= 0 && days <= 90;
-  return displayValue.includes(value);
+  let statusCode = "valid";
+  if (!Number.isNaN(start.getTime()) && now < start) statusCode = "pending";
+  else if (!Number.isNaN(expire.getTime()) && now > expire) statusCode = "expired";
+  return getValueListCode(value, "asset_validity_filter", value) === statusCode;
 }
 
 function updateGroupCounts() {
@@ -270,6 +260,14 @@ function getFormat(file) {
 
 function isAllowedUploadFile(file) {
   return getAllowedUploadFormats().includes(getFormat(file));
+}
+
+function isAllowedCollectTaskFile(file, task = {}) {
+  const types = Array.isArray(task.types) ? task.types.filter(Boolean) : [];
+  if (types.includes("其他")) return true;
+  if (!isAllowedUploadFile(file)) return false;
+  if (!types.length) return true;
+  return types.includes(getFormatCategory(getFormat(file)));
 }
 
 function getFormatCategory(format = "") {
@@ -343,12 +341,13 @@ function parseDateTimeText(value = "", defaultTime = "00:00") {
   const time = timeMatch
     ? `${String(timeMatch[1]).padStart(2, "0")}:${String(timeMatch[2]).padStart(2, "0")}`
     : defaultTime;
-  return { date, time };
+  const seconds = timeMatch ? String(timeMatch[3] || "00").padStart(2, "0") : "00";
+  return { date, time, seconds };
 }
 
 function normalizeDateText(value = "") {
   const parsed = parseDateTimeText(value);
-  return parsed ? parsed.date : todayText();
+  return parsed ? parsed.date : "";
 }
 
 function splitDateTimeText(value = "") {
@@ -369,11 +368,11 @@ function formDateTimeValue(data, prefix, defaultTime = "23:59") {
   return joinDateTime(data[`${prefix}Date`], data[`${prefix}Time`] || defaultTime);
 }
 
-function formatDateTimeDisplay(value = "") {
+function formatDateTimeDisplay(value = "", includeSeconds = false) {
   if (!value) return "";
   const parts = parseDateTimeText(value);
   if (!parts) return value; // 非日期（如“永久有效”）原样显示
-  return `${parts.date} ${parts.time}`;
+  return `${parts.date} ${parts.time}${includeSeconds ? `:${parts.seconds}` : ""}`;
 }
 
 function dateTimeTextToTimestamp(value = "") {

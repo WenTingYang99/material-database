@@ -233,6 +233,7 @@ const SEED_VALUE_LIST_TREE = [
   { id: "vl_ff68", code: "amf", name: "AMF", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 4 },
   { id: "vl_ff69", code: "bim", name: "BIM", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 5 },
   { id: "vl_ff70", code: "brep", name: "BREP", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 6 },
+  { id: "vl_ff_other", code: "other", name: "其他", type: "group", parentId: "vl_dim_file_format", refId: null, description: "收集任务选择后不限制上传格式", attr1: "allow_all", attr2: "", status: "enabled", sortOrder: 99 },
   { id: "vl_ff71", code: "dae", name: "DAE", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 7 },
   { id: "vl_ff72", code: "fbx", name: "FBX", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 8 },
   { id: "vl_ff73", code: "fcstd", name: "FCSTD", type: "value", parentId: "vl_ff10", refId: null, description: "", attr1: "", attr2: "", status: "enabled", sortOrder: 9 },
@@ -292,6 +293,7 @@ function buildFilterTree(dimCode, parentId = null) {
   if (!dim) return [];
   const pid = parentId !== null ? parentId : dim.id;
   return getTreeChildren(pid).map(n => ({
+    value: n.code,
     name: n.name,
     selectable: n.type === "value",
     children: buildFilterTree(dimCode, n.id)
@@ -310,6 +312,231 @@ function getAllLeafValues(dimCode) {
   };
   collect(dim.id);
   return result;
+}
+
+function getValueListNode(value, dimCode) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  return getAllLeafValues(dimCode).find((node) =>
+    String(node.code) === text || String(node.name) === text
+  ) || null;
+}
+
+function getValueListCode(value, dimCode, fallback = "") {
+  return getValueListNode(value, dimCode)?.code || fallback;
+}
+
+function getValueListName(value, dimCode, fallback = "") {
+  return getValueListNode(value, dimCode)?.name || fallback || String(value ?? "");
+}
+
+function getSharePermissionText(share = {}) {
+  const accessScopeName = getValueListName(share.accessScope, "share_access_scope", share.accessScope || "-");
+  const contentPermissionName = getValueListName(share.contentPermission, "share_content_permission", share.contentPermission || "-");
+  return `${accessScopeName} / ${contentPermissionName}`;
+}
+
+function getTagRecord(value, tagType) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  return (db.tags || []).find((tag) => {
+    const currentType = tag.tagType ?? (tag.system ? 2 : 1);
+    if (tagType && currentType !== tagType) return false;
+    return String(tag.tagCode || "") === text || String(tag.tagName || tag.name || tag.tag || "") === text;
+  }) || null;
+}
+
+function getTagCode(value, tagType, fallback = "") {
+  return getTagRecord(value, tagType)?.tagCode || fallback;
+}
+
+function getTagName(value, tagType, fallback = "") {
+  const tag = getTagRecord(value, tagType);
+  return tag ? (tag.tagName || tag.name || tag.tag || fallback) : (fallback || String(value ?? ""));
+}
+
+function getTagNames(values, tagType) {
+  return (Array.isArray(values) ? values : []).map((value) => getTagName(value, tagType)).filter(Boolean);
+}
+
+const COLLECT_AUDIT_REASON_ITEMS = [
+  ["sensitive_content", "素材包含违规敏感内容，不符合平台内容规范", "素材内容合规类"],
+  ["porn_violence_low_quality_marketing", "素材存在色情、暴力、低俗、不实营销等违规信息", "素材内容合规类"],
+  ["political_privacy_portrait", "素材涉及政治敏感、第三方隐私、肖像未授权", "素材内容合规类"],
+  ["competitor_logo", "画面包含竞品 logo、竞品宣传物料，禁止入库", "素材内容合规类"],
+  ["false_marketing", "内容存在虚假宣传、夸大不实营销话术", "素材内容合规类"],
+  ["copyright_missing", "无版权授权，无法确认素材商用使用权，不予收录", "版权 & 权属类"],
+  ["portrait_auth_missing", "人物肖像无授权，存在侵权风险，请补充授权文件", "版权 & 权属类"],
+  ["third_party_no_auth", "素材取自第三方平台无转载授权，禁止上传", "版权 & 权属类"],
+  ["font_music_no_auth", "字体 / 音乐无商用授权，存在版权纠纷风险", "版权 & 权属类"],
+  ["third_party_watermark", "素材水印为第三方商业机构，无法正常使用", "版权 & 权属类"],
+  ["image_blurry_low_resolution", "图片模糊、分辨率过低", "素材质量 & 清晰度类"],
+  ["video_shaky_blur_broken", "视频画面抖动严重、失焦、画质破损不可用", "素材质量 & 清晰度类"],
+  ["blocked_reflection_watermark", "画面存在大量遮挡、反光、水印，影响正常使用", "素材质量 & 清晰度类"],
+  ["audio_video_issue", "视频音画不同步、杂音过重、黑屏花屏", "素材质量 & 清晰度类"],
+  ["composition_missing_subject", "构图残缺、主体缺失，不满足宣传素材标准", "素材质量 & 清晰度类"],
+  ["vehicle_brand_mismatch", "车型 / 品牌与本次收集需求不匹配", "物料规格 / 业务不符类"],
+  ["size_ratio_mismatch", "画面尺寸、比例不满足业务输出规范", "物料规格 / 业务不符类"],
+  ["theme_mismatch", "非本次收集任务指定主题素材，请重新上传对应物料", "物料规格 / 业务不符类"],
+  ["file_broken", "文件损坏、无法正常预览打开，请重新上传", "文件 & 上传异常类"],
+  ["duplicate_upload", "重复上传相同素材，已有同版本入库无需重复提交", "文件 & 上传异常类"],
+  ["thumbnail_load_failed", "缩略图 / 内容加载失败，文件存在异常", "文件 & 上传异常类"],
+  ["missing_tags_info", "素材缺少业务标签 / 基础信息，请补充后重新提交", "补充修改类"],
+  ["copy_error", "画面文字文案有误，修正文案后重新上传", "补充修改类"],
+  ["need_crop_color", "素材需要裁剪、调色优化后再提交审核", "补充修改类"],
+  ["other", "其他", "其他"],
+];
+
+function ensureValueListChild(parentCode, code, name, options = {}) {
+  db.valueListTree = db.valueListTree || [];
+  const parent = getTreeNodeByCode(parentCode);
+  if (!parent) return false;
+  const existing = db.valueListTree.find((node) => node.parentId === parent.id && node.code === code);
+  if (existing) {
+    let changed = false;
+    if (existing.name !== name) { existing.name = name; changed = true; }
+    if (options.description !== undefined && existing.description !== options.description) { existing.description = options.description; changed = true; }
+    if (options.attr1 !== undefined && existing.attr1 !== options.attr1) { existing.attr1 = options.attr1; changed = true; }
+    if (options.attr2 !== undefined && existing.attr2 !== options.attr2) { existing.attr2 = options.attr2; changed = true; }
+    if (existing.status !== "enabled") { existing.status = "enabled"; changed = true; }
+    return changed;
+  }
+  db.valueListTree.push({
+    id: options.id || `vl_${parentCode}_${code}`.replace(/[^a-zA-Z0-9_]/g, "_"),
+    code,
+    name,
+    type: "value",
+    parentId: parent.id,
+    refId: null,
+    description: options.description || "",
+    attr1: options.attr1 || "",
+    attr2: options.attr2 || "",
+    status: "enabled",
+    sortOrder: options.sortOrder || db.valueListTree.filter((node) => node.parentId === parent.id).length + 1,
+  });
+  return true;
+}
+
+function ensureValueListDimension(code, name, parentCode = "material_manage", options = {}) {
+  db.valueListTree = db.valueListTree || [];
+  if (getTreeNodeByCode(code)) return false;
+  const parent = getTreeNodeByCode(parentCode);
+  if (!parent) return false;
+  db.valueListTree.push({
+    id: options.id || `vl_dim_${code}`.replace(/[^a-zA-Z0-9_]/g, "_"),
+    code,
+    name,
+    type: "dimension",
+    parentId: parent.id,
+    refId: null,
+    description: options.description || "",
+    attr1: "",
+    attr2: "",
+    status: "enabled",
+    sortOrder: options.sortOrder || db.valueListTree.filter((node) => node.parentId === parent.id).length + 1,
+  });
+  return true;
+}
+
+function getCollectAuditReasonName(code, fallback = "") {
+  return getValueListName(code, "collect_audit_remark", fallback || code || "");
+}
+
+function getCollectAuditHistory(task = {}) {
+  return Array.isArray(task.logs) ? task.logs.filter((log) => String(log.action || "").startsWith("collect.")) : [];
+}
+
+function addCollectHistory(task, action, remark = "", options = {}) {
+  if (!task) return;
+  const actionNode = getTreeNodeByCode(action, "operation_action_type") || getTreeNodeByCode(action);
+  const reasonName = options.reasonCode ? getCollectAuditReasonName(options.reasonCode) : "";
+  const detail = [remark, reasonName].filter(Boolean).join(" / ") || actionNode?.name || action;
+  logOperation("collect", task.id, task.theme, action, detail);
+  const latest = Array.isArray(task.logs) ? task.logs[0] : null;
+  if (latest) {
+    latest.remark = remark || "";
+    latest.reasonCode = options.reasonCode || "";
+    latest.stage = options.stage || "";
+    latest.result = options.result || "";
+  }
+}
+
+function renderCollectHistoryRows(task = {}) {
+  const rows = getCollectAuditHistory(task);
+  if (!rows.length) return `<tr><td colspan="4" class="empty-cell">暂无审核历史</td></tr>`;
+  return rows.map((log) => {
+    const reason = log.reasonCode ? getCollectAuditReasonName(log.reasonCode) : "";
+    const remark = [reason, log.remark || log.detail || ""].filter(Boolean).join(" / ");
+    return `<tr>
+      <td>${escapeHtml(formatDateTimeDisplay(log.createdAt, true))}</td>
+      <td>${escapeHtml(log.operator || "-")}</td>
+      <td>${escapeHtml(log.actionName || getTreeNodeByCode(log.action, "operation_action_type")?.name || log.action || "-")}</td>
+      <td><span class="cell-ellipsis" title="${escapeAttr(remark || "-")}">${escapeHtml(remark || "-")}</span></td>
+    </tr>`;
+  }).join("");
+}
+
+function showCollectHistoryDialog(task = {}) {
+  document.querySelector("#collectorHistoryDialog")?.remove();
+  const dialog = document.createElement("div");
+  dialog.id = "collectorHistoryDialog";
+  dialog.className = "collector-history-dialog";
+  dialog.innerHTML = `
+    <div class="collector-history-dialog__card">
+      <header>
+        <h2>审核历史记录</h2>
+        <button type="button" data-close-history aria-label="关闭">×</button>
+      </header>
+      <div class="table-scroll">
+        <table class="records-table manage-table">
+          <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>备注</th></tr></thead>
+          <tbody>${renderCollectHistoryRows(task)}</tbody>
+        </table>
+      </div>
+    </div>`;
+  document.body.appendChild(dialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog || event.target.closest("[data-close-history]")) dialog.remove();
+  });
+}
+
+function normalizeDbSelectionCodes(database) {
+  if (!database || typeof database !== "object") return false;
+  let changed = false;
+  const normalizeField = (asset, field, dimCode) => {
+    const current = asset[field];
+    if (!current) return;
+    let next = getValueListCode(current, dimCode, current);
+    if (field === "permission" && next === current) {
+      if (String(current).includes("下载")) next = getValueListCode("downloadable", dimCode, current);
+      else if (String(current).includes("分享")) next = getValueListCode("shareable", dimCode, current);
+    }
+    if (next !== current) {
+      asset[field] = next;
+      changed = true;
+    }
+  };
+  const normalizeArray = (asset, field, resolver) => {
+    const current = Array.isArray(asset[field]) ? asset[field] : (asset[field] ? [asset[field]] : []);
+    const next = current.map((value) => resolver(value) || value);
+    if (JSON.stringify(next) !== JSON.stringify(current)) {
+      asset[field] = next;
+      changed = true;
+    }
+  };
+  (database.assets || []).forEach((asset) => {
+    normalizeField(asset, "asset_source", "source");
+    normalizeField(asset, "format", "file_format");
+    normalizeField(asset, "brand", "brand");
+    normalizeField(asset, "series", "series");
+    normalizeField(asset, "model", "model");
+    normalizeField(asset, "permission", "permission_scope");
+    normalizeArray(asset, "interiorColors", (value) => getValueListCode(value, "interior_color"));
+    normalizeArray(asset, "exteriorColors", (value) => getValueListCode(value, "exterior_color"));
+    normalizeArray(asset, "customTags", (value) => getTagCode(value, 1));
+    normalizeArray(asset, "aiTags", (value) => getTagCode(value, 2));
+  });
+  return changed;
 }
 
 function getAssetStatusConfig() {
@@ -456,6 +683,7 @@ function getFileFormatCategoriesFromTree() {
 }
 function getAspectRatiosFromTree() {
   return getAllLeafValues("aspect_ratio").map(n => ({
+    code: n.code,
     label: n.name,
     value: parseFloat(n.attr1) || 0
   }));
@@ -832,6 +1060,83 @@ function canMoveAsset(asset, targetGroupId) {
 function canUploadToGroup(groupId) {
   if (isAdmin()) return true;
   return canContributeToGroup(groupId);
+}
+
+function getCollectTaskGroupId(task = {}) {
+  if (task.groupId && db.groups.some((group) => group.id === task.groupId)) return task.groupId;
+  const groupName = String(task.group || "").trim();
+  if (!groupName) return "";
+  return db.groups.find((group) => group.name === groupName)?.id || "";
+}
+
+function getCollectTaskGroupName(task = {}) {
+  const groupId = getCollectTaskGroupId(task);
+  if (groupId) return getGroupName(groupId);
+  return String(task.group || "").trim();
+}
+
+function getCollectTargetGroupId(task = {}) {
+  return getCollectTaskGroupId(task) || "all";
+}
+
+function getManageableCollectGroupOptions(selectedId = "") {
+  const groupStatusConfig = getGroupStatusConfig();
+  const groups = (db.groups || []).filter((group) => !group.system && !groupStatusConfig.deletedCodes.includes(group.status));
+  const byParent = new Map();
+  groups.forEach((group, index) => {
+    group._collectOptionIndex = index;
+    const parentId = group.parentId && groups.some((item) => item.id === group.parentId) ? group.parentId : "";
+    if (!byParent.has(parentId)) byParent.set(parentId, []);
+    byParent.get(parentId).push(group);
+  });
+  const ordered = [];
+  const visit = (parentId, depth) => {
+    (byParent.get(parentId) || [])
+      .sort((a, b) => a._collectOptionIndex - b._collectOptionIndex)
+      .forEach((group) => {
+        if (canUploadToGroup(group.id) || canManageGroup(group.id)) {
+          ordered.push({ group, depth });
+        }
+        visit(group.id, depth + 1);
+      });
+  };
+  visit("", 0);
+  groups.forEach((group) => delete group._collectOptionIndex);
+  const emptySelected = !selectedId ? "selected" : "";
+  const emptyOption = `<option value="" ${emptySelected}>不指定素材组</option>`;
+  const groupOptions = ordered.map(({ group, depth }) => {
+    const prefix = depth ? `${"  ".repeat(depth)}- ` : "";
+    return `<option value="${escapeAttr(group.id)}" ${group.id === selectedId ? "selected" : ""}>${escapeHtml(prefix + group.name)}</option>`;
+  }).join("");
+  return emptyOption + groupOptions;
+}
+
+function getCollectTaskTypeOptions(selectedTypes = []) {
+  const selected = new Set(Array.isArray(selectedTypes) ? selectedTypes : []);
+  return getAllCollectTaskTypes()
+    .map((type) => `<option value="${escapeAttr(type)}" ${selected.has(type) ? "selected" : ""}>${escapeHtml(type)}</option>`)
+    .join("");
+}
+
+function getCollectTaskAccept(task = {}) {
+  const types = Array.isArray(task.types) ? task.types.filter(Boolean) : [];
+  if (!types.length) return getAllUploadAccept();
+  if (types.includes("其他")) return "";
+  const dim = getTreeNodeByCode("file_format");
+  if (!dim) return getAllUploadAccept();
+  const selectedGroups = getTreeChildren(dim.id).filter((node) => node.type === "group" && types.includes(node.name));
+  const codes = new Set();
+  getAllLeafValues("file_format").forEach((leaf) => {
+    let parent = getTreeNodeById(leaf.parentId);
+    while (parent) {
+      if (selectedGroups.some((group) => group.id === parent.id)) {
+        codes.add(leaf.code);
+        break;
+      }
+      parent = getTreeNodeById(parent.parentId);
+    }
+  });
+  return codes.size ? [...codes].map((code) => `.${code}`).join(",") : getAllUploadAccept();
 }
 
 function canPurgeAsset(asset) {
@@ -1231,6 +1536,21 @@ function ensureSystemData() {
     db.valueListTree = SEED_VALUE_LIST_TREE;
     changed = true;
   }
+  [
+    ["collect.draft", "暂存"],
+    ["collect.submit", "提交"],
+    ["collect.machine_pass", "机审通过"],
+    ["collect.machine_reject", "机审驳回"],
+    ["collect.human_pass", "人审通过"],
+    ["collect.human_reject", "人审驳回"],
+  ].forEach(([code, name], index) => {
+    if (ensureValueListChild("operation_action_type", code, name, { sortOrder: 40 + index })) changed = true;
+  });
+  if (ensureValueListDimension("collect_audit_remark", "收集审核备注", "material_manage", { description: "收集任务审核通过或驳回备注原因", sortOrder: 30 })) changed = true;
+  COLLECT_AUDIT_REASON_ITEMS.forEach(([code, name, category], index) => {
+    if (ensureValueListChild("collect_audit_remark", code, name, { attr1: category, sortOrder: index + 1 })) changed = true;
+  });
+  if (ensureValueListChild("file_format", "other", "其他", { description: "收集任务选择后不限制上传格式", attr1: "allow_all", sortOrder: 99 })) changed = true;
   if (!db.orgPermissions || typeof db.orgPermissions !== "object" || Array.isArray(db.orgPermissions)) {
     db.orgPermissions = {};
     changed = true;
@@ -1352,6 +1672,7 @@ function bootstrap() {
   ensureRuntimeElements();
   ensureSystemData();
   normalizeDbDates(db);
+  if (normalizeDbSelectionCodes(db)) saveDb();
   currentUser = getStoredCurrentUser() || getAnonymousUser();
   buildUserGroupPermissionCache();
   renderShell();
@@ -1484,8 +1805,10 @@ function loadDb() {
 function saveDb() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+    return true;
   } catch (error) {
     showToast("浏览器本地存储空间不足，当前数据仅在本次页面打开期间保留");
+    return false;
   }
 }
 
@@ -1544,9 +1867,12 @@ function renderCollectorPortal(code) {
     return;
   }
   const auditConfig = getAuditStatusConfig();
-  const allowedAuditStatuses = [auditConfig.pendingSubmit, auditConfig.pendingAudit];
-  if (!allowedAuditStatuses.includes(task.auditStatus)) {
-    document.body.innerHTML = `<main class="collector-page collector-page--centered"><section class="collector-card"><div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div><h1>素材审核中</h1><p>该收集任务的素材正在审核中，暂无法上传或编辑内容。</p></section></main>`;
+  if (task.auditStatus === auditConfig.pendingAudit) {
+    renderCollectorProgressPage(code, task, "收集任务已提交", "当前素材已提交到待入库，请等待管理员审核。");
+    return;
+  }
+  if (task.auditStatus !== auditConfig.pendingSubmit) {
+    renderCollectorProgressPage(code, task, "当前收集任务已发起审核", "当前收集任务已发起审核，请等待审核结果。");
     return;
   }
   if (task.requirePassword && task.password && sessionStorage.getItem(getCollectPasswordKey(task)) !== task.password) {
@@ -1554,6 +1880,28 @@ function renderCollectorPortal(code) {
     return;
   }
   renderCollectorPortalContent(code, task);
+}
+
+function renderCollectorProgressPage(code, task, title, message) {
+  const statusName = getTreeNodeByCode(task.auditStatus, "audit_status")?.name || task.auditStatus || "-";
+  document.body.innerHTML = `
+    <main class="collector-page">
+      <section class="collector-hero">
+        <div class="brand-mini"><b>DPCA</b><span>神龙汽车有限公司素材库</span></div>
+        <h1>${escapeHtml(title)}</h1>
+        <p>${escapeHtml(message)}</p>
+        <div class="collector-info-bar">
+          <span>审核状态：<strong>${escapeHtml(statusName)}</strong></span>
+          <span>更新时间：<strong>${escapeHtml(formatDateTimeDisplay(task.updatedAt || task.createdAt, true))}</strong></span>
+        </div>
+      </section>
+      <section class="collector-content">
+        <div class="collector-form-section">
+          <button type="button" id="collectorProgressHistoryBtn">查看审核历史</button>
+        </div>
+      </section>
+    </main>`;
+  document.querySelector("#collectorProgressHistoryBtn")?.addEventListener("click", () => showCollectHistoryDialog(task));
 }
 
 function getCollectPasswordKey(task) {
@@ -1588,7 +1936,8 @@ function renderCollectorPasswordGate(code, task) {
 
 function renderCollectorPortalContent(code, task) {
   const businessTags = getTagSummary().businessTags;
-  const tagOptions = businessTags.map((tag) => `<option value="${escapeAttr(tag.tagName || tag.name)}">${escapeHtml(tag.tagName || tag.name)}</option>`).join("");
+  const tagOptions = businessTags.filter((tag) => tag.tagCode).map((tag) => `<option value="${escapeAttr(tag.tagCode)}">${escapeHtml(tag.tagName || tag.name)}</option>`).join("");
+  const draft = task.draft || {};
   document.body.innerHTML = `
     <main class="collector-page">
       <section class="collector-hero">
@@ -1596,12 +1945,12 @@ function renderCollectorPortalContent(code, task) {
         <h1>${escapeHtml(task.theme)}</h1>
         <p>请上传本次收集任务需要的图片、视频或文档。提交后素材会进入「待入库」，待审核入库。</p>
         <div class="collector-info-bar">
-          <span>截止日期：<strong>${escapeHtml(task.expiresAt)}</strong></span>
+        <span>截止日期：<strong>${escapeHtml(formatDateTimeDisplay(task.expiresAt))}</strong></span>
           ${task.requirePassword ? `<span>需要访问密码</span>` : `<span>无需访问密码</span>`}
         </div>
       </section>
       <section class="collector-content">
-        <form id="collectorForm">
+        <form id="collectorForm" novalidate>
           <div class="collector-form-section">
             <h2>提交人信息</h2>
             <div class="collector-form-row">
@@ -1631,7 +1980,7 @@ function renderCollectorPortalContent(code, task) {
           <div class="collector-form-section">
             <h2>素材上传</h2>
             <div class="collector-upload-area" id="collectorUploadArea">
-              <input id="collectorFileInput" type="file" multiple accept="${getAllUploadAccept()}" />
+              <input id="collectorFileInput" type="file" multiple accept="${getCollectTaskAccept(task)}" />
               <div class="collector-upload-btn">
                 <span data-icon="upload"></span>
                 <span>选择文件</span>
@@ -1645,46 +1994,177 @@ function renderCollectorPortalContent(code, task) {
           </div>
           <div class="collector-form-actions">
             <button type="button" id="collectorResetBtn">重置</button>
+            <button type="button" id="collectorHistoryBtn">查看审核历史</button>
             <button type="button" id="collectorStashBtn">暂存</button>
-            <button type="submit" class="primary">提交到待入库</button>
+            <button type="submit" id="collectorSubmitBtn" class="primary">提交到待入库</button>
           </div>
         </form>
       </section>
       <div class="collector-result hidden" id="collectorResult"></div>
     </main>`;
-  
+
   const stagedFiles = [];
+  (Array.isArray(task.draftItems) ? task.draftItems : []).forEach((item) => {
+    stagedFiles.push({
+      file: null,
+      draft: true,
+      id: item.id || `draft-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: item.name,
+      size: item.size,
+      type: item.type,
+      assetId: item.assetId || "",
+      previewUrl: "",
+    });
+  });
+  let collectorSubmitting = false;
+
+  function showCollectorMessage(message, isError = false) {
+    const result = document.querySelector("#collectorResult");
+    if (!result) return;
+    result.classList.remove("hidden");
+    result.classList.toggle("error", isError);
+    result.textContent = message;
+  }
   
   function validateCollectorForm() {
     const form = document.querySelector("#collectorForm");
     const data = Object.fromEntries(new FormData(form));
     if (!data.author?.trim()) {
       showToast("请填写提交人姓名");
-      form.querySelector("[name='author']").focus();
+      showCollectorMessage("请填写提交人姓名", true);
+      form.querySelector("[name='author']")?.focus();
       return false;
     }
     if (!data.department?.trim()) {
       showToast("请填写公司/部门");
-      form.querySelector("[name='department']").focus();
+      showCollectorMessage("请填写公司/部门", true);
+      form.querySelector("[name='department']")?.focus();
       return false;
     }
     if (!data.phone?.trim()) {
       showToast("请填写联系方式");
-      form.querySelector("[name='phone']").focus();
+      showCollectorMessage("请填写联系方式", true);
+      form.querySelector("[name='phone']")?.focus();
       return false;
     }
     if (!data.email?.trim()) {
       showToast("请填写邮箱");
-      form.querySelector("[name='email']").focus();
+      showCollectorMessage("请填写邮箱", true);
+      form.querySelector("[name='email']")?.focus();
       return false;
     }
     return true;
   }
+
+  function restoreDraftForm() {
+    const form = document.querySelector("#collectorForm");
+    if (!form || !draft) return;
+    if (draft.author) form.querySelector("[name='author']").value = draft.author;
+    if (draft.department) form.querySelector("[name='department']").value = draft.department;
+    if (draft.phone) form.querySelector("[name='phone']").value = draft.phone;
+    if (draft.email) form.querySelector("[name='email']").value = draft.email;
+    if (draft.note) form.querySelector("[name='note']").value = draft.note;
+    const selectedTags = new Set(draft.businessTags || []);
+    [...form.querySelector("[name='businessTags']").options].forEach((option) => {
+      option.selected = selectedTags.has(option.value);
+    });
+  }
+
+  function getStagedMeta(staged) {
+    const file = staged.file;
+    return {
+      name: file?.name || staged.name || "未命名素材",
+      size: file?.size || staged.size || 0,
+      type: file?.type || staged.type || "application/octet-stream",
+    };
+  }
+
+  function buildDraftItems() {
+    return stagedFiles.map((staged) => {
+      const meta = getStagedMeta(staged);
+      return {
+        id: staged.id,
+        assetId: staged.assetId || "",
+        name: meta.name,
+        size: meta.size,
+        type: meta.type,
+      };
+    });
+  }
+
+  function createCollectorPlaceholderAsset(staged, formData, selectedTags, auditConfig, assetStatusConfig) {
+    const meta = getStagedMeta(staged);
+    const format = getFormat(meta);
+    const createdTime = nowText();
+    return {
+      id: `asset-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      name: meta.name.replace(/\.[^.]+$/, ""),
+      src: "",
+      format,
+      mime: meta.type,
+      type: getType(meta),
+      sizeBytes: meta.size,
+      width: 0,
+      height: 0,
+      desc: String(formData.note || "").trim(),
+      brand: "",
+      model: "",
+      customTags: selectedTags,
+      aiTags: [],
+      groupId: getCollectTargetGroupId(task),
+      owner: String(formData.author || "").trim(),
+      department: String(formData.department || "").trim(),
+      contact: String(formData.phone || "").trim(),
+      email: String(formData.email || "").trim(),
+      creator: task.creator,
+      lastUpdate: currentUser.username,
+      createdBy: currentUser.username,
+      ownedBy: currentUser.username,
+      ownedByDept: currentUser.department || "",
+      asset_source: "external",
+      collect_id: task.id,
+      collect_link: task.link,
+      permission: getValueListCode("downloadable", "permission_scope", "downloadable"),
+      validUntil: calculateExpireTime("永久有效"),
+      auditStatus: auditConfig.pendingAudit,
+      assetStatus: assetStatusConfig.pending,
+      validityStatus: getValidityStatusConfig().valid,
+      uploadDate: todayText(),
+      validStart: toISODate(createdTime),
+      validUntilDate: calculateExpireTime("永久有效"),
+      share: 0,
+      download: 0,
+      view: 0,
+      createdAt: createdTime,
+      updatedAt: createdTime,
+      version: `${Date.now()}`,
+      logs: [],
+    };
+  }
+
+  function getCollectorDraftData(form) {
+    const formData = new FormData(form);
+    return {
+      author: String(formData.get("author") || "").trim(),
+      department: String(formData.get("department") || "").trim(),
+      phone: String(formData.get("phone") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      note: String(formData.get("note") || "").trim(),
+      businessTags: [...form.querySelector("[name='businessTags']").selectedOptions].map((opt) => opt.value),
+    };
+  }
+
+  restoreDraftForm();
+  renderStagedList();
+
+  document.querySelector("#collectorHistoryBtn").addEventListener("click", () => {
+    showCollectHistoryDialog(task);
+  });
   
   document.querySelector("#collectorFileInput").addEventListener("change", (event) => {
     const files = [...event.target.files];
     if (!files.length) return;
-    const validFiles = files.filter(isAllowedUploadFile);
+    const validFiles = files.filter((file) => isAllowedCollectTaskFile(file, task));
     const rejectedCount = files.length - validFiles.length;
     if (rejectedCount) showToast(`已跳过 ${rejectedCount} 个不支持的文件格式`);
     validFiles.forEach((file) => {
@@ -1703,13 +2183,14 @@ function renderCollectorPortalContent(code, task) {
     const newTagName = newTagInput.value.trim();
     if (!newTagName) return;
     const select = document.querySelector("[name='businessTags']");
-    const existingOptions = [...select.options].map(opt => opt.value);
-    if (existingOptions.includes(newTagName)) {
+    const existingTag = getTagRecord(newTagName, 1);
+    if (existingTag) {
       showToast("该标签已存在");
       return;
     }
+    const tagRecord = createTagRecordFromUsage(newTagName, 1);
     const option = document.createElement("option");
-    option.value = newTagName;
+    option.value = tagRecord.tagCode;
     option.textContent = newTagName;
     option.selected = true;
     select.appendChild(option);
@@ -1720,86 +2201,132 @@ function renderCollectorPortalContent(code, task) {
   document.querySelector("#collectorResetBtn").addEventListener("click", () => {
     clearStagedFiles();
     stagedFiles.length = 0;
+    task.draft = {};
+    task.draftItems = [];
+    task.draftCount = 0;
+    task.updatedAt = nowText();
+    saveDb();
     document.querySelector("#collectorForm").reset();
     renderStagedList();
+    showCollectorMessage("已重置暂存内容");
   });
   
   document.querySelector("#collectorStashBtn").addEventListener("click", () => {
     if (!validateCollectorForm()) return;
     if (!stagedFiles.length) {
       showToast("请先选择要上传的文件");
+      showCollectorMessage("请先选择要上传的文件", true);
       return;
     }
+    const form = document.querySelector("#collectorForm");
+    task.auditStatus = getAuditStatusConfig().pendingSubmit;
+    task.draft = getCollectorDraftData(form);
+    task.draftItems = buildDraftItems();
+    task.draftCount = stagedFiles.length;
+    task.updatedAt = nowText();
+    addCollectHistory(task, "collect.draft", `暂存 ${stagedFiles.length} 个文件`, { stage: "draft" });
+    showCollectorMessage(`已暂存 ${stagedFiles.length} 个文件，继续完善后可提交到待入库`);
     showToast(`已暂存 ${stagedFiles.length} 个文件`);
+    setTimeout(() => {
+      if (!saveDb()) showCollectorMessage("暂存未能写入浏览器本地存储，但本页流程可继续操作。", true);
+    }, 0);
   });
   
   document.querySelector("#collectorForm").addEventListener("submit", async (event) => {
     event.preventDefault();
+    if (collectorSubmitting) return;
     if (!validateCollectorForm()) return;
     
     const form = event.currentTarget;
     const data = Object.fromEntries(new FormData(form));
     const selectedTags = [...form.querySelector("[name='businessTags']").selectedOptions].map(opt => opt.value);
     const newTag = (data.newBusinessTag || "").trim();
-    if (newTag && !selectedTags.includes(newTag)) selectedTags.push(newTag);
+    if (newTag) {
+      const tagRecord = getTagRecord(newTag, 1) || createTagRecordFromUsage(newTag, 1);
+      if (tagRecord?.tagCode && !selectedTags.includes(tagRecord.tagCode)) selectedTags.push(tagRecord.tagCode);
+    }
     
     if (!stagedFiles.length) {
       showToast("请先选择要上传的文件");
+      showCollectorMessage("请先选择要上传的文件", true);
       return;
     }
     
     const fileCount = stagedFiles.length;
-    showToast(`正在上传 ${fileCount} 个文件...`);
-    
-    for (const staged of stagedFiles) {
+    const submitButton = document.querySelector("#collectorSubmitBtn");
+    collectorSubmitting = true;
+    if (submitButton) submitButton.disabled = true;
+    showCollectorMessage(`正在记录 ${fileCount} 个文件的提交信息...`);
+
+    try {
+      for (const staged of stagedFiles) {
+        const auditConfig = getAuditStatusConfig();
+        const assetStatusConfig = getAssetStatusConfig();
+        const meta = getStagedMeta(staged);
+        let asset = staged.assetId ? db.assets.find((item) => item.id === staged.assetId) : null;
+        if (asset) {
+          asset.auditStatus = auditConfig.pendingAudit;
+          asset.assetStatus = assetStatusConfig.pending;
+          asset.groupId = getCollectTargetGroupId(task) || asset.groupId || "all";
+          asset.customTags = selectedTags;
+          asset.owner = data.author.trim();
+          asset.department = data.department.trim();
+          asset.contact = data.phone.trim();
+          asset.email = data.email.trim();
+          asset.desc = data.note.trim();
+          asset.updatedAt = nowText();
+          logOperation('asset', asset.id, asset.name, 'asset.edit', `${asset.owner} 重新提交收集素材`);
+        } else {
+          asset = createCollectorPlaceholderAsset(staged, data, selectedTags, auditConfig, assetStatusConfig);
+          db.assets.unshift(asset);
+          logOperation('asset', asset.id, asset.name, 'asset.upload', `${asset.owner} 通过收集链接上传素材`);
+        }
+      }
+
       const auditConfig = getAuditStatusConfig();
-      const assetStatusConfig = getAssetStatusConfig();
-      const asset = await createAssetFromFile(staged.file, { 
-        validUntilDate: "", 
-        customTags: selectedTags,
-        auditStatus: auditConfig.pendingAudit,
-        assetStatus: assetStatusConfig.pending,
-        asset_source: "external",
-        collect_id: task.id,
-        collect_link: task.link
-      });
-      const targetGroup = db.groups.find((group) => group.name === task.group);
-      asset.groupId = targetGroup?.id || "all";
-      asset.creator = task.creator;
-      asset.owner = data.author.trim();
-      asset.department = data.department.trim();
-      asset.contact = data.phone.trim();
-      asset.email = data.email.trim();
-      asset.desc = data.note.trim();
-      db.assets.unshift(asset);
-      logOperation('asset', asset.id, asset.name, 'asset.upload', `${asset.owner} 通过收集链接上传素材`);
+      task.auditStatus = auditConfig.pendingAudit;
+      task.draft = {};
+      task.draftItems = [];
+      task.draftCount = 0;
+      task.updatedAt = nowText();
+      addCollectHistory(task, "collect.submit", `提交 ${fileCount} 个素材到待入库`, { stage: "submit" });
+      clearStagedFiles();
+      stagedFiles.length = 0;
+      form.reset();
+      renderStagedList();
+
+      const result = document.querySelector("#collectorResult");
+      result.classList.remove("hidden");
+      result.classList.remove("error");
+      result.innerHTML = `已提交 ${fileCount} 个素材，管理员可在「待入库」审核。<a href="${escapeAttr(getLibraryLink("pending"))}">进入待入库</a>`;
+      showToast(`已成功提交 ${fileCount} 个素材到待入库`);
+      setTimeout(() => {
+        if (!saveDb()) showCollectorMessage("已在当前页面完成提交，但浏览器本地存储写入失败；请清理缓存后刷新再继续。", true);
+      }, 0);
+    } catch (error) {
+      console.error("collector submit failed", error);
+      showCollectorMessage(`提交失败：${escapeHtml(error?.message || "请重新尝试或联系管理员检查文件格式。")}`, true);
+      showToast("提交失败，请重新尝试");
+    } finally {
+      collectorSubmitting = false;
+      if (submitButton) submitButton.disabled = false;
     }
-    
-    const auditConfig = getAuditStatusConfig();
-    task.auditStatus = auditConfig.pendingAudit;
-    saveDb();
-    clearStagedFiles();
-    stagedFiles.length = 0;
-    form.reset();
-    renderStagedList();
-    
-    const result = document.querySelector("#collectorResult");
-    result.classList.remove("hidden");
-    result.innerHTML = `已提交 ${fileCount} 个素材，管理员可在「待入库」审核。<a href="${escapeAttr(getLibraryLink("pending"))}">进入待入库</a>`;
-    showToast(`已成功提交 ${fileCount} 个素材到待入库`);
   });
 
   function clearStagedFiles() {
-    stagedFiles.forEach((staged) => URL.revokeObjectURL(staged.previewUrl));
+    stagedFiles.forEach((staged) => {
+      if (String(staged.previewUrl || "").startsWith("blob:")) URL.revokeObjectURL(staged.previewUrl);
+    });
   }
 
   function renderStagedPreview(staged) {
-    const fileType = getType(staged.file);
-    const format = getFormat(staged.file);
-    if (staged.file.type.startsWith("image/")) {
-      return `<img src="${escapeAttr(staged.previewUrl)}" alt="${escapeAttr(staged.file.name)}" />`;
+    const file = getStagedMeta(staged);
+    const fileType = getType(file);
+    const format = getFormat(file);
+    if (String(file.type || "").startsWith("image/") && staged.previewUrl) {
+      return `<img src="${escapeAttr(staged.previewUrl)}" alt="${escapeAttr(file.name)}" />`;
     }
-    if (staged.file.type.startsWith("video/")) {
+    if (String(file.type || "").startsWith("video/") && staged.previewUrl) {
       return `<video src="${escapeAttr(staged.previewUrl)}" muted playsinline preload="metadata"></video>`;
     }
     return `<div class="collector-file-preview"><b>${escapeHtml(format)}</b><span>${escapeHtml(fileType)}</span></div>`;
@@ -1817,8 +2344,8 @@ function renderCollectorPortalContent(code, task) {
       <div class="collector-staged-item" data-staged-id="${escapeAttr(staged.id)}">
         <div class="collector-staged-thumb">${renderStagedPreview(staged)}</div>
         <div class="collector-staged-info">
-          <span class="collector-staged-name">${escapeHtml(staged.file.name)}</span>
-          <span class="collector-staged-size">${escapeHtml(getType(staged.file))} · ${escapeHtml(getFormat(staged.file))} · ${formatBytes(staged.file.size)}</span>
+          <span class="collector-staged-name">${escapeHtml(staged.file?.name || staged.name)}</span>
+          <span class="collector-staged-size">${escapeHtml(getType(staged.file || staged))} · ${escapeHtml(getFormat(staged.file || staged))} · ${formatBytes(staged.file?.size || staged.size || 0)}</span>
         </div>
         <button type="button" class="collector-staged-remove" data-remove-staged="${escapeAttr(staged.id)}">移除</button>
       </div>
@@ -1829,7 +2356,7 @@ function renderCollectorPortalContent(code, task) {
         const id = btn.dataset.removeStaged;
         const index = stagedFiles.findIndex((item) => item.id === id);
         if (index > -1) {
-          URL.revokeObjectURL(stagedFiles[index].previewUrl);
+          if (String(stagedFiles[index].previewUrl || "").startsWith("blob:")) URL.revokeObjectURL(stagedFiles[index].previewUrl);
           stagedFiles.splice(index, 1);
           renderStagedList();
         }
@@ -2050,14 +2577,14 @@ function ensureRuntimeElements() {
   fileInput.id = "fileInput";
   fileInput.type = "file";
   fileInput.multiple = true;
-  fileInput.accept = getAllUploadAccept();
+  fileInput.accept = "";
   fileInput.hidden = true;
 
   const folderInput = document.createElement("input");
   folderInput.id = "folderInput";
   folderInput.type = "file";
   folderInput.multiple = true;
-  folderInput.accept = getAllUploadAccept();
+  folderInput.accept = "";
   folderInput.webkitdirectory = true;
   folderInput.hidden = true;
 
@@ -2255,7 +2782,7 @@ function renderMainNavNodes(parentId, depth) {
 function renderFilterChips() {
   els.filters.innerHTML = state.visibleFilters.map((item) => {
     const selections = getFilterSelections(item);
-    const active = selections.length ? `<small>${escapeHtml(formatFilterSelections(selections))}</small>` : "";
+    const active = selections.length ? `<small>${escapeHtml(formatFilterSelections(selections, item))}</small>` : "";
     return `<button class="filter-chip ${selections.length ? "active" : ""}" data-filter="${item}" type="button">${item}${active}</button>`;
   }).join("");
 }
@@ -2582,7 +3109,7 @@ function bindEvents() {
     if (!canBatch) {
       return showToast("权限不足，无法创建收集任务。请联系管理员申请权限。");
     }
-    openCollectTaskModal(getGroupName(state.groupId));
+    openCollectTaskModal(state.groupId === "all" ? "" : state.groupId);
   });
   document.querySelector("#approveSelected")?.addEventListener("click", approveSelectedAssets);
 
