@@ -35,10 +35,145 @@ function render() {
   els.breadcrumb.textContent = getPageBreadcrumb(state.page);
   renderActions();
 
-  if (isAssetPage(state.page)) renderAssets();
+  if (state.page === "home") renderHomePage();
+  else if (isAssetPage(state.page)) renderAssets();
   else if (isManagePage(state.page)) renderManagePageV2();
   else els.contentPanel.innerHTML = renderEmpty("暂无对应页面");
   initProjectDatePickers();
+}
+
+function getHomeGroupStorageKey() {
+  return `dp-material-library-home-groups:${currentUser?.id || "anonymous"}`;
+}
+
+function getHomeSelectedGroupIds() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(getHomeGroupStorageKey()) || "[]");
+    return (Array.isArray(ids) ? ids : [])
+      .filter((id) => db.groups.some((group) => group.id === id && !group.system))
+      .filter((id) => canViewGroup(id))
+      .slice(0, 4);
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveHomeSelectedGroupIds(ids = []) {
+  localStorage.setItem(getHomeGroupStorageKey(), JSON.stringify([...new Set(ids)].slice(0, 4)));
+}
+
+function getHomeVisibleAssets() {
+  return (db.assets || []).filter((asset) => getAssetStatusConfig().activeCodes.includes(asset.assetStatus) && canViewAsset(asset));
+}
+
+function renderHomePage() {
+  const visibleAssets = getHomeVisibleAssets();
+  const hotAssets = [...visibleAssets].sort((a, b) => (Number(b.view) || 0) - (Number(a.view) || 0)).slice(0, 8);
+  const latestAssets = [...visibleAssets].sort((a, b) =>
+    dateTimeTextToTimestamp(b.createdAt || b.uploadDate || b.updatedAt || "") - dateTimeTextToTimestamp(a.createdAt || a.uploadDate || a.updatedAt || "")
+  ).slice(0, 8);
+  const groupIds = getHomeSelectedGroupIds();
+  const groupCards = groupIds.map((groupId) => renderHomeGroupCard(groupId)).join("");
+
+  els.contentPanel.innerHTML = `
+    <section class="home-page">
+      <div class="home-grid">
+        ${renderHomeListCard("素材热榜", hotAssets, "hot")}
+        ${renderHomeListCard("最新素材列表", latestAssets, "latest")}
+      </div>
+      <section class="home-section">
+        <div class="home-section-head">
+          <div>
+            <h2>素材组展示</h2>
+            <p>按当前账号权限展示已配置素材组的最新素材。</p>
+          </div>
+          <button class="primary" id="homeGroupConfigBtn" type="button">配置素材组</button>
+        </div>
+        <div class="home-group-grid">
+          ${groupCards || `<div class="home-empty">暂未配置素材组</div>`}
+        </div>
+      </section>
+    </section>`;
+
+  document.querySelector("#homeGroupConfigBtn")?.addEventListener("click", openHomeGroupConfigModal);
+  els.contentPanel.querySelectorAll("[data-home-asset]").forEach((button) => {
+    button.addEventListener("click", () => openViewer(button.dataset.homeAsset));
+  });
+}
+
+function renderHomeListCard(title, assets, mode) {
+  const rows = assets.map((asset, index) => {
+    const metric = mode === "hot"
+      ? `${Number(asset.view) || 0} 次`
+      : formatDateTimeDisplay(asset.createdAt || asset.uploadDate || asset.updatedAt);
+    return `<button class="home-list-row" data-home-asset="${escapeAttr(asset.id)}" type="button">
+      <span class="home-rank">${index + 1}</span>
+      <span class="home-asset-name" title="${escapeAttr(asset.name)}">${escapeHtml(asset.name)}</span>
+      <strong>${escapeHtml(metric || "-")}</strong>
+    </button>`;
+  }).join("");
+  return `<section class="home-card"><h2>${escapeHtml(title)}</h2><div class="home-list">${rows || `<div class="home-empty">暂无可查看素材</div>`}</div></section>`;
+}
+
+function renderHomeGroupCard(groupId) {
+  const group = db.groups.find((item) => item.id === groupId);
+  if (!group || !canViewGroup(groupId)) return "";
+  const assets = getHomeVisibleAssets()
+    .filter((asset) => asset.groupId === groupId)
+    .sort((a, b) => dateTimeTextToTimestamp(b.createdAt || b.uploadDate || "") - dateTimeTextToTimestamp(a.createdAt || a.uploadDate || ""))
+    .slice(0, 8);
+  const rows = assets.map((asset) => `<button class="home-list-row" data-home-asset="${escapeAttr(asset.id)}" type="button">
+    <span class="home-asset-name" title="${escapeAttr(asset.name)}">${escapeHtml(asset.name)}</span>
+    <strong>${escapeHtml(formatDateTimeDisplay(asset.createdAt || asset.uploadDate || asset.updatedAt) || "-")}</strong>
+  </button>`).join("");
+  return `<section class="home-card"><h2>${escapeHtml(group.name)}</h2><div class="home-list">${rows || `<div class="home-empty">暂无可查看素材</div>`}</div></section>`;
+}
+
+function openHomeGroupConfigModal() {
+  const currentIds = new Set(getHomeSelectedGroupIds());
+  openFormModal("素材组展示配置", `
+    <div class="home-group-config">
+      <p>最多选择 4 个素材组。仅显示当前账号拥有查看权限的素材组。</p>
+      <div class="home-group-select-tree">${renderHomeGroupSelectTree(currentIds)}</div>
+      <div class="form-actions">
+        <button type="button" id="clearHomeGroups">清空选择</button>
+        <button type="button" data-cancel>取消</button>
+        <button class="primary" type="submit">保存</button>
+      </div>
+    </div>
+  `, (form) => {
+    const selected = [...form.querySelectorAll("[name='homeGroupIds']:checked")].map((input) => input.value).slice(0, 4);
+    saveHomeSelectedGroupIds(selected);
+    closeFormModal();
+    renderHomePage();
+  });
+  const form = document.querySelector("#formBody");
+  form.querySelector("#clearHomeGroups")?.addEventListener("click", () => {
+    form.querySelectorAll("[name='homeGroupIds']").forEach((input) => { input.checked = false; });
+  });
+  form.querySelectorAll("[name='homeGroupIds']").forEach((input) => {
+    input.addEventListener("change", () => {
+      const checked = [...form.querySelectorAll("[name='homeGroupIds']:checked")];
+      if (checked.length > 4) {
+        input.checked = false;
+        showToast("最多选择 4 个素材组");
+      }
+    });
+  });
+}
+
+function renderHomeGroupSelectTree(selectedIds = new Set()) {
+  const groupStatusConfig = getGroupStatusConfig();
+  const groups = getOrderedGroups().filter((group) =>
+    !group.system && !groupStatusConfig.deletedCodes.includes(group.status) && canViewGroup(group.id)
+  );
+  if (!groups.length) return `<div class="home-empty">暂无可选择素材组</div>`;
+  return groups.map((group) => `
+    <label class="home-group-option" style="--depth:${group.depth || 0}">
+      <input type="checkbox" name="homeGroupIds" value="${escapeAttr(group.id)}" ${selectedIds.has(group.id) ? "checked" : ""} />
+      <span>${escapeHtml(group.name)}</span>
+    </label>
+  `).join("");
 }
 
 function initProjectDatePickers(root = document) {

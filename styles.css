@@ -101,7 +101,7 @@ button {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
 }
 
 .brand {
@@ -149,7 +149,7 @@ button {
   width: min(520px, 100%);
   height: 42px;
   border-radius: 5px;
-  background: #fff;
+  background: var(--surface);
   color: #97a1ad;
   padding: 0 8px 0 14px;
 }
@@ -797,6 +797,130 @@ h1 {
 
 .content-panel {
   padding: 18px 22px 36px;
+}
+
+.home-page {
+  display: grid;
+  gap: 18px;
+}
+
+.home-grid,
+.home-group-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.home-card,
+.home-section {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 0 rgba(31, 41, 51, 0.04);
+  padding: 18px;
+}
+
+.home-card h2,
+.home-section h2 {
+  margin: 0 0 14px;
+  font-size: 20px;
+}
+
+.home-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.home-section-head p,
+.home-group-config p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+
+.home-list {
+  display: grid;
+  gap: 8px;
+}
+
+.home-list-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  padding: 0 12px;
+  text-align: left;
+}
+
+.home-list-row:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.home-rank {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--teal-soft);
+  color: var(--teal);
+  font-weight: 800;
+}
+
+.home-asset-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.home-list-row strong {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.home-empty {
+  border: 1px dashed var(--line-dark);
+  border-radius: 6px;
+  color: var(--muted);
+  padding: 18px;
+  text-align: center;
+}
+
+.home-group-config {
+  display: grid;
+  gap: 14px;
+}
+
+.home-group-select-tree {
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 8px;
+}
+
+.home-group-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  border-radius: 5px;
+  padding: 0 8px 0 calc(8px + var(--depth, 0) * 22px);
+  font-weight: 700;
+}
+
+.home-group-option:hover {
+  background: var(--teal-soft);
 }
 
 .bulk-bar {

@@ -1,6 +1,6 @@
-# 代码记忆索引
+﻿# 代码记忆索引
 
-> 最后核对日期：2026-07-10
+> 最后核对日期：2026-07-14
 > 用途：改动前先查本文件定位代码位置；如不能定位再回读完整相关文件，并补充新定位。
 
 ## 修改前流程
@@ -18,7 +18,7 @@
 - `styles.css`：全局布局、素材卡片、列表、弹窗、标签页、暗色模式、移动端样式。
 - `app-infra.js`：基础设施封装（IIFE），包括 Toast、Modal.confirm、Loading、`http`、`initDatePicker`、`debounce`。
 - `app-core.js`：种子数据、全局 `db/state/els`、初始化、数据迁移、主壳渲染、全局事件绑定、菜单系统、收集/分享落地页。
-- `app-render.js`：主渲染入口、素材列表/卡片、管理页分发、回收站、标签管理页、值列表管理页、菜单管理页、系统管理页（用户/角色/组织/权限）、标签新增编辑合并。
+- `app-render.js`：主渲染入口、首页、素材列表/卡片、管理页分发、回收站、标签管理页、值列表管理页、菜单管理页、系统管理页（用户/角色/组织/权限）、标签新增编辑合并。
 - `app-actions.js`：上传、筛选菜单（树形结构）、侧边栏、素材组菜单、素材菜单、查看器、素材/素材组表单、收集任务创建、素材篮计数、素材编辑候选下拉。
 - `app-workflows.js`：素材篮抽屉、分享（创建/记录管理）、收集任务配置/模拟上传、有效期/所有者/权限、删除/恢复/预览/下载。
 - `app-utils.js`：过滤、排序、相似度、面包屑、日期时间格式、标签拆分、转义、空态、筛选匹配函数。
@@ -74,10 +74,11 @@
 ### 菜单系统
 
 - `db.menus`：动态菜单树，节点字段 `id, name, page, parentId, category, layout, icon, valid, hidden, sortOrder, visible, editable`。
+- `首页` 是一级菜单：`menu_home` / `page="home"` / `layout="home"`，与“素材管理”“更多功能”并列；`getMenuPermission("home")` 固定返回可见，首页内容仍按素材/素材组权限过滤。
 - `getManagedPages()` 已删除；当前使用 `getAllMenuPages()` (:464) 获取所有页面菜单。
 - `isAssetPage(page)` :470 / `isManagePage(page)` :474 判断页面类型。
 - `getDefaultMenus()` :691 返回初始菜单树。
-- `ensureSystemData()` :716 仅在 `db.menus` 缺失/空时初始化，不覆盖用户修改。
+- `ensureSystemData()` :716 在 `db.menus` 缺失/空时初始化；启动时会补齐默认菜单中新增但本地缺失的节点（如 `menu_home`），不覆盖已有菜单配置。
 - 权限函数：`getMenuPermission(menuId)` :570，`canViewMenu(menuId)` :583，`canEditMenu(menuId)` :587。
 - `isVisibleNavMenu(menu)` :487 / `getVisibleNavMenuChildren(parentId)` :493 过滤左侧菜单。
 - `normalizePageState()` :829 的 `validPages` 改为 `getAllMenuPages()` 动态获取。
@@ -91,6 +92,8 @@
 - 主渲染入口：`app-render.js:10` `render()`。
 - 全局事件绑定：`app-core.js:1718` `bindEvents()`。
 - 左侧菜单树渲染：`app-core.js:1660` `renderMainNav()` / `app-core.js:1682` `renderMainNavNodes()`。
+- 登录成功后默认进入 `state.page="home"`；URL `page` 参数、`#group=`、`#asset=` 仍可覆盖到对应页面。
+- 退出登录后回到 `home` 并显示登录页。
 
 ## 页面定位
 
@@ -144,7 +147,9 @@
 | 函数 | 行号 | 说明 |
 |---|---|---|
 | `getPageMenus()` | 1 | 从 db.menus 获取页面菜单列表 |
-| `render()` | 10 | 主渲染入口，分发到素材页或管理页 |
+| `render()` | 10 | 主渲染入口，优先分发 `home` 首页，再分发到素材页或管理页 |
+| `renderHomePage()` | 69 | 首页：素材热榜、最新素材、已配置素材组卡片列表 |
+| `openHomeGroupConfigModal()` | 132 | 首页素材组展示配置弹窗，按当前用户可查看素材组多选，最多 4 个 |
 | `renderActions()` | 254 | 顶部操作按钮显示逻辑 |
 | `renderAssets()` | 268 | 素材列表渲染（平铺/分组） |
 | `renderCompactAssets()` | 280 | 平铺视图 |
@@ -192,6 +197,16 @@
 | `handleLoginSubmit()` | 1559 | 登录提交 |
 | `logoutCurrentUser()` | 1600 | 退出登录 |
 
+## 首页
+
+- 菜单入口：一级菜单 `menu_home` / `page="home"` / `layout="home"`，与“素材管理”“更多功能”并列。
+- 登录后默认进入首页；`getMenuPermission("home")` 固定可见，首页具体数据仍必须按素材/素材组权限过滤。
+- 渲染入口：`app-render.js` `renderHomePage()`，由 `render()` 在 `state.page === "home"` 时优先分发。
+- 素材热榜：从 `getHomeVisibleAssets()` 取当前用户可查看且 `assetStatus=active` 的素材，按 `asset.view` 倒序取前 8 条，展示素材名称和访问量。
+- 最新素材列表：同样先按 `canViewAsset(asset)` 过滤，再按 `createdAt/uploadDate/updatedAt` 倒序取前 8 条，展示素材名称和上传时间。
+- 素材组展示配置：`openHomeGroupConfigModal()` 使用 `openFormModal()` 打开弹框，`renderHomeGroupSelectTree()` 按 `canViewGroup(group.id)` 渲染可选素材组树；最多保存 4 个素材组。
+- 首页素材组选择按用户保存到 `localStorage`，key 为 `dp-material-library-home-groups:${currentUser.id}`；“清空选择”只取消当前弹框勾选，“取消”不写入，“保存”写入并刷新首页。
+
 ## 素材列表与选择
 
 - 素材过滤：`app-utils.js:1` `getFilteredAssets()`（素材库、待入库、回收站分别按 `assetStatus` / `auditStatus` 的当前口径取数）。
@@ -233,7 +248,7 @@
 ## 日期时间（规范：存储 = 显示 = YYYY-MM-DD，全程短横线，禁止 / 与 - 互转）
 
 - 统一日期控件入口：`app-infra.js:157` `initDatePicker()`。**日期统一用 flatpickr 接管**（`dateFormat:"Y-m-d"` → 强制显示 `YYYY-MM-DD`，不受浏览器/系统区域影响，中文环境也不会变 `YYYY/MM/DD`）；库文件在 `index.html` 的 `vendor/flatpickr/` 本地加载（`flatpickr.min.js` + `flatpickr.min.css` + `flatpickr-theme.css`），且必须在 `app-infra.js` 之前加载，保证首次 `initDatePicker` 时 `window.flatpickr` 已存在。
-- 节点原本 `readonly` 的日期 input（如有效期回填、上传设置默认值）：flatpickr 设 `clickOpens:false`，只显示 `YYYY-MM-DD` 不可改；原本可编辑的（如分享/收集任务失效日期）：可点开日历选日期，显示同样是 `YYYY-MM-DD`。
+- 日期 input 统一由 flatpickr 接管并显示 `YYYY-MM-DD`；`readonly` 仅用于阻止手填/键盘输入，不应再通过 `clickOpens:false` 禁止打开日历。创建收集任务和收集任务配置的截止/失效时间使用同一套日期控件表现。
 - `type="time"` 不交给 flatpickr，走原生 `lockNativePicker`（time 无斜杠问题）。
 - flatpickr 未加载时的降级分支：原生 `lockNativePicker`（中文环境会显示 `YYYY/MM/DD`，仅作离线兜底）。
 - 项目内初始化：`app-render.js:44` `initProjectDatePickers()`，每个弹框打开时以 modal 元素为 scope 调用，确保动态插入的日期 input 也被接管。
@@ -281,8 +296,8 @@
 
 ### 上传逻辑统一
 
-- **内部上传**：`handleFiles()` 自动创建内部收集任务，素材写入 `assetStatus=pending`、`auditStatus=pending_audit`，进入待入库页面。
-- **外部上传**：通过收集链接上传，关联收集任务 ID 和链接，提交后同样写入待入库状态。
+- **内部上传**：`handleFiles()` 会自动创建一个系统内部上传收集任务（`status=active`、`auditStatus=pending_audit`、`types=["其他"]`、绑定目标 `groupId`），上传素材写入 `assetStatus=pending`、`auditStatus=pending_audit`、`asset_source=internal`，并关联 `collect_id/collect_link`，进入待入库页面，便于和外部收集统一查看任务状态与审核链路。
+- **外部上传**：通过收集链接上传，暂存阶段为 `pending_submit`，提交后任务和素材进入 `pending_audit`；任务允许文件类型来自文件格式值列表，选择“其他”时不限制上传格式。
 
 ## 素材组
 
@@ -325,9 +340,9 @@
 - 分享单素材弹窗：`index.html:513-545`，逻辑在 `app-workflows.js:149` `openShareAssetModal()`。
 - 素材篮分享：`index.html:316-359`，逻辑在 `app-workflows.js:51` `openBasketShareModal()`。
 - 分享记录管理弹窗：`<template id="tplShareRecordConfigForm">`，逻辑在 `app-workflows.js` `openShareRecordConfigModal()`（复用收集任务配置弹框结构）。分享状态下拉从 `share_status` 值列表动态生成（生效中/已撤销/已过期），保存时若状态为"已撤销"或"已过期"，记 `share.revoke` 日志并置失效时间；不再有独立 `revokeShare()` 函数（已删除，逻辑并入此处）。
-- 创建收集任务：顶部按钮 `index.html:87` `#newCollectTask`，弹窗 `index.html:658-687`，逻辑在 `app-actions.js:1458` `openCollectTaskModal()` / `app-actions.js:1470` `handleCollectTaskSubmit()`。
-- 收集任务允许文件类型：`index.html:669-680` 静态兜底，打开弹窗时由 `getAllCollectTaskTypes()` (:222) 动态刷新。
-- 收集任务配置模板：`<template id="tplCollectTaskConfigForm">` (888-906)，逻辑在 `app-workflows.js:195` `openCollectTaskConfigModal()`。
+- 创建收集任务：顶部按钮 `index.html:87` `#newCollectTask`，弹窗 `index.html:658-687`，逻辑在 `app-actions.js` `openCollectTaskModal()` / `handleCollectTaskSubmit()`；存放素材组用 `groupId` 下拉树（可为空），同时保留 `group` 名称兼容旧数据。
+- 收集任务允许文件类型：`index.html:669-680` 静态兜底，打开弹窗时由 `getAllCollectTaskTypes()` 动态刷新；文件格式值列表下有 `其他` 分类，收集任务选择“其他”时不限制上传格式。
+- 收集任务配置模板：`<template id="tplCollectTaskConfigForm">`，逻辑在 `app-workflows.js` `openCollectTaskConfigModal()`；可调整任务状态、失效时间、存放素材组、允许上传文件类型。
 - 模拟收集上传：`<template id="tplCollectorUploadForm">` (930-943)，逻辑在 `app-workflows.js:236` `openCollectorUploadModal()`。
 - 审核模拟：`app-workflows.js:278` `simulateMachineAudit()`，`app-workflows.js:296` `simulateHumanAudit()`。
 
@@ -482,7 +497,7 @@
 ## 历史痕迹与注意事项
 
 - 左侧主导航已删除"我收藏的组"功能模块入口；`favorite` 页面筛选/标题/面包屑已移除。旧链接进入 `page=favorite` 会通过 `normalizePageState()` 回退到 `all`。
-- `ensureSystemData()` 仅在 `db.menus` 不存在或为空时初始化 `getDefaultMenus()`，不再每次启动覆盖用户修改。
+- `ensureSystemData()` 不再每次启动覆盖用户菜单；但会补齐默认菜单中新增但本地缺失的节点（如 `menu_home`），保证新功能入口能进入现有本地数据。
 - `render()` 中标签页渲染分支必须先于 `isManagePage()` 管理页分支判断，否则 `tags` 会被识别为管理页。
 - `renderManagePageV2()` 使用 `directRenderers` 映射表，未知管理页显示空态"暂无对应管理页面"。
 - 已删除废弃常量：`FILE_FORMAT_CATEGORIES`、`UPLOAD_FILE_FORMATS`、`UPLOAD_ACCEPT`、`COLLECT_TASK_FILE_TYPES`、`ASPECT_RATIOS`、`VEHICLE_MODELS`、`SYSTEM_MENUS`，全部改为从值列表树动态读取。

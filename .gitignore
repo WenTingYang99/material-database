@@ -13,3 +13,5 @@ Thumbs.db
 
 # 开发中框架（Vue3/NestJS 新框架，未完成，不打包进仓库）
 project/
+# 已废弃的框架目录（原 project 改名，体积巨大，不入库）
+project(已废弃)/

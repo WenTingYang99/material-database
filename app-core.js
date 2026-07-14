@@ -809,7 +809,7 @@ const SESSION_USER_KEY = "dp-material-library-current-user";
 let db = loadDb();
 ensureSystemData();
 const state = {
-  page: "all",
+  page: "home",
   groupId: "all",
   view: "compact",
   query: "",
@@ -1350,6 +1350,7 @@ function mergeRolePermissions(roles = []) {
 }
 
 function getMenuPermission(menuId) {
+  if (menuId === "home") return { visible: true, editable: false };
   if (isAdmin()) return { visible: true, editable: true };
   const rolePermissions = getCurrentRoles().map((role) => role.permissions?.[menuId]);
   const sources = [
@@ -1474,6 +1475,7 @@ function getDefaultUsers() {
 function getDefaultMenus() {
   return [
     { id: "menu_root", code: "root", name: "所有菜单", category: "root", hidden: false, page: "", valid: true, order: 0, icon: "", description: "", parentId: null, layout: "" },
+    { id: "menu_home", code: "home", name: "首页", category: "page", hidden: false, page: "home", valid: true, order: 0, icon: "⌂", description: "", parentId: "menu_root", layout: "home" },
     { id: "menu_group_assets", code: "assets", name: "素材管理", category: "group", hidden: false, page: "", valid: true, order: 1, icon: "", description: "", parentId: "menu_root", layout: "asset" },
     { id: "menu_all", code: "all", name: "全部素材", category: "page", hidden: false, page: "all", valid: true, order: 1, icon: "▦", description: "", parentId: "menu_group_assets", layout: "asset" },
     { id: "menu_pending", code: "pending", name: "待入库", category: "page", hidden: false, page: "pending", valid: true, order: 2, icon: "▣", description: "", parentId: "menu_group_assets", layout: "asset" },
@@ -1506,6 +1508,13 @@ function ensureSystemData() {
     db.menus = getDefaultMenus();
     changed = true;
   }
+  const existingMenuIds = new Set((db.menus || []).map((menu) => menu.id));
+  getDefaultMenus().forEach((menu) => {
+    if (!existingMenuIds.has(menu.id)) {
+      db.menus.push({ ...menu });
+      changed = true;
+    }
+  });
   const defaultMenuMap = getDefaultMenus().reduce((map, menu) => {
     map[menu.id] = menu;
     return map;
@@ -1700,7 +1709,7 @@ function bootstrap() {
 function normalizePageState() {
   const validPages = getAllMenuPages();
   if (!validPages.includes(state.page)) {
-    state.page = "all";
+    state.page = "home";
     state.groupId = "all";
   }
   ensurePageAllowed();
@@ -2669,6 +2678,8 @@ function handleLoginSubmit(event) {
   currentUser = getUserSessionInfo(user.id) || getAnonymousUser();
   hideLoginPage();
   renderShell();
+  state.page = "home";
+  state.groupId = "all";
   normalizePageState();
   render();
   showToast(`欢迎回来，${currentUser.name}`);
@@ -2682,7 +2693,7 @@ function logoutCurrentUser() {
   localStorage.removeItem(SESSION_USER_KEY);
   currentUser = getAnonymousUser();
   renderShell();
-  state.page = "all";
+  state.page = "home";
   state.groupId = "all";
   render();
   showLoginPage();
@@ -3319,7 +3330,7 @@ function bindEvents() {
     if (actionButton) {
       const action = actionButton.dataset.appAction;
       if (action === "home") {
-        state.page = "all";
+        state.page = "home";
         state.groupId = "all";
         render();
       }
