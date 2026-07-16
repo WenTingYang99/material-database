@@ -27,7 +27,7 @@ function getFilteredAssets() {
   });
   if (state.query) {
     const query = state.query.toLowerCase();
-    pool = pool.filter((asset) => `${asset.name} ${asset.format} ${asset.brand} ${asset.model} ${(asset.aiTags || []).join(" ")} ${(asset.customTags || []).join(" ")}`.toLowerCase().includes(query));
+    pool = pool.filter((asset) => `${asset.name} ${asset.format} ${getValueListName(asset.brand, "brand", asset.brand)} ${getValueListName(asset.model, "model", asset.model)} ${(asset.aiTags || []).join(" ")} ${(asset.customTags || []).join(" ")}`.toLowerCase().includes(query));
   }
   return sortAssets(pool);
 }

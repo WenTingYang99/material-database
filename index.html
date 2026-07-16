@@ -373,7 +373,7 @@
           </select></label>
           <label>标签名称<input id="addTagName" name="tagName" placeholder="例如：618活动、画面质感" required /></label>
           <label>标签描述<textarea id="addTagDesc" name="tagDesc" placeholder="可选：描述标签的用途或含义"></textarea></label>
-          <label id="addTagParentRow" style="display:none">父级标签<select id="addTagParentId" name="parentId"><option value="">无（顶级标签）</option></select></label>
+          <label id="addTagParentRow" style="display:none">父级标签<div id="addTagParentTree" class="tag-parent-tree"><div class="tag-parent-option" data-parent-id="">无（顶级标签）</div></div><input type="hidden" id="addTagParentId" name="parentId" value="" /></label>
           <label id="addTagAiRecognitionRow" style="display:none" class="checkbox-label"><input type="checkbox" id="addTagAiRecognition" name="aiRecognition" /> 启用AI识别</label>
           <div class="form-actions">
             <button id="addTagCancel" type="button">取消</button>
@@ -397,7 +397,7 @@
           </select></label>
           <label>新标签名称<input id="editTagNewName" name="tagName" required /></label>
           <label>标签描述<textarea id="editTagDesc" name="tagDesc" placeholder="可选：描述标签的用途或含义"></textarea></label>
-          <label id="editTagParentRow" style="display:none">父级标签<select id="editTagParentId" name="parentId"><option value="">无（顶级标签）</option></select></label>
+          <label id="editTagParentRow" style="display:none">父级标签<div id="editTagParentTree" class="tag-parent-tree"><div class="tag-parent-option" data-parent-id="">无（顶级标签）</div></div><input type="hidden" id="editTagParentId" name="parentId" value="" /></label>
           <label id="editTagAiRecognitionRow" style="display:none" class="checkbox-label"><input type="checkbox" id="editTagAiRecognition" name="aiRecognition" /> 启用AI识别</label>
           <div class="form-actions">
             <button id="editTagCancel" type="button">取消</button>

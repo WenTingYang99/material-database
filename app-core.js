@@ -2,12 +2,12 @@ const STORAGE_KEY = "dp-material-library-state-v2";
 
 const defaultGroups = [
   { id: "all", name: "全部素材", count: 0, depth: 0, system: true, status: "active", createdBy: "system", createdAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "", updatedAt: "2026-01-01T00:00:00" },
-  { id: "smart", name: "杨文婷的智能内容素材", count: 0, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-03-01T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-03-01T09:00:00" },
-  { id: "redbook", name: "小红书平台素材", count: 3, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-05-01T10:00:00" },
-  { id: "shanghai", name: "上海车展活动素材", count: 1, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-06-01T14:00:00", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-01T14:00:00" },
-  { id: "test", name: "凡尔赛素材-测试", count: 2, depth: 0, active: true, status: "active", createdBy: "kerry", createdAt: "2026-05-20T16:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-20T16:00:00" },
-  { id: "versailles", name: "凡尔赛 618车展", count: 2, depth: 1, parentId: "test", status: "active", createdBy: "kerry", createdAt: "2026-05-22T17:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-22T17:00:00" },
-  { id: "aaa", name: "AAA", count: 0, depth: 0, status: "active", createdBy: "kerry", createdAt: "2026-05-25T09:00:00", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-25T09:00:00" },
+  { id: "smart", name: "杨文婷的智能内容素材", count: 0, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-03-01T09:00:00", ownedBy: "yangwt", ownedByDept: "市场部", updatedAt: "2026-03-01T09:00:00" },
+  { id: "redbook", name: "小红书平台素材", count: 3, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "市场部", updatedAt: "2026-05-01T10:00:00" },
+  { id: "shanghai", name: "上海车展活动素材", count: 1, depth: 0, status: "active", createdBy: "yangwt", createdAt: "2026-06-01T14:00:00", ownedBy: "yangwt", ownedByDept: "市场部", updatedAt: "2026-06-01T14:00:00" },
+  { id: "test", name: "凡尔赛素材-测试", count: 2, depth: 0, active: true, status: "active", createdBy: "kerry", createdAt: "2026-05-20T16:00:00", ownedBy: "kerry", ownedByDept: "市场部", updatedAt: "2026-05-20T16:00:00" },
+  { id: "versailles", name: "凡尔赛 618车展", count: 2, depth: 1, parentId: "test", status: "active", createdBy: "kerry", createdAt: "2026-05-22T17:00:00", ownedBy: "kerry", ownedByDept: "市场部", updatedAt: "2026-05-22T17:00:00" },
+  { id: "aaa", name: "AAA", count: 0, depth: 0, status: "active", createdBy: "kerry", createdAt: "2026-05-25T09:00:00", ownedBy: "kerry", ownedByDept: "市场部", updatedAt: "2026-05-25T09:00:00" },
 ];
 
 const seedNames = [
@@ -722,26 +722,27 @@ const seedAssets = seedNames.map((name, index) => {
     width: index < 5 ? 3000 : 1080,
     height: index < 5 ? 2000 : 1920,
     desc: index === 0 ? "活动素材" : "",
-    brand: index % 3 === 0 ? "东风标致" : "东风雪铁龙",
-    series: index % 3 === 0 ? "4008" : "天逸 (C5)AIRCROSS",
-    model: SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model" && n.status !== "deleted").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))[index % 5]?.name || "",
+    brand: index % 3 === 0 ? "peugeot" : "citroen",
+    series: index % 3 === 0 ? "4008" : "c5-aircross",
+    model: SEED_VALUE_LIST_TREE.filter(n => n.parentId === "vl_dim_model" && n.status !== "deleted").sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))[index % 5]?.code || "",
     interiorColors: index < 5 ? ["（V3000 XNFR）新内饰"] : ["（V8FA5 6BFD）浅色天鹅绒"],
     exteriorColors: index < 5 ? ["（VQYB 6BFD）珠光白"] : ["（VQYB 6BFD）珠光白"],
     customTags: [["试驾活动"], ["车展物料","618促销"], ["产品宣传","自媒体推广"], ["经销商素材"], ["KOL合作"], ["车展物料"], ["618促销","自媒体推广"], ["产品宣传"], ["KOL合作","试驾活动"], ["经销商素材","售后服务"], ["国庆活动"], ["车展物料","618促销"]][index] || [],
     aiTags: [["汽车","户外场景","城市街道","品牌Logo"], ["产品特写","外观展示","汽车"], ["汽车","高清锐利","外观展示"], ["户外场景","自然风光","汽车"], ["汽车","内饰展示","胶片颗粒感"], ["人物","活动","汽车"], ["汽车","赛道","高清锐利"], ["户外场景","城市街道","横版"], ["产品特写","灯光细节","竖版"], ["汽车","外观展示","柔光朦胧"], ["人物","品牌Logo","活动"], ["汽车","内饰展示","产品特写"]][index] || [],
     groupId: index < 2 ? "test" : index < 5 ? "redbook" : "all",
     owner: "kerry",
-    department: "org-market",
+    department: "市场部",
     creator: "kerry",
     lastUpdate: "kerry",
     asset_source: "internal",
     collect_id: "collect-seed",
     collect_link: "",
-    permission: "企业内部 - 可下载",
+    permission: "downloadable",
     validUntil: expireDate,
     validUntilDate: expireDate,
     validStart: "2026-05-26T00:00:00",
-    status: "active",
+    assetStatus: "active",
+    auditStatus: "machine_pass",
     share: index % 2,
     download: index % 3,
     view: [0, 3, 3, 2, 0, 24, 9, 11, 8, 6, 5, 5][index],
@@ -749,12 +750,12 @@ const seedAssets = seedNames.map((name, index) => {
     updatedAt: "2026-05-26T17:38:00",
     createdBy: "kerry",
     ownedBy: "kerry",
-    ownedByDept: "org-market",
+    ownedByDept: "市场部",
     version: `2026052${index < 5 ? 5 : 6}16${String(1783847578 + index * 913951).slice(0, 8)}`,
     logs: [
-      { operator: "kerry", operatorDept: "org-market", action: "asset.upload", actionName: "上传素材", detail: `上传了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
-      { operator: "kerry", operatorDept: "org-market", action: "asset.edit", actionName: "编辑素材", detail: "操作入库", createdAt: "2026-05-26T17:38:00" },
-      { operator: "kerry", operatorDept: "org-market", action: "asset.download", actionName: "下载素材", detail: `下载了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
+      { operator: "kerry", operatorDept: "市场部", action: "asset.upload", actionName: "上传素材", detail: `上传了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
+      { operator: "kerry", operatorDept: "市场部", action: "asset.edit", actionName: "编辑素材", detail: "操作入库", createdAt: "2026-05-26T17:38:00" },
+      { operator: "kerry", operatorDept: "市场部", action: "asset.download", actionName: "下载素材", detail: `下载了素材 "${name}"`, createdAt: "2026-05-26T17:38:00" },
     ],
   });
 });
@@ -762,42 +763,42 @@ const seedAssets = seedNames.map((name, index) => {
 const seedTags = [
   // ===== 业务标签 (tagType=1, 支持多层级) =====
 
-  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "yangwt", createdAt: "2026-01-01T09:00:00", updatedAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
-  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "yangwt", createdAt: "2026-02-20T10:15:00", updatedAt: "2026-05-18T16:30:00", ownedBy: "yangwt", ownedByDept: "org-market" },
-  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "kerry", createdAt: "2026-04-01T08:00:00", updatedAt: "2026-05-22T11:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
-  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "yangwt", createdAt: "2026-01-10T14:00:00", updatedAt: "2026-04-15T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
-  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "kerry", createdAt: "2026-05-01T10:00:00", updatedAt: "2026-06-01T08:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
-  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "yangwt", createdAt: "2026-04-20T09:00:00", updatedAt: "2026-05-10T14:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
-  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "kerry", createdAt: "2026-03-01T11:00:00", updatedAt: "2026-05-25T16:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
-  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "yangwt", createdAt: "2026-02-15T10:00:00", updatedAt: "2026-04-30T09:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
-  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "kerry", createdAt: "2026-04-10T15:00:00", updatedAt: "2026-05-15T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
-  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "yangwt", createdAt: "2026-01-20T09:00:00", updatedAt: "2026-03-10T11:00:00", ownedBy: "yangwt", ownedByDept: "org-market" },
+  { id: "tag-biz-001", tagName: "营销活动", tagCode: "marketing", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "各类营销活动素材", createdBy: "yangwt", createdAt: "2026-01-01T09:00:00", updatedAt: "2026-05-01T10:00:00", ownedBy: "yangwt", ownedByDept: "市场部" },
+  { id: "tag-biz-002", tagName: "车展物料", tagCode: "motor_show", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "各车展现场展示及宣传物料", createdBy: "yangwt", createdAt: "2026-02-20T10:15:00", updatedAt: "2026-05-18T16:30:00", ownedBy: "yangwt", ownedByDept: "市场部" },
+  { id: "tag-biz-003", tagName: "产品宣传", tagCode: "product_promo", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车型产品力宣传物料", createdBy: "kerry", createdAt: "2026-04-01T08:00:00", updatedAt: "2026-05-22T11:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
+  { id: "tag-biz-004", tagName: "经销商素材", tagCode: "dealer", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "经销商渠道门店推广素材", createdBy: "yangwt", createdAt: "2026-01-10T14:00:00", updatedAt: "2026-04-15T09:00:00", ownedBy: "yangwt", ownedByDept: "市场部" },
+  { id: "tag-biz-005", tagName: "618促销", tagCode: "promo_618", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "618电商大促相关素材", createdBy: "kerry", createdAt: "2026-05-01T10:00:00", updatedAt: "2026-06-01T08:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
+  { id: "tag-biz-006", tagName: "国庆活动", tagCode: "national_day", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "国庆节营销活动素材", createdBy: "yangwt", createdAt: "2026-04-20T09:00:00", updatedAt: "2026-05-10T14:00:00", ownedBy: "yangwt", ownedByDept: "市场部" },
+  { id: "tag-biz-007", tagName: "自媒体推广", tagCode: "social_media", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "微博、抖音、小红书等自媒体平台推广素材", createdBy: "kerry", createdAt: "2026-03-01T11:00:00", updatedAt: "2026-05-25T16:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
+  { id: "tag-biz-008", tagName: "KOL合作", tagCode: "kol", tagType: 1, parentId: "产品宣传", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "与KOL/KOC合作产出的推广素材", createdBy: "yangwt", createdAt: "2026-02-15T10:00:00", updatedAt: "2026-04-30T09:00:00", ownedBy: "yangwt", ownedByDept: "市场部" },
+  { id: "tag-biz-009", tagName: "试驾活动", tagCode: "test_drive", tagType: 1, parentId: "营销活动", level: 1, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "试驾体验活动相关素材", createdBy: "kerry", createdAt: "2026-04-10T15:00:00", updatedAt: "2026-05-15T10:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
+  { id: "tag-biz-010", tagName: "售后服务", tagCode: "after_sales", tagType: 1, parentId: 0, level: 0, aiSource: 0, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 10, description: "售后服务、保养维修相关素材", createdBy: "yangwt", createdAt: "2026-01-20T09:00:00", updatedAt: "2026-03-10T11:00:00", ownedBy: "yangwt", ownedByDept: "市场部" },
 
   // ===== AI标签 (tagType=2, 支持父级层级) =====
   // -- 顶层 AI 父标签 --
   { id: "tag-ai-001", tagName: "汽车", tagCode: "auto_car", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "汽车品类顶级标签，AI自动识别", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "kerry", createdAt: "2026-03-10T14:00:00", updatedAt: "2026-04-01T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-002", tagName: "画面质感", tagCode: "visual_texture", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "画面质感分类（业务预定义，期望AI识别）", createdBy: "kerry", createdAt: "2026-03-10T14:00:00", updatedAt: "2026-04-01T10:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
   { id: "tag-ai-003", tagName: "户外场景", tagCode: "outdoor", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "户外场景识别分类", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "kerry", createdAt: "2026-04-05T10:00:00", updatedAt: "2026-04-05T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-004", tagName: "产品特写", tagCode: "product_closeup", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 4, description: "产品局部与特写识别分类", createdBy: "kerry", createdAt: "2026-04-05T10:00:00", updatedAt: "2026-04-05T10:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
 
   // -- 画面质感 子标签 --
   { id: "tag-ai-011", tagName: "胶片颗粒感", tagCode: "film_grain", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "具有胶片颗粒质感的画面风格", createdBy: "system", createdAt: "2026-03-15T08:00:00", updatedAt: "2026-03-15T08:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "kerry", createdAt: "2026-04-01T15:00:00", updatedAt: "2026-04-01T15:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-012", tagName: "高清锐利", tagCode: "hd_sharp", tagType: 2, parentId: "画面质感", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "高清无噪点的锐利画面", createdBy: "kerry", createdAt: "2026-04-01T15:00:00", updatedAt: "2026-04-01T15:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
   { id: "tag-ai-013", tagName: "柔光朦胧", tagCode: "soft_dreamy", tagType: 2, parentId: "画面质感", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "柔光、朦胧或雾化效果的画面", createdBy: "system", createdAt: "2026-04-20T10:00:00", updatedAt: "2026-04-20T10:00:00", ownedBy: "system", ownedByDept: "" },
 
   // -- 户外场景 子标签 --
   { id: "tag-ai-021", tagName: "城市街道", tagCode: "city_street", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "城市道路、街景背景", createdBy: "system", createdAt: "2026-02-01T12:00:00", updatedAt: "2026-02-01T12:00:00", ownedBy: "system", ownedByDept: "" },
   { id: "tag-ai-022", tagName: "自然风光", tagCode: "nature", tagType: 2, parentId: "户外场景", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "山川、湖泊、森林等自然景观", createdBy: "system", createdAt: "2026-02-01T12:00:00", updatedAt: "2026-02-01T12:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "kerry", createdAt: "2026-05-10T08:00:00", updatedAt: "2026-05-10T08:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-023", tagName: "赛道", tagCode: "racetrack", tagType: 2, parentId: "户外场景", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "赛道或试驾场地场景", createdBy: "kerry", createdAt: "2026-05-10T08:00:00", updatedAt: "2026-05-10T08:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
 
   // -- 产品特写 子标签 --
   { id: "tag-ai-031", tagName: "内饰展示", tagCode: "interior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 1, description: "车内饰细节展示", createdBy: "system", createdAt: "2026-03-01T08:00:00", updatedAt: "2026-03-01T08:00:00", ownedBy: "system", ownedByDept: "" },
   { id: "tag-ai-032", tagName: "外观展示", tagCode: "exterior", tagType: 2, parentId: "产品特写", level: 1, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 2, description: "车外观整体及局部展示", createdBy: "system", createdAt: "2026-03-01T08:00:00", updatedAt: "2026-03-01T08:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "kerry", createdAt: "2026-05-12T10:00:00", updatedAt: "2026-05-12T10:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-033", tagName: "灯光细节", tagCode: "light_detail", tagType: 2, parentId: "产品特写", level: 1, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 3, description: "车灯设计细节特写", createdBy: "kerry", createdAt: "2026-05-12T10:00:00", updatedAt: "2026-05-12T10:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
 
   // -- 其他 AI 标签（无子标签的独立标签） --
   { id: "tag-ai-040", tagName: "人物", tagCode: "people", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 5, description: "画面中包含人物", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
-  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "kerry", createdAt: "2026-04-08T09:00:00", updatedAt: "2026-04-08T09:00:00", ownedBy: "kerry", ownedByDept: "org-market" },
+  { id: "tag-ai-041", tagName: "品牌Logo", tagCode: "brand_logo", tagType: 2, parentId: "", level: 0, aiSource: 2, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 6, description: "包含品牌标志的画面", createdBy: "kerry", createdAt: "2026-04-08T09:00:00", updatedAt: "2026-04-08T09:00:00", ownedBy: "kerry", ownedByDept: "市场部" },
   { id: "tag-ai-042", tagName: "活动", tagCode: "event", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 7, description: "活动现场拍摄的素材", createdBy: "system", createdAt: "2026-02-01T00:00:00", updatedAt: "2026-02-01T00:00:00", ownedBy: "system", ownedByDept: "" },
   { id: "tag-ai-043", tagName: "横版", tagCode: "landscape", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 8, description: "横版画幅素材", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
   { id: "tag-ai-044", tagName: "竖版", tagCode: "portrait", tagType: 2, parentId: "", level: 0, aiSource: 1, aiRecognitionEnabled: 1, isVisible: 1, status: 1, sortOrder: 9, description: "竖版画幅素材", createdBy: "system", createdAt: "2026-01-01T00:00:00", updatedAt: "2026-01-01T00:00:00", ownedBy: "system", ownedByDept: "" },
@@ -870,6 +871,7 @@ function isPendingAsset(asset) {
   const assetStatus = asset.assetStatus || asset.status;
   const auditStatus = asset.auditStatus;
   if (statusConfig.activeCodes.includes(assetStatus)) return false;
+  if (statusConfig.deletedCodes.includes(assetStatus)) return false;
   if (statusConfig.pendingCodes.includes(assetStatus)) return true;
   return auditStatus && !auditConfig.passCodes.includes(auditStatus);
 }
@@ -1682,6 +1684,7 @@ function bootstrap() {
   ensureSystemData();
   normalizeDbDates(db);
   if (normalizeDbSelectionCodes(db)) saveDb();
+  normalizeStoredTagCodes();
   currentUser = getStoredCurrentUser() || getAnonymousUser();
   buildUserGroupPermissionCache();
   renderShell();
@@ -1800,13 +1803,13 @@ function loadDb() {
   }
   return { groups: defaultGroups, assets: seedAssets, tags: seedTags,
     collectTasks: [
-      { id: "collect-1", theme: "上海车展活动素材", desc: "", group: "上海车展活动素材", status: "expired", code: "apym", creator: "yangwt", createdAt: "2026-06-09T20:15:00", expiresAt: "2026-06-09T20:25:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-09T20:25:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「上海车展活动素材」", createdAt: "2026-06-09T20:15:00" }, { operator: "yangwt", operatorDept: "org-market", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务已失效", createdAt: "2026-06-09T20:25:00" }] },
-      { id: "collect-2", theme: "小红书", desc: "", group: "小红书平台素材", status: "expired", code: "oq9v", creator: "yangwt", createdAt: "2026-05-25T08:58:00", expiresAt: "2026-06-01T08:58:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "org-market", updatedAt: "2026-06-01T08:58:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「小红书」", createdAt: "2026-05-25T08:58:00" }, { operator: "system", operatorDept: "", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务过期", createdAt: "2026-06-01T08:58:00" }] },
-      { id: "collect-3", theme: "凡尔赛 618车展", desc: "", group: "凡尔赛 618车展", status: "active", code: "4vlw", creator: "kerry", createdAt: "2026-05-22T17:15:00", expiresAt: "2026-08-20T17:15:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-22T17:15:00", auditStatus: "pending_submit", logs: [{ operator: "kerry", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「凡尔赛 618车展」", createdAt: "2026-05-22T17:15:00" }] },
-      { id: "collect-seed", theme: "系统初始化素材", desc: "系统初始化时导入的素材", group: "测试素材组", status: "completed", code: "seed", creator: "kerry", createdAt: "2026-05-26T00:00:00", expiresAt: "2027-05-26T00:00:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "org-market", updatedAt: "2026-05-26T00:00:00", auditStatus: "human_pass", logs: [{ operator: "kerry", operatorDept: "org-market", action: "collect.create", actionName: "创建收集任务", detail: "创建系统初始化素材收集任务", createdAt: "2026-05-26T00:00:00" }] },
+      { id: "collect-1", theme: "上海车展活动素材", desc: "", group: "上海车展活动素材", status: "expired", code: "apym", creator: "yangwt", createdAt: "2026-06-09T20:15:00", expiresAt: "2026-06-09T20:25:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "市场部", updatedAt: "2026-06-09T20:25:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "市场部", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「上海车展活动素材」", createdAt: "2026-06-09T20:15:00" }, { operator: "yangwt", operatorDept: "市场部", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务已失效", createdAt: "2026-06-09T20:25:00" }] },
+      { id: "collect-2", theme: "小红书", desc: "", group: "小红书平台素材", status: "expired", code: "oq9v", creator: "yangwt", createdAt: "2026-05-25T08:58:00", expiresAt: "2026-06-01T08:58:00", requirePassword: false, password: "", types: [], link: "", createdBy: "yangwt", ownedBy: "yangwt", ownedByDept: "市场部", updatedAt: "2026-06-01T08:58:00", auditStatus: "human_pass", logs: [{ operator: "yangwt", operatorDept: "市场部", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「小红书」", createdAt: "2026-05-25T08:58:00" }, { operator: "system", operatorDept: "", action: "collect.close", actionName: "关闭收集任务", detail: "收集任务过期", createdAt: "2026-06-01T08:58:00" }] },
+      { id: "collect-3", theme: "凡尔赛 618车展", desc: "", group: "凡尔赛 618车展", status: "active", code: "4vlw", creator: "kerry", createdAt: "2026-05-22T17:15:00", expiresAt: "2026-08-20T17:15:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "市场部", updatedAt: "2026-05-22T17:15:00", auditStatus: "pending_submit", logs: [{ operator: "kerry", operatorDept: "市场部", action: "collect.create", actionName: "创建收集任务", detail: "创建收集任务「凡尔赛 618车展」", createdAt: "2026-05-22T17:15:00" }] },
+      { id: "collect-seed", theme: "系统初始化素材", desc: "系统初始化时导入的素材", group: "测试素材组", status: "completed", code: "seed", creator: "kerry", createdAt: "2026-05-26T00:00:00", expiresAt: "2027-05-26T00:00:00", requirePassword: false, password: "", types: [], link: "", createdBy: "kerry", ownedBy: "kerry", ownedByDept: "市场部", updatedAt: "2026-05-26T00:00:00", auditStatus: "human_pass", logs: [{ operator: "kerry", operatorDept: "市场部", action: "collect.create", actionName: "创建收集任务", detail: "创建系统初始化素材收集任务", createdAt: "2026-05-26T00:00:00" }] },
     ],
     shares: [
-      { id: "share-1", group: "凡尔赛 618车展", user: "yangwt", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026-03-31T18:06:55", expiresAt: "2026-04-07T18:06:00", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "", accessScope: "internal", contentPermission: "view", maxVisits: null, status: "active", ownedBy: "yangwt", ownedByDept: "org-market", createdBy: "yangwt", updatedAt: "2026-03-31T18:06:55", logs: [{ operator: "yangwt", operatorDept: "org-market", action: "share.create", actionName: "创建分享", detail: "分享素材组「凡尔赛 618车展」", createdAt: "2026-03-31T18:06:55" }] },
+      { id: "share-1", group: "凡尔赛 618车展", user: "yangwt", access: "分享给互联网用户（无需登录）", visits: 2, views: 2, downloads: 0, sharedAt: "2026-03-31T18:06:55", expiresAt: "2026-04-07T18:06:00", targetType: "group", targetId: "versailles", code: "abc123", link: "", requirePassword: false, password: "", accessScope: "internal", contentPermission: "view", maxVisits: null, status: "active", ownedBy: "yangwt", ownedByDept: "市场部", createdBy: "yangwt", updatedAt: "2026-03-31T18:06:55", logs: [{ operator: "yangwt", operatorDept: "市场部", action: "share.create", actionName: "创建分享", detail: "分享素材组「凡尔赛 618车展」", createdAt: "2026-03-31T18:06:55" }] },
     ],
   };
 }
@@ -2784,7 +2787,7 @@ function renderMainNavNodes(parentId, depth) {
     const isActive = getMenuDescendantPageMenus(menu.id).some((item) => item.page === state.page);
     const childrenHtml = isExpanded ? renderMainNavNodes(menu.id, depth + 1) : "";
     return `<div class="nav-tree-node">
-      <button class="nav-item nav-group ${isActive ? "active" : ""}" data-nav-toggle="${escapeAttr(menu.id)}" style="padding-left: ${16 + indent}px" type="button"><span class="nav-expand">${isExpanded ? "-" : "+"}</span><span>${escapeHtml(menu.name)}</span><span></span></button>
+      <button class="nav-item nav-group ${isActive ? "active" : ""}" data-nav-toggle="${escapeAttr(menu.id)}" style="padding-left: ${16 + indent}px" type="button"><span class="nav-expand ${isExpanded ? "expanded" : ""}">▶</span><span>${escapeHtml(menu.name)}</span><span></span></button>
       ${childrenHtml ? `<div class="nav-tree-children">${childrenHtml}</div>` : ""}
     </div>`;
   }).join("");

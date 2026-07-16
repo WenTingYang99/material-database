@@ -148,6 +148,7 @@ function openHomeGroupConfigModal() {
     renderHomePage();
   });
   const form = document.querySelector("#formBody");
+  bindTreeToggleEvents(form);
   form.querySelector("#clearHomeGroups")?.addEventListener("click", () => {
     form.querySelectorAll("[name='homeGroupIds']").forEach((input) => { input.checked = false; });
   });
@@ -168,12 +169,24 @@ function renderHomeGroupSelectTree(selectedIds = new Set()) {
     !group.system && !groupStatusConfig.deletedCodes.includes(group.status) && canViewGroup(group.id)
   );
   if (!groups.length) return `<div class="home-empty">暂无可选择素材组</div>`;
-  return groups.map((group) => `
-    <label class="home-group-option" style="--depth:${group.depth || 0}">
-      <input type="checkbox" name="homeGroupIds" value="${escapeAttr(group.id)}" ${selectedIds.has(group.id) ? "checked" : ""} />
-      <span>${escapeHtml(group.name)}</span>
-    </label>
-  `).join("");
+  const renderHomeGroupTreeNodes = (parentId, depth, isRoot = false) => {
+    const children = groups.filter((g) => (g.parentId || "") === parentId);
+    return children.map((group) => {
+      const hasChildren = groups.some((g) => (g.parentId || "") === group.id);
+      const isExpanded = isRoot;
+      const toggleIcon = hasChildren ? `<span class="tree-expand-btn ${isExpanded ? "expanded" : ""}" data-toggle-tree>▶</span>` : `<span class="tree-expand-placeholder"></span>`;
+      const childNodes = hasChildren ? `<div class="home-group-tree-children ${isExpanded ? "expanded" : ""}">${renderHomeGroupTreeNodes(group.id, depth + 1)}</div>` : "";
+      return `<div class="home-group-tree-node" style="--depth:${depth}">
+        <label class="home-group-option" style="--depth:${depth}">
+          ${toggleIcon}
+          <input type="checkbox" name="homeGroupIds" value="${escapeAttr(group.id)}" ${selectedIds.has(group.id) ? "checked" : ""} />
+          <span>${escapeHtml(group.name)}</span>
+        </label>
+        ${childNodes}
+      </div>`;
+    }).join("");
+  };
+  return `<div class="home-group-tree">${renderHomeGroupTreeNodes("", 0, true)}</div>`;
 }
 
 function initProjectDatePickers(root = document) {
@@ -302,7 +315,7 @@ function renderGroups() {
     const hasChildren = hasChildGroups(group.id);
     const collapsed = state.collapsedGroupIds.has(group.id);
     const toggleTitle = collapsed ? "展开子素材组" : "收起子素材组";
-    const toggleIcon = collapsed ? "›" : "⌄";
+    const toggleIcon = collapsed ? "▶" : "▼";
     const canManage = canManageGroup(group.id);
     const actionsHtml = canManage ? `<span class="group-actions"><i data-group-menu="${group.id}" title="素材组操作">...</i><i data-delete-group="${group.id}" title="删除素材组">×</i></span>` : "";
     return `
@@ -1838,15 +1851,25 @@ function bindTreeToggleEvents(scope) {
   scope?.querySelectorAll("[data-toggle-tree]").forEach((toggle) => toggle.addEventListener("click", (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const collapsed = toggle.textContent.trim() !== "+";
-    toggle.textContent = collapsed ? "+" : "−";
-    applyTreeToggle(toggle, collapsed);
+    const isExpanded = toggle.classList.contains("expanded");
+    toggle.classList.toggle("expanded", !isExpanded);
+    applyTreeToggle(toggle, isExpanded);
   }));
 }
 
 function applyTreeToggle(toggle, collapsed) {
-  const parent = toggle.closest(".user-org-node-wrap, .permission-tree-group, .permission-edit-group");
+  const parent = toggle.closest(".user-org-node-wrap, .permission-tree-group, .permission-edit-group, .home-group-tree-node, .tag-parent-tree-node");
   if (!parent) return;
+  if (parent.classList.contains("home-group-tree-node")) {
+    const children = parent.querySelector(".home-group-tree-children");
+    if (children) children.classList.toggle("expanded", !collapsed);
+    return;
+  }
+  if (parent.classList.contains("tag-parent-tree-node")) {
+    const children = parent.querySelector(".tag-parent-tree-children");
+    if (children) children.classList.toggle("expanded", !collapsed);
+    return;
+  }
   const directChildren = [...parent.children].slice(1);
   if (toggle.closest(".permission-edit-node")) {
     let next = toggle.closest(".permission-edit-node").nextElementSibling;
@@ -1942,7 +1965,7 @@ function renderUserManageOrgTree() {
     const children = childOrgs.map((child) => renderNode(child, depth + 1)).join("");
     return `<div class="user-org-node-wrap">
       <button class="user-org-node ${state.userManageOrgId === org.id ? "active" : ""}" data-user-org="${escapeAttr(org.id)}" type="button" style="--depth:${depth}">
-        ${childOrgs.length ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}
+        ${childOrgs.length ? `<span class="tree-expand-btn" data-toggle-tree>▶</span>` : `<span class="tree-expand-placeholder"></span>`}
         <span class="user-org-name">${escapeHtml(org.name)}</span>
       </button>
       ${children}
@@ -2122,11 +2145,11 @@ function renderMenuPermissionTree() {
   return groups.map((group) => {
     const nodes = pageMenus.filter((menu) => menu.group === group).map((menu) => `
       <button class="permission-tree-node ${state.permissionMenuId === menu.id ? "active" : ""}" data-select-permission-menu="${escapeAttr(menu.id)}" type="button">
-        <span class="tree-toggle placeholder"></span><span>${escapeHtml(menu.label)}</span>
+        <span class="tree-expand-placeholder"></span><span>${escapeHtml(menu.label)}</span>
       </button>
     `).join("");
     return `<div class="permission-tree-group">
-      <button class="permission-tree-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      <button class="permission-tree-group-title as-button" data-toggle-tree type="button"><span class="tree-expand-btn">▶</span>${escapeHtml(group)}</button>
       ${nodes}
     </div>`;
   }).join("");
@@ -2139,12 +2162,12 @@ function renderSubjectPermissionTree() {
     const orgUsers = users.filter((user) => user.organizationId === org.id);
     const userNodes = orgUsers.map((user) => `
       <button class="permission-tree-node child ${state.permissionSubjectType === "user" && state.permissionSubjectId === user.id ? "active" : ""}" data-select-permission-subject="user" data-subject-id="${escapeAttr(user.id)}" type="button">
-        <span class="tree-toggle placeholder"></span><span>${escapeHtml(user.username)} / ${escapeHtml(user.name)}</span>
+        <span class="tree-expand-placeholder"></span><span>${escapeHtml(user.username)} / ${escapeHtml(user.name)}</span>
       </button>
     `).join("");
     return `<div class="permission-tree-group">
       <button class="permission-tree-node org ${state.permissionSubjectType === "organization" && state.permissionSubjectId === org.id ? "active" : ""}" data-select-permission-subject="organization" data-subject-id="${escapeAttr(org.id)}" type="button">
-        ${orgUsers.length ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}<span>${escapeHtml(org.name)}</span>
+        ${orgUsers.length ? `<span class="tree-expand-btn" data-toggle-tree>▶</span>` : `<span class="tree-expand-placeholder"></span>`}<span>${escapeHtml(org.name)}</span>
       </button>
       ${userNodes || (!orgUsers.length ? `<div class="permission-tree-empty">暂无成员</div>` : "")}
     </div>`;
@@ -2255,14 +2278,14 @@ function renderUserPermissionViewTree(user) {
     const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const result = getUserMenuPermissionSources(user, menu.id);
       return `<div class="permission-edit-node permission-view-node depth-1">
-        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <div class="permission-edit-name"><span class="tree-expand-placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
         <span>${result.visible ? "是" : "否"}</span>
         <span>${result.editable ? "是" : "否"}</span>
         <span class="permission-source-text">${escapeHtml(result.sources.join("、") || "-")}</span>
       </div>`;
     }).join("");
     return `<div class="permission-edit-group">
-      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-expand-btn">▶</span>${escapeHtml(group)}</button>
       ${menuRows}
     </div>`;
   }).join("");
@@ -2368,7 +2391,7 @@ function renderPermissionEditTreeRow(type, target, menuId, depth = 0, toggleKey 
   const permission = getSubjectPermissions(type, target.id)[menuId] || {};
   const name = type === "user" ? `${target.username} / ${target.name}` : target.name;
   return `<div class="permission-edit-node depth-${depth}" data-permission-row data-target-type="${type}" data-target-id="${escapeAttr(target.id)}" data-menu-id="${escapeAttr(menuId)}">
-    <div class="permission-edit-name">${toggleKey ? `<span class="tree-toggle" data-toggle-tree>−</span>` : `<span class="tree-toggle placeholder"></span>`}<strong>${escapeHtml(name)}</strong><small>${type === "user" ? "个人" : "组织"}</small></div>
+    <div class="permission-edit-name">${toggleKey ? `<span class="tree-expand-btn" data-toggle-tree>▶</span>` : `<span class="tree-expand-placeholder"></span>`}<strong>${escapeHtml(name)}</strong><small>${type === "user" ? "个人" : "组织"}</small></div>
     <label class="permission-check"><input data-permission-level="visible" type="checkbox" ${permission.visible ? "checked" : ""} /> 可读</label>
     <label class="permission-check"><input data-permission-level="editable" type="checkbox" ${permission.editable ? "checked" : ""} /> 可写</label>
   </div>`;
@@ -2397,13 +2420,13 @@ function renderSubjectPermissionEditTree(subjectType, subjectId) {
     const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const permission = permissions[menu.id] || {};
       return `<div class="permission-edit-node depth-1" data-permission-row data-target-type="${escapeAttr(subjectType)}" data-target-id="${escapeAttr(subjectId)}" data-menu-id="${escapeAttr(menu.id)}">
-        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <div class="permission-edit-name"><span class="tree-expand-placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
         <label class="permission-check"><input data-permission-level="visible" type="checkbox" ${permission.visible ? "checked" : ""} /> 可读</label>
         <label class="permission-check"><input data-permission-level="editable" type="checkbox" ${permission.editable ? "checked" : ""} /> 可写</label>
       </div>`;
     }).join("");
     return `<div class="permission-edit-group">
-      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-expand-btn">▶</span>${escapeHtml(group)}</button>
       ${menuRows}
     </div>`;
   }).join("");
@@ -2625,13 +2648,13 @@ function openPermissionManageModal(roleId) {
     const menuRows = pageMenus.filter((menu) => menu.group === group).map((menu) => {
       const permission = role.permissions?.[menu.id] || {};
       return `<div class="permission-edit-node depth-1" data-role-permission-row>
-        <div class="permission-edit-name"><span class="tree-toggle placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
+        <div class="permission-edit-name"><span class="tree-expand-placeholder"></span><strong>${escapeHtml(menu.label)}</strong><small>菜单</small></div>
         <label class="permission-check"><input data-role-permission-level="visible" type="checkbox" name="${escapeAttr(menu.id)}_visible" ${permission.visible ? "checked" : ""} /> 可读</label>
         <label class="permission-check"><input data-role-permission-level="editable" type="checkbox" name="${escapeAttr(menu.id)}_editable" ${permission.editable ? "checked" : ""} /> 可写</label>
       </div>`;
     }).join("");
     return `<div class="permission-edit-group">
-      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-toggle">−</span>${escapeHtml(group)}</button>
+      <button class="permission-edit-group-title as-button" data-toggle-tree type="button"><span class="tree-expand-btn">▶</span>${escapeHtml(group)}</button>
       ${menuRows}
     </div>`;
   }).join("");
@@ -2830,12 +2853,22 @@ function getTagSummary() {
   // Count tag usage from assets
   db.assets.filter((asset) => !getAssetStatusConfig().deletedCodes.includes(asset.assetStatus)).forEach((asset) => {
     (asset.customTags || []).forEach((t) => {
-      const n = (typeof t === "object" ? (t.name || t.tag || "") : String(t || "")).trim();
-      if (n) businessTags.set(n, (businessTags.get(n) || 0) + 1);
+      const raw = (typeof t === "object" ? (t.name || t.tag || "") : String(t || "")).trim();
+      if (!raw) return;
+      const tagRecord = getTagRecord(raw, 1);
+      const n = tagRecord ? tagRecord.tagName : raw;
+      if (n && !n.startsWith("biz_") && !n.startsWith("ai_")) {
+        businessTags.set(n, (businessTags.get(n) || 0) + 1);
+      }
     });
     (asset.aiTags || []).forEach((t) => {
-      const n = (typeof t === "object" ? (t.name || t.tag || "") : String(t || "")).trim();
-      if (n) aiTags.set(n, (aiTags.get(n) || 0) + 1);
+      const raw = (typeof t === "object" ? (t.name || t.tag || "") : String(t || "")).trim();
+      if (!raw) return;
+      const tagRecord = getTagRecord(raw, 2);
+      const n = tagRecord ? tagRecord.tagName : raw;
+      if (n && !n.startsWith("biz_") && !n.startsWith("ai_")) {
+        aiTags.set(n, (aiTags.get(n) || 0) + 1);
+      }
     });
   });
 
@@ -3180,14 +3213,37 @@ function sortTags(sortBy) {
   }
 }
 
+function renderTagParentTree(tagType, excludeName = "", selectedParentId = "") {
+  const tags = (db.tags || []).filter(t => typeof t === "object" && t !== null)
+    .filter(t => (t.tagType ?? (t.system ? 2 : 1)) === tagType)
+    .filter(t => (t.tagName || t.name || "") !== excludeName);
+  
+  const buildTree = (parentId, depth) => {
+    const children = tags.filter(t => (t.parentId || t.parent_id || 0) === parentId);
+    if (!children.length) return "";
+    return `<div class="tag-parent-tree-children">${children.map(tag => {
+      const tagName = tag.tagName || tag.name || "";
+      const hasChildren = tags.some(t => (t.parentId || t.parent_id || 0) === tag.id);
+      const isSelected = String(tagName) === String(selectedParentId) || String(tag.id) === String(selectedParentId);
+      const toggleIcon = hasChildren ? `<span class="tree-expand-btn" data-toggle-tree>▶</span>` : `<span class="tree-expand-placeholder"></span>`;
+      const childNodes = hasChildren ? buildTree(tag.id, depth + 1) : "";
+      return `<div class="tag-parent-tree-node" style="--depth:${depth}">
+        <div class="tag-parent-option ${isSelected ? "selected" : ""}" data-parent-id="${escapeAttr(tagName)}">
+          ${toggleIcon}${escapeHtml(tagName)}
+        </div>
+        ${childNodes}
+      </div>`;
+    }).join("")}</div>`;
+  };
+  
+  return `<div class="tag-parent-option" data-parent-id="">无（顶级标签）</div>${buildTree(0, 0)}`;
+}
+
 function updateAddTagParentOptions() {
   const type = document.querySelector("#addTagType")?.value;
   const tagType = parseInt(type || "1");
-  const parentNames = (db.tags || [])
-    .filter(t => typeof t === "object" && t !== null)
-    .filter(t => (t.tagType ?? (t.system ? 2 : 1)) === tagType)
-    .map(t => t.tagName || t.name || "").filter(Boolean);
-  document.querySelector("#addTagParentId").innerHTML = `<option value="">无（顶级标签）</option>${parentNames.map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join("")}`;
+  document.querySelector("#addTagParentTree").innerHTML = renderTagParentTree(tagType);
+  bindTagParentTreeEvents("#addTagParentTree", "#addTagParentId");
 }
 
 function openAddTagModal() {
@@ -3309,13 +3365,30 @@ function updateEditTagParentOptions(tagName) {
   const type = document.querySelector("#editTagType")?.value;
   const tagType = parseInt(type || "1");
   const tag = (db.tags || []).find(t => (t.tagName || t.name || "") === tagName);
-  const parentNames = (db.tags || [])
-    .filter(t => typeof t === "object" && t !== null)
-    .filter(t => (t.tagType ?? (t.system ? 2 : 1)) === tagType)
-    .map(t => t.tagName || t.name || "").filter(Boolean)
-    .filter(n => n !== tagName);
-  const parentId = tag ? tag.parentId : "";
-  document.querySelector("#editTagParentId").innerHTML = `<option value="">无（顶级标签）</option>${parentNames.map(n => `<option value="${escapeAttr(n)}" ${n === parentId ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}`;
+  const parentId = tag ? (tag.parentId || tag.parent_id || "") : "";
+  document.querySelector("#editTagParentTree").innerHTML = renderTagParentTree(tagType, tagName, parentId);
+  bindTagParentTreeEvents("#editTagParentTree", "#editTagParentId");
+}
+
+function bindTagParentTreeEvents(treeSelector, inputSelector) {
+  const tree = document.querySelector(treeSelector);
+  if (!tree) return;
+  tree.querySelectorAll("[data-toggle-tree]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const node = btn.closest(".tag-parent-tree-node");
+      const children = node?.querySelector(".tag-parent-tree-children");
+      if (children) children.classList.toggle("expanded");
+      btn.classList.toggle("expanded");
+    });
+  });
+  tree.querySelectorAll(".tag-parent-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      tree.querySelectorAll(".tag-parent-option").forEach(o => o.classList.remove("selected"));
+      opt.classList.add("selected");
+      document.querySelector(inputSelector)?.setAttribute("value", opt.dataset.parentId || "");
+    });
+  });
 }
 
 function openEditTagModal(oldName) {

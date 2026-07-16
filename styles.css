@@ -293,10 +293,15 @@ button {
   justify-content: center;
   width: 16px;
   height: 16px;
-  border: 1px solid #b8c2cc;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1;
+  font-size: 10px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.nav-expand.expanded {
+  transform: rotate(90deg);
 }
 
 .nav-tree-children {
@@ -909,18 +914,77 @@ h1 {
   padding: 8px;
 }
 
+.home-group-tree {
+  padding: 4px;
+}
+
+.home-group-tree-node {
+  position: relative;
+}
+
+.home-group-tree-children {
+  display: none;
+  padding-left: 0;
+}
+
+.home-group-tree-children.expanded {
+  display: block;
+}
+
 .home-group-option {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 34px;
   border-radius: 5px;
-  padding: 0 8px 0 calc(8px + var(--depth, 0) * 22px);
+  padding: 0 8px 0 calc(8px + var(--depth, 0) * 16px);
   font-weight: 700;
 }
 
 .home-group-option:hover {
   background: var(--teal-soft);
+}
+
+.tag-parent-tree {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  padding: 4px;
+}
+
+.tag-parent-tree-node {
+  position: relative;
+}
+
+.tag-parent-tree-children {
+  display: none;
+  padding-left: 0;
+}
+
+.tag-parent-tree-children.expanded {
+  display: block;
+}
+
+.tag-parent-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  padding-left: calc(8px + var(--depth, 0) * 16px);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.tag-parent-option:hover {
+  background: var(--teal-soft);
+}
+
+.tag-parent-option.selected {
+  background: var(--teal);
+  color: #fff;
 }
 
 .bulk-bar {
@@ -1915,23 +1979,6 @@ h1 {
   height: 1px;
   margin-right: 6px;
   background: #b8c2cc;
-}
-
-.tree-toggle {
-  display: inline-grid;
-  place-items: center;
-  width: 14px;
-  height: 14px;
-  margin-right: 8px;
-  border: 1px solid #aeb8c2;
-  color: #52616f;
-  font-size: 12px;
-  line-height: 1;
-}
-
-.tree-toggle.placeholder {
-  border-color: transparent;
-  color: transparent;
 }
 
 .permission-tree-empty {
